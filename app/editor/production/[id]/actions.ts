@@ -4,7 +4,15 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-function refreshProductionPages(
+const EDITOR_ROLES = [
+    "SUPER_ADMIN",
+    "ADMIN",
+    "EDITOR_IN_CHIEF",
+    "MANAGING_EDITOR",
+    "SECTION_EDITOR",
+] as const;
+
+function revalidateCopyeditingPages(
     assignmentId: string,
     submissionId: string,
 ) {
@@ -13,11 +21,50 @@ function refreshProductionPages(
         `/editor/submissions/${submissionId}/production`,
     );
     revalidatePath(`/editor/submissions/${submissionId}`);
-    revalidatePath("/editor/dashboard");
-    revalidatePath("/copyeditor/dashboard");
     revalidatePath(
         `/copyeditor/assignments/${assignmentId}`,
     );
+    revalidatePath("/copyeditor/dashboard");
+    revalidatePath("/editor/dashboard");
+}
+
+async function verifyEditor(
+    editorId: string,
+    journalId: string,
+) {
+    const editor = await prisma.user.findUnique({
+        where: {
+            id: editorId,
+        },
+        select: {
+            id: true,
+            isActive: true,
+            roles: {
+                where: {
+                    journalId,
+                    role: {
+                        in: [...EDITOR_ROLES],
+                    },
+                },
+                select: {
+                    id: true,
+                    role: true,
+                },
+            },
+        },
+    });
+
+    if (!editor || !editor.isActive) {
+        throw new Error(
+            "The editor account does not exist or is inactive.",
+        );
+    }
+
+    if (editor.roles.length === 0) {
+        throw new Error(
+            "This user does not have editorial permission for the journal.",
+        );
+    }
 }
 
 export async function approveCopyediting(
@@ -55,29 +102,34 @@ export async function approveCopyediting(
                     select: {
                         id: true,
                         title: true,
-                        status: true,
+                        journalId: true,
                     },
                 },
                 files: {
                     where: {
                         fileType: "COPYEDITED_MANUSCRIPT",
                     },
-                    orderBy: {
-                        versionNumber: "desc",
-                    },
+                    orderBy: [
+                        {
+                            versionNumber: "desc",
+                        },
+                        {
+                            createdAt: "desc",
+                        },
+                    ],
                 },
             },
         });
 
     if (!assignment) {
         throw new Error(
-            "Copyediting assignment not found.",
+            "Copyediting assignment was not found.",
         );
     }
 
     if (assignment.stage !== "COPYEDITING") {
         throw new Error(
-            "This is not a copyediting assignment.",
+            "This production assignment is not a copyediting assignment.",
         );
     }
 
@@ -89,24 +141,19 @@ export async function approveCopyediting(
 
     if (assignment.files.length === 0) {
         throw new Error(
-            "No copyedited manuscript file was submitted.",
+            "No copyedited manuscript was submitted.",
         );
     }
 
+    await verifyEditor(
+        editorId,
+        assignment.submission.journalId,
+    );
+
     const latestFile = assignment.files[0];
+    const completedAt = new Date();
 
     await prisma.$transaction(async (tx) => {
-        await tx.productionAssignment.update({
-            where: {
-                id: assignmentId,
-            },
-            data: {
-                status: "APPROVED",
-                approvedAt: new Date(),
-                completedAt: new Date(),
-            },
-        });
-
         await tx.productionFile.updateMany({
             where: {
                 productionAssignmentId: assignmentId,
@@ -123,6 +170,17 @@ export async function approveCopyediting(
             },
             data: {
                 isFinal: true,
+            },
+        });
+
+        await tx.productionAssignment.update({
+            where: {
+                id: assignmentId,
+            },
+            data: {
+                status: "APPROVED",
+                approvedAt: completedAt,
+                completedAt,
             },
         });
 
@@ -168,13 +226,13 @@ export async function approveCopyediting(
                     submissionId: assignment.submissionId,
                     copyeditorId: assignment.assigneeId,
                     round: assignment.round,
-                    finalProductionFileId: latestFile.id,
+                    finalFileId: latestFile.id,
                 },
             },
         });
     });
 
-    refreshProductionPages(
+    revalidateCopyeditingPages(
         assignmentId,
         assignment.submissionId,
     );
@@ -215,7 +273,7 @@ export async function returnCopyeditingForChanges(
 
     if (!correctionNote) {
         throw new Error(
-            "Explain the corrections required.",
+            "Describe the corrections required.",
         );
     }
 
@@ -249,6 +307,7 @@ export async function returnCopyeditingForChanges(
                     select: {
                         id: true,
                         title: true,
+                        journalId: true,
                     },
                 },
             },
@@ -256,13 +315,13 @@ export async function returnCopyeditingForChanges(
 
     if (!assignment) {
         throw new Error(
-            "Copyediting assignment not found.",
+            "Copyediting assignment was not found.",
         );
     }
 
     if (assignment.stage !== "COPYEDITING") {
         throw new Error(
-            "This is not a copyediting assignment.",
+            "This production assignment is not a copyediting assignment.",
         );
     }
 
@@ -271,6 +330,11 @@ export async function returnCopyeditingForChanges(
             "Only submitted copyediting work can be returned.",
         );
     }
+
+    await verifyEditor(
+        editorId,
+        assignment.submission.journalId,
+    );
 
     await prisma.$transaction(async (tx) => {
         await tx.productionAssignment.update({
@@ -286,6 +350,16 @@ export async function returnCopyeditingForChanges(
                 submittedAt: null,
                 approvedAt: null,
                 completedAt: null,
+            },
+        });
+
+        await tx.productionFile.updateMany({
+            where: {
+                productionAssignmentId: assignmentId,
+                fileType: "COPYEDITED_MANUSCRIPT",
+            },
+            data: {
+                isFinal: false,
             },
         });
 
@@ -320,14 +394,13 @@ export async function returnCopyeditingForChanges(
                     submissionId: assignment.submissionId,
                     copyeditorId: assignment.assigneeId,
                     round: assignment.round,
-                    correctionDeadline:
-                        dueDate?.toISOString() || null,
+                    dueDate: dueDate?.toISOString() || null,
                 },
             },
         });
     });
 
-    refreshProductionPages(
+    revalidateCopyeditingPages(
         assignmentId,
         assignment.submissionId,
     );
