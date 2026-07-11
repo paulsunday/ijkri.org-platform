@@ -105,6 +105,21 @@ export default async function EditorSubmissionDetailsPage({
           >
             Assign Reviewers
           </Link>
+
+          <Link
+            href={`/editor/submissions/${submission.id}/revisions`}
+            className="inline-block rounded-lg bg-purple-700 px-5 py-3 font-semibold text-white hover:bg-purple-800"
+          >
+            Revision History
+          </Link>
+          
+          <Link
+            href={`/editor/submissions/${submission.id}/review-rounds`}
+            className="inline-block rounded-lg bg-cyan-700 px-5 py-3 font-semibold text-white hover:bg-cyan-800"
+          >
+            Review-Round Summary
+          </Link>
+
         </div>
 
         <div className="mt-8">
