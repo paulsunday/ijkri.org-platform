@@ -1,5 +1,7 @@
-import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+
+import { requireRole } from "@/lib/auth/permissions";
+import { prisma } from "@/lib/prisma";
 
 function formatStatus(value: string) {
     return value
@@ -48,15 +50,15 @@ function statusClass(status: string) {
 }
 
 export default async function CopyeditorDashboardPage() {
-    /*
-     * Authentication will later determine the currently logged-in
-     * copyeditor. For the present development stage, this page lists
-     * all COPYEDITING assignments so the workflow can be tested.
-     */
+
+    const copyeditor =
+        await requireRole("COPYEDITOR");
     const assignments =
         await prisma.productionAssignment.findMany({
+
             where: {
                 stage: "COPYEDITING",
+                assigneeId: copyeditor.id,
             },
 
             include: {

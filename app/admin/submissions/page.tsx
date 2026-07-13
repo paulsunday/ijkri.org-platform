@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { requireAnyRole } from "@/lib/auth/permissions";
+import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 
 export default async function AdminSubmissionsPage() {
+  await requireAnyRole(ADMIN_ROLES);
+
   const submissions = await prisma.submission.findMany({
     orderBy: { createdAt: "desc" },
     include: {

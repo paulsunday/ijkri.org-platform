@@ -1,47 +1,215 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
+import { requireAnyActionRole } from "@/lib/auth/permissions";
+import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
+import { prisma } from "@/lib/prisma";
+
+async function verifyEditorialPermission(
+  userId: string,
+  journalId: string,
+) {
+  const role = await prisma.userJournalRole.findFirst({
+    where: {
+      userId,
+      journalId,
+      role: {
+        in: EDITORIAL_ROLES,
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!role) {
+    throw new Error(
+      "You do not have permission to manage this submission.",
+    );
+  }
+}
+
 export async function sendToReview(formData: FormData) {
-  const submissionId = String(formData.get("submissionId") || "");
+  const editor = await requireAnyActionRole(EDITORIAL_ROLES);
 
-  await prisma.submission.update({
-    where: { id: submissionId },
-    data: {
-      status: "UNDER_PEER_REVIEW",
+  const submissionId = String(
+    formData.get("submissionId") || "",
+  ).trim();
+
+  if (!submissionId) {
+    throw new Error("Submission ID is missing.");
+  }
+
+  const submission = await prisma.submission.findUnique({
+    where: {
+      id: submissionId,
+    },
+    select: {
+      id: true,
+      journalId: true,
     },
   });
 
-  revalidatePath(`/editor/submissions/${submissionId}`);
-  revalidatePath(`/editor/submissions/${submissionId}/reviewers`);
+  if (!submission) {
+    throw new Error("Submission not found.");
+  }
+
+  await verifyEditorialPermission(
+    editor.id,
+    submission.journalId,
+  );
+
+  await prisma.$transaction(async (tx) => {
+    await tx.submission.update({
+      where: {
+        id: submissionId,
+      },
+      data: {
+        status: "UNDER_PEER_REVIEW",
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        userId: editor.id,
+        action: "UPDATE",
+        entity: "Submission",
+        entityId: submissionId,
+        metadata: {
+          event: "SEND_TO_REVIEW",
+        },
+      },
+    });
+  });
+
+  revalidatePath(
+    `/editor/submissions/${submissionId}`,
+  );
+  revalidatePath(
+    `/editor/submissions/${submissionId}/reviewers`,
+  );
   revalidatePath("/admin/submissions");
 }
 
-export async function requestRevision(formData: FormData) {
-  const submissionId = String(formData.get("submissionId") || "");
+export async function requestRevision(
+  formData: FormData,
+) {
+  const editor = await requireAnyActionRole(EDITORIAL_ROLES);
 
-  await prisma.submission.update({
-    where: { id: submissionId },
-    data: {
-      status: "REVISION_REQUIRED",
+  const submissionId = String(
+    formData.get("submissionId") || "",
+  ).trim();
+
+  if (!submissionId) {
+    throw new Error("Submission ID is missing.");
+  }
+
+  const submission = await prisma.submission.findUnique({
+    where: {
+      id: submissionId,
+    },
+    select: {
+      id: true,
+      journalId: true,
     },
   });
 
-  revalidatePath(`/editor/submissions/${submissionId}`);
+  if (!submission) {
+    throw new Error("Submission not found.");
+  }
+
+  await verifyEditorialPermission(
+    editor.id,
+    submission.journalId,
+  );
+
+  await prisma.$transaction(async (tx) => {
+    await tx.submission.update({
+      where: {
+        id: submissionId,
+      },
+      data: {
+        status: "REVISION_REQUIRED",
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        userId: editor.id,
+        action: "UPDATE",
+        entity: "Submission",
+        entityId: submissionId,
+        metadata: {
+          event: "REQUEST_REVISION",
+        },
+      },
+    });
+  });
+
+  revalidatePath(
+    `/editor/submissions/${submissionId}`,
+  );
   revalidatePath("/admin/submissions");
 }
 
-export async function rejectSubmission(formData: FormData) {
-  const submissionId = String(formData.get("submissionId") || "");
+export async function rejectSubmission(
+  formData: FormData,
+) {
+  const editor = await requireAnyActionRole(EDITORIAL_ROLES);
 
-  await prisma.submission.update({
-    where: { id: submissionId },
-    data: {
-      status: "REJECTED",
+  const submissionId = String(
+    formData.get("submissionId") || "",
+  ).trim();
+
+  if (!submissionId) {
+    throw new Error("Submission ID is missing.");
+  }
+
+  const submission = await prisma.submission.findUnique({
+    where: {
+      id: submissionId,
+    },
+    select: {
+      id: true,
+      journalId: true,
     },
   });
 
-  revalidatePath(`/editor/submissions/${submissionId}`);
+  if (!submission) {
+    throw new Error("Submission not found.");
+  }
+
+  await verifyEditorialPermission(
+    editor.id,
+    submission.journalId,
+  );
+
+  await prisma.$transaction(async (tx) => {
+    await tx.submission.update({
+      where: {
+        id: submissionId,
+      },
+      data: {
+        status: "REJECTED",
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        userId: editor.id,
+        action: "UPDATE",
+        entity: "Submission",
+        entityId: submissionId,
+        metadata: {
+          event: "REJECT_SUBMISSION",
+        },
+      },
+    });
+  });
+
+  revalidatePath(
+    `/editor/submissions/${submissionId}`,
+  );
   revalidatePath("/admin/submissions");
 }

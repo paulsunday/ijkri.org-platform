@@ -1,4 +1,9 @@
-export default function AdminJournalsPage() {
+import { requireAnyRole } from "@/lib/auth/permissions";
+import { ADMIN_ROLES } from "@/lib/auth/role-groups";
+
+export default async function AdminJournalsPage() {
+  await requireAnyRole(ADMIN_ROLES);
+
   return (
     <main className="mx-auto max-w-7xl px-6 py-12">
       <div className="flex items-start justify-between gap-6">
@@ -6,9 +11,11 @@ export default function AdminJournalsPage() {
           <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">
             Journal Management
           </p>
+
           <h1 className="mt-2 text-4xl font-bold text-slate-950">
             Journals
           </h1>
+
           <p className="mt-4 max-w-3xl text-slate-600">
             Manage all journals published by Innovare Academic Publishing.
           </p>
@@ -21,7 +28,9 @@ export default function AdminJournalsPage() {
 
       <section className="mt-10 rounded-xl border bg-white">
         <div className="border-b px-6 py-4">
-          <h2 className="font-bold">Registered Journals</h2>
+          <h2 className="font-bold">
+            Registered Journals
+          </h2>
         </div>
 
         <div className="p-6">
@@ -29,9 +38,11 @@ export default function AdminJournalsPage() {
             <h3 className="text-lg font-bold">
               International Journal of Advanced Research and Innovation
             </h3>
+
             <p className="mt-2 text-sm text-slate-600">
-              Short name: IJARI · Status: Active · Publisher: Innovare Academic
-              Publishing
+              Short name: IJARI · Status: Active · Publisher:
+              {" "}
+              Innovare Academic Publishing
             </p>
           </div>
         </div>

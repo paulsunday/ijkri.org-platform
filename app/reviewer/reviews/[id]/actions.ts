@@ -2,6 +2,8 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { requireAnyActionRole } from "@/lib/auth/permissions";
+import { REVIEWER_ROLES } from "@/lib/auth/role-groups";
 
 function refreshReviewPages(
   assignmentId: string,
@@ -23,6 +25,7 @@ function refreshReviewPages(
 }
 
 export async function acceptReview(formData: FormData) {
+  const reviewer = await requireAnyActionRole(REVIEWER_ROLES);
   const assignmentId = String(
     formData.get("assignmentId") || "",
   ).trim();
@@ -32,9 +35,10 @@ export async function acceptReview(formData: FormData) {
   }
 
   const assignment =
-    await prisma.reviewAssignment.findUnique({
+    await prisma.reviewAssignment.findFirst({
       where: {
         id: assignmentId,
+        reviewerId: reviewer.id,
       },
       include: {
         submission: {
@@ -71,7 +75,7 @@ export async function acceptReview(formData: FormData) {
 
     await tx.activityLog.create({
       data: {
-        userId: assignment.reviewerId,
+        userId: reviewer.id,
         action: "UPDATE",
         entity: "ReviewAssignment",
         entityId: assignmentId,
@@ -91,6 +95,7 @@ export async function acceptReview(formData: FormData) {
 }
 
 export async function declineReview(formData: FormData) {
+  const reviewer = await requireAnyActionRole(REVIEWER_ROLES);
   const assignmentId = String(
     formData.get("assignmentId") || "",
   ).trim();
@@ -100,9 +105,10 @@ export async function declineReview(formData: FormData) {
   }
 
   const assignment =
-    await prisma.reviewAssignment.findUnique({
+    await prisma.reviewAssignment.findFirst({
       where: {
         id: assignmentId,
+        reviewerId: reviewer.id,
       },
       include: {
         submission: {
@@ -164,7 +170,7 @@ export async function declineReview(formData: FormData) {
 
     await tx.activityLog.create({
       data: {
-        userId: assignment.reviewerId,
+        userId: reviewer.id,
         action: "UPDATE",
         entity: "ReviewAssignment",
         entityId: assignmentId,
@@ -184,6 +190,7 @@ export async function declineReview(formData: FormData) {
 }
 
 export async function submitReview(formData: FormData) {
+  const reviewer = await requireAnyActionRole(REVIEWER_ROLES);
   const assignmentId = String(
     formData.get("assignmentId") || "",
   ).trim();
@@ -240,9 +247,10 @@ export async function submitReview(formData: FormData) {
   }
 
   const assignment =
-    await prisma.reviewAssignment.findUnique({
+    await prisma.reviewAssignment.findFirst({
       where: {
         id: assignmentId,
+        reviewerId: reviewer.id,
       },
       include: {
         submission: {
@@ -288,10 +296,10 @@ export async function submitReview(formData: FormData) {
         score,
         recommendation:
           recommendation as
-            | "ACCEPT"
-            | "MINOR_REVISION"
-            | "MAJOR_REVISION"
-            | "REJECT",
+          | "ACCEPT"
+          | "MINOR_REVISION"
+          | "MAJOR_REVISION"
+          | "REJECT",
         commentsToAuthor,
         commentsToEditor:
           commentsToEditor || null,
@@ -325,7 +333,7 @@ export async function submitReview(formData: FormData) {
 
     await tx.activityLog.create({
       data: {
-        userId: assignment.reviewerId,
+        userId: reviewer.id,
         action: "SUBMIT_REVIEW",
         entity: "ReviewAssignment",
         entityId: assignmentId,

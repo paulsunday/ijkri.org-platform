@@ -1,0 +1,434 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+
+import { requireAnyActionRole } from "@/lib/auth/permissions";
+import { ADMIN_ROLES } from "@/lib/auth/role-groups";
+import { prisma } from "@/lib/prisma";
+
+function refreshVolumePages() {
+    revalidatePath("/admin/volumes");
+    revalidatePath("/admin/issues");
+    revalidatePath("/archives");
+    revalidatePath("/current-issue");
+}
+
+async function verifyVolumeAdminPermission(
+    administratorId: string,
+    journalId: string,
+) {
+    const permission =
+        await prisma.userJournalRole.findFirst({
+            where: {
+                userId: administratorId,
+                journalId,
+                role: {
+                    in: [...ADMIN_ROLES],
+                },
+            },
+            select: {
+                id: true,
+            },
+        });
+
+    if (!permission) {
+        throw new Error(
+            "You do not have administrative permission for this journal.",
+        );
+    }
+}
+
+export async function createVolume(
+    formData: FormData,
+) {
+    const administrator =
+        await requireAnyActionRole(ADMIN_ROLES);
+
+    const journalId = String(
+        formData.get("journalId") || "",
+    ).trim();
+
+    const number = Number(
+        formData.get("number"),
+    );
+
+    const year = Number(
+        formData.get("year"),
+    );
+
+    const title = String(
+        formData.get("title") || "",
+    ).trim();
+
+    const description = String(
+        formData.get("description") || "",
+    ).trim();
+
+    if (!journalId) {
+        throw new Error("Select a journal.");
+    }
+
+    if (!Number.isInteger(number) || number < 1) {
+        throw new Error(
+            "Volume number must be a positive whole number.",
+        );
+    }
+
+    if (
+        !Number.isInteger(year) ||
+        year < 1900 ||
+        year > 2200
+    ) {
+        throw new Error("Enter a valid volume year.");
+    }
+
+    const journal = await prisma.journal.findUnique({
+        where: {
+            id: journalId,
+        },
+        select: {
+            id: true,
+            name: true,
+            isActive: true,
+        },
+    });
+
+    if (!journal) {
+        throw new Error("Journal not found.");
+    }
+
+    await verifyVolumeAdminPermission(
+        administrator.id,
+        journalId,
+    );
+
+    if (!journal.isActive) {
+        throw new Error(
+            "A volume cannot be created for an inactive journal.",
+        );
+    }
+
+    const existingVolume =
+        await prisma.volume.findUnique({
+            where: {
+                journalId_number_year: {
+                    journalId,
+                    number,
+                    year,
+                },
+            },
+            select: {
+                id: true,
+            },
+        });
+
+    if (existingVolume) {
+        throw new Error(
+            `Volume ${number} for ${year} already exists.`,
+        );
+    }
+
+    await prisma.$transaction(async (tx) => {
+        const volume = await tx.volume.create({
+            data: {
+                journalId,
+                number,
+                year,
+                title: title || null,
+                description: description || null,
+                isPublished: false,
+            },
+        });
+
+        await tx.activityLog.create({
+            data: {
+                userId: administrator.id,
+                action: "CREATE",
+                entity: "Volume",
+                entityId: volume.id,
+                metadata: {
+                    event: "VOLUME_CREATED",
+                    journalId,
+                    journalName: journal.name,
+                    volumeNumber: number,
+                    year,
+                },
+            },
+        });
+    });
+
+    refreshVolumePages();
+}
+
+export async function updateVolume(
+    formData: FormData,
+) {
+    const administrator =
+        await requireAnyActionRole(ADMIN_ROLES);
+
+    const volumeId = String(
+        formData.get("volumeId") || "",
+    ).trim();
+
+    const title = String(
+        formData.get("title") || "",
+    ).trim();
+
+    const description = String(
+        formData.get("description") || "",
+    ).trim();
+
+    if (!volumeId) {
+        throw new Error("Volume ID is missing.");
+    }
+
+    const volume = await prisma.volume.findUnique({
+        where: {
+            id: volumeId,
+        },
+        select: {
+            id: true,
+            journalId: true,
+            title: true,
+            description: true,
+        },
+    });
+
+    if (!volume) {
+        throw new Error("Volume not found.");
+    }
+
+    await verifyVolumeAdminPermission(
+        administrator.id,
+        volume.journalId,
+    );
+
+    await prisma.$transaction(async (tx) => {
+        await tx.volume.update({
+            where: {
+                id: volumeId,
+            },
+            data: {
+                title: title || null,
+                description: description || null,
+            },
+        });
+
+        await tx.activityLog.create({
+            data: {
+                userId: administrator.id,
+                action: "UPDATE",
+                entity: "Volume",
+                entityId: volumeId,
+                metadata: {
+                    event: "VOLUME_UPDATED",
+                    journalId: volume.journalId,
+                    previousTitle: volume.title,
+                    title: title || null,
+                    previousDescription:
+                        volume.description,
+                    description:
+                        description || null,
+                },
+            },
+        });
+    });
+
+    refreshVolumePages();
+}
+
+export async function toggleVolumePublished(
+    formData: FormData,
+) {
+    const administrator =
+        await requireAnyActionRole(ADMIN_ROLES);
+
+    const volumeId = String(
+        formData.get("volumeId") || "",
+    ).trim();
+
+    if (!volumeId) {
+        throw new Error("Volume ID is missing.");
+    }
+
+    const volume = await prisma.volume.findUnique({
+        where: {
+            id: volumeId,
+        },
+        include: {
+            issues: {
+                select: {
+                    id: true,
+                    isPublished: true,
+                },
+            },
+        },
+    });
+
+    if (!volume) {
+        throw new Error("Volume not found.");
+    }
+
+    await verifyVolumeAdminPermission(
+        administrator.id,
+        volume.journalId,
+    );
+
+    if (
+        !volume.isPublished &&
+        volume.issues.length === 0
+    ) {
+        throw new Error(
+            "Create at least one issue before publishing this volume.",
+        );
+    }
+
+    if (
+        volume.isPublished &&
+        volume.issues.some(
+            (issue) => issue.isPublished,
+        )
+    ) {
+        throw new Error(
+            "A volume containing published issues cannot be unpublished.",
+        );
+    }
+
+    await prisma.$transaction(async (tx) => {
+        const updatedVolume =
+            await tx.volume.update({
+                where: {
+                    id: volumeId,
+                },
+                data: {
+                    isPublished:
+                        !volume.isPublished,
+                },
+            });
+
+        await tx.activityLog.create({
+            data: {
+                userId: administrator.id,
+                action: "UPDATE",
+                entity: "Volume",
+                entityId: volumeId,
+                metadata: {
+                    event: updatedVolume.isPublished
+                        ? "VOLUME_PUBLISHED"
+                        : "VOLUME_UNPUBLISHED",
+                    journalId: volume.journalId,
+                    previousIsPublished:
+                        volume.isPublished,
+                    isPublished:
+                        updatedVolume.isPublished,
+                },
+            },
+        });
+    });
+
+    refreshVolumePages();
+}
+
+export async function deleteVolume(
+    formData: FormData,
+) {
+    const administrator =
+        await requireAnyActionRole(ADMIN_ROLES);
+
+    const volumeId = String(
+        formData.get("volumeId") || "",
+    ).trim();
+
+    if (!volumeId) {
+        throw new Error("Volume ID is missing.");
+    }
+
+    const volume = await prisma.volume.findUnique({
+        where: {
+            id: volumeId,
+        },
+        include: {
+            issues: {
+                include: {
+                    articles: {
+                        select: {
+                            id: true,
+                        },
+                    },
+                },
+            },
+        },
+    });
+
+    if (!volume) {
+        throw new Error("Volume not found.");
+    }
+
+    await verifyVolumeAdminPermission(
+        administrator.id,
+        volume.journalId,
+    );
+
+    if (volume.isPublished) {
+        throw new Error(
+            "A published volume cannot be deleted. Unpublish it first.",
+        );
+    }
+
+    const articleCount = volume.issues.reduce(
+        (total, issue) =>
+            total + issue.articles.length,
+        0,
+    );
+
+    if (articleCount > 0) {
+        throw new Error(
+            "This volume cannot be deleted because it contains assigned articles.",
+        );
+    }
+
+    if (
+        volume.issues.some(
+            (issue) =>
+                issue.isPublished ||
+                issue.isCurrent,
+        )
+    ) {
+        throw new Error(
+            "This volume cannot be deleted while it contains a published or current issue.",
+        );
+    }
+
+    await prisma.$transaction(async (tx) => {
+        await tx.issue.deleteMany({
+            where: {
+                volumeId,
+            },
+        });
+
+        await tx.volume.delete({
+            where: {
+                id: volumeId,
+            },
+        });
+
+        await tx.activityLog.create({
+            data: {
+                userId: administrator.id,
+                action: "DELETE",
+                entity: "Volume",
+                entityId: volumeId,
+                metadata: {
+                    event: "VOLUME_DELETED",
+                    journalId: volume.journalId,
+                    volumeNumber: volume.number,
+                    year: volume.year,
+                    deletedIssueCount:
+                        volume.issues.length,
+                },
+            },
+        });
+    });
+
+    refreshVolumePages();
+}

@@ -1,42 +1,53 @@
 import Link from "next/link";
+
+import { requireAnyRole } from "@/lib/auth/permissions";
+import { REVIEWER_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 
 export default async function ReviewerDashboardPage() {
-  const reviewerEmail = "reviewer1@ijari.org";
+  const reviewer =
+    await requireAnyRole(REVIEWER_ROLES);
 
-  const reviewer = await prisma.user.findUnique({
-    where: { email: reviewerEmail },
-  });
+  const assignments =
+    await prisma.reviewAssignment.findMany({
+      where: {
+        reviewerId: reviewer.id,
+      },
 
-  const assignments = reviewer
-    ? await prisma.reviewAssignment.findMany({
-        where: { reviewerId: reviewer.id },
-        include: {
-          submission: {
-            include: {
-              journal: true,
-              author: true,
-            },
+      include: {
+        submission: {
+          include: {
+            journal: true,
+            author: true,
           },
         },
-        orderBy: { invitedAt: "desc" },
-      })
-    : [];
+      },
+
+      orderBy: {
+        invitedAt: "desc",
+      },
+    });
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-12">
-      <h1 className="text-4xl font-bold">Reviewer Dashboard</h1>
+      <h1 className="text-4xl font-bold">
+        Reviewer Dashboard
+      </h1>
 
       <p className="mt-4 text-slate-600">
         Manuscripts assigned to you for peer review.
       </p>
 
       <div className="mt-10 rounded-xl border bg-white p-6 shadow-sm">
-        <h2 className="text-2xl font-bold">My Review Invitations</h2>
+        <h2 className="text-2xl font-bold">
+          My Review Invitations
+        </h2>
 
         <div className="mt-6 space-y-4">
           {assignments.length === 0 && (
-            <p className="text-slate-500">No review assignments yet.</p>
+            <p className="text-slate-500">
+              No review assignments yet.
+            </p>
           )}
 
           {assignments.map((assignment) => (
@@ -54,7 +65,8 @@ export default async function ReviewerDashboardPage() {
               </p>
 
               <p>
-                <strong>Status:</strong> {assignment.status}
+                <strong>Status:</strong>{" "}
+                {assignment.status}
               </p>
 
               <p>

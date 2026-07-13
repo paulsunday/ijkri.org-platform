@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { requireAnyActionRole } from "@/lib/auth/permissions";
+import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
 
 const VALID_DECISIONS = [
   "REVISION_REQUIRED",
@@ -24,13 +26,12 @@ const EDITOR_ROLES = [
 export async function sendEditorialDecision(
   formData: FormData,
 ) {
+  const editor = await requireAnyActionRole(EDITORIAL_ROLES);
   const submissionId = String(
     formData.get("submissionId") || "",
   ).trim();
 
-  const editorId = String(
-    formData.get("editorId") || "",
-  ).trim();
+
 
   const decision = String(
     formData.get("decision") || "",
@@ -46,10 +47,6 @@ export async function sendEditorialDecision(
 
   if (!submissionId) {
     throw new Error("Submission ID is missing.");
-  }
-
-  if (!editorId) {
-    throw new Error("Editor ID is missing.");
   }
 
   if (!VALID_DECISIONS.includes(decision)) {
@@ -132,24 +129,24 @@ export async function sendEditorialDecision(
     );
   }
 
-  const editor = await prisma.user.findUnique({
+  const editorJournalRole = await prisma.userJournalRole.findFirst({
     where: {
-      id: editorId,
+      userId: editor.id,
+      journalId: submission.journalId,
+      role: {
+        in: [...EDITOR_ROLES],
+      },
     },
     select: {
       id: true,
-      name: true,
-      isActive: true,
-      roles: {
-        where: {
-          journalId: submission.journalId,
-        },
-        select: {
-          role: true,
-        },
-      },
     },
   });
+
+  if (!editorJournalRole) {
+    throw new Error(
+      "You do not have editorial permission for this journal.",
+    );
+  }
 
   if (!editor) {
     throw new Error("Editor account not found.");
@@ -165,7 +162,7 @@ export async function sendEditorialDecision(
     (roleRecord) =>
       EDITOR_ROLES.includes(
         roleRecord.role as
-          (typeof EDITOR_ROLES)[number],
+        (typeof EDITOR_ROLES)[number],
       ),
   );
 
@@ -204,12 +201,10 @@ export async function sendEditorialDecision(
 
   if (pendingAssignments.length > 0) {
     throw new Error(
-      `An editorial decision cannot yet be made. ${
-        pendingAssignments.length
-      } review assignment${
-        pendingAssignments.length === 1
-          ? " is"
-          : "s are"
+      `An editorial decision cannot yet be made. ${pendingAssignments.length
+      } review assignment${pendingAssignments.length === 1
+        ? " is"
+        : "s are"
       } still outstanding in review round ${currentRound}.`,
     );
   }
@@ -242,14 +237,14 @@ export async function sendEditorialDecision(
         : `A revision has been requested for your manuscript "${submission.title}".`;
 
   const authorNotificationLink =
-  `/author/submissions/${submissionId}`;
+    `/author/submissions/${submissionId}`;
 
   await prisma.$transaction(async (tx) => {
     const editorialDecision =
       await tx.editorialDecision.create({
         data: {
           submissionId,
-          editorId,
+          editorId: editor.id,
           decision,
           comments,
           revisionDeadline,
@@ -277,7 +272,7 @@ export async function sendEditorialDecision(
 
     await tx.activityLog.create({
       data: {
-        userId: editorId,
+        userId: editor.id,
         action: "MAKE_DECISION",
         entity: "EditorialDecision",
         entityId: editorialDecision.id,

@@ -1,6 +1,9 @@
-import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+
+import { requireAnyRole } from "@/lib/auth/permissions";
+import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
+import { prisma } from "@/lib/prisma";
 
 import { sendEditorialDecision } from "./actions";
 
@@ -10,13 +13,6 @@ type PageProps = {
   }>;
 };
 
-const EDITOR_ROLES = [
-  "SUPER_ADMIN",
-  "ADMIN",
-  "EDITOR_IN_CHIEF",
-  "MANAGING_EDITOR",
-  "SECTION_EDITOR",
-] as const;
 
 function formatStatus(value: string) {
   return value
@@ -67,6 +63,9 @@ function recommendationStyle(
 export default async function EditorialDecisionPage({
   params,
 }: PageProps) {
+  const editor =
+    await requireAnyRole(EDITORIAL_ROLES);
+
   const { id } = await params;
 
   const submission =
@@ -125,25 +124,23 @@ export default async function EditorialDecisionPage({
     notFound();
   }
 
-  const editor = await prisma.user.findFirst({
-    where: {
-      isActive: true,
-
-      roles: {
-        some: {
-          journalId: submission.journalId,
-
-          role: {
-            in: [...EDITOR_ROLES],
-          },
+  const editorJournalRole =
+    await prisma.userJournalRole.findFirst({
+      where: {
+        userId: editor.id,
+        journalId: submission.journalId,
+        role: {
+          in: EDITORIAL_ROLES,
         },
       },
-    },
+      select: {
+        id: true,
+      },
+    });
 
-    orderBy: {
-      createdAt: "asc",
-    },
-  });
+  if (!editorJournalRole) {
+    notFound();
+  }
 
   const currentRound =
     submission.currentReviewRound || 1;
@@ -332,7 +329,7 @@ export default async function EditorialDecisionPage({
             <p className="font-medium">
               {formatDate(
                 submission.submittedAt ??
-                  submission.createdAt,
+                submission.createdAt,
               )}
             </p>
           </div>
@@ -577,8 +574,7 @@ export default async function EditorialDecisionPage({
       )}
 
       {roundComplete &&
-        !terminalStatus &&
-        !editor && (
+        !terminalStatus && (
           <section className="rounded-xl border border-red-300 bg-red-50 p-6">
             <h2 className="font-semibold text-red-900">
               No eligible editor account found
@@ -609,11 +605,7 @@ export default async function EditorialDecisionPage({
               action={sendEditorialDecision}
               className="mt-6 space-y-6"
             >
-              <input
-                type="hidden"
-                name="submissionId"
-                value={submission.id}
-              />
+
 
               <input
                 type="hidden"

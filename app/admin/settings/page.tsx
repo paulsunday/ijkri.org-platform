@@ -1,9 +1,18 @@
-export default function AdminSettingsPage() {
+import { requireAnyRole } from "@/lib/auth/permissions";
+import { ADMIN_ROLES } from "@/lib/auth/role-groups";
+
+export default async function AdminSettingsPage() {
+  await requireAnyRole(ADMIN_ROLES);
+
   return (
-    <main className="mx-auto max-w-7xl px-6 py-12">
-      <h1 className="text-4xl font-bold">Settings</h1>
+    <main className="p-8">
+      <h1 className="text-4xl font-bold">
+        Journal Settings
+      </h1>
+
       <p className="mt-4 text-slate-600">
-        Manage publisher and journal platform settings.
+        Configure journals, publisher settings, workflow defaults,
+        publication policies, email templates, and system preferences.
       </p>
     </main>
   );

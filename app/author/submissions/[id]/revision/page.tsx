@@ -1,6 +1,10 @@
-import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+
+import { requireAnyRole } from "@/lib/auth/permissions";
+import { AUTHOR_ROLES } from "@/lib/auth/role-groups";
+import { prisma } from "@/lib/prisma";
+
 import { submitRevision } from "./actions";
 
 type PageProps = {
@@ -21,13 +25,17 @@ function formatStatus(status: string) {
 export default async function AuthorRevisionPage({
     params,
 }: PageProps) {
+    const author = await requireAnyRole(AUTHOR_ROLES);
+
     const { id } = await params;
 
     const submission =
-        await prisma.submission.findUnique({
+        await prisma.submission.findFirst({
             where: {
                 id,
+                authorId: author.id,
             },
+
             include: {
                 journal: true,
                 author: true,

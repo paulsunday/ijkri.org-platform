@@ -1,6 +1,9 @@
-import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+
+import { requireAnyRole } from "@/lib/auth/permissions";
+import { REVIEWER_ROLES } from "@/lib/auth/role-groups";
+import { prisma } from "@/lib/prisma";
 
 import {
   acceptReview,
@@ -42,13 +45,17 @@ function formatDate(
 export default async function ReviewerReviewPage({
   params,
 }: Props) {
+  const reviewer =
+    await requireAnyRole(REVIEWER_ROLES);
   const { id } = await params;
 
   const assignment =
-    await prisma.reviewAssignment.findUnique({
+    await prisma.reviewAssignment.findFirst({
       where: {
         id,
+        reviewerId: reviewer.id,
       },
+
       include: {
         reviewer: true,
 
@@ -257,64 +264,64 @@ export default async function ReviewerReviewPage({
 
             {assignment.submissionVersion
               .responseFileUrl && (
-              <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4">
-                <div>
-                  <p className="font-semibold">
-                    Response to Reviewers
-                  </p>
+                <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4">
+                  <div>
+                    <p className="font-semibold">
+                      Response to Reviewers
+                    </p>
 
-                  <p className="mt-1 text-sm text-gray-600">
-                    {assignment.submissionVersion
-                      .responseFileName ||
-                      "Response document"}
-                  </p>
+                    <p className="mt-1 text-sm text-gray-600">
+                      {assignment.submissionVersion
+                        .responseFileName ||
+                        "Response document"}
+                    </p>
+                  </div>
+
+                  <a
+                    href={
+                      assignment.submissionVersion
+                        .responseFileUrl
+                    }
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-lg border border-blue-700 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"
+                  >
+                    Download Response
+                  </a>
                 </div>
-
-                <a
-                  href={
-                    assignment.submissionVersion
-                      .responseFileUrl
-                  }
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-lg border border-blue-700 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"
-                >
-                  Download Response
-                </a>
-              </div>
-            )}
+              )}
 
             {assignment.submissionVersion
               .coverLetter && (
-              <div>
-                <p className="font-semibold">
-                  Revision Cover Letter
-                </p>
+                <div>
+                  <p className="font-semibold">
+                    Revision Cover Letter
+                  </p>
 
-                <div className="mt-2 whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm">
-                  {
-                    assignment.submissionVersion
-                      .coverLetter
-                  }
+                  <div className="mt-2 whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm">
+                    {
+                      assignment.submissionVersion
+                        .coverLetter
+                    }
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {assignment.submissionVersion
               .authorNotes && (
-              <div>
-                <p className="font-semibold">
-                  Author Notes
-                </p>
+                <div>
+                  <p className="font-semibold">
+                    Author Notes
+                  </p>
 
-                <div className="mt-2 whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm">
-                  {
-                    assignment.submissionVersion
-                      .authorNotes
-                  }
+                  <div className="mt-2 whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm">
+                    {
+                      assignment.submissionVersion
+                        .authorNotes
+                    }
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
         ) : assignment.submission.files.length ===
           0 ? (
@@ -363,7 +370,7 @@ export default async function ReviewerReviewPage({
           </h2>
 
           {previousSubmittedReviews.length ===
-          0 ? (
+            0 ? (
             <p className="mt-4 text-gray-600">
               No previous submitted review report was
               found for this reviewer.
@@ -389,10 +396,10 @@ export default async function ReviewerReviewPage({
                           Recommendation:{" "}
                           {previousAssignment.review
                             ? formatStatus(
-                                previousAssignment
-                                  .review
-                                  .recommendation,
-                              )
+                              previousAssignment
+                                .review
+                                .recommendation,
+                            )
                             : "Not available"}
                         </p>
                       </div>

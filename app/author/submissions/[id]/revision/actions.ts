@@ -1,11 +1,14 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
 import { randomUUID } from "crypto";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+
+import { requireAnyActionRole } from "@/lib/auth/permissions";
+import { AUTHOR_ROLES } from "@/lib/auth/role-groups";
+import { prisma } from "@/lib/prisma";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
@@ -88,6 +91,8 @@ async function saveUploadedFile(
 }
 
 export async function submitRevision(formData: FormData) {
+  const author = await requireAnyActionRole(AUTHOR_ROLES);
+
   const submissionId = String(
     formData.get("submissionId") || "",
   );
@@ -122,9 +127,10 @@ export async function submitRevision(formData: FormData) {
     validateUploadedFile(responseFile, false);
   }
 
-  const submission = await prisma.submission.findUnique({
+  const submission = await prisma.submission.findFirst({
     where: {
       id: submissionId,
+      authorId: author.id,
     },
     include: {
       versions: {
@@ -143,7 +149,9 @@ export async function submitRevision(formData: FormData) {
   });
 
   if (!submission) {
-    throw new Error("Submission not found.");
+    throw new Error(
+      "Submission not found or you do not have permission to revise it.",
+    );
   }
 
   if (submission.status !== "REVISION_REQUIRED") {
@@ -171,9 +179,9 @@ export async function submitRevision(formData: FormData) {
 
   let responseUpload:
     | {
-        originalName: string;
-        publicUrl: string;
-      }
+      originalName: string;
+      publicUrl: string;
+    }
     | undefined;
 
   if (responseFile && responseFile.size > 0) {
@@ -193,7 +201,7 @@ export async function submitRevision(formData: FormData) {
     await tx.submissionVersion.create({
       data: {
         submissionId,
-        uploadedById: submission.authorId,
+        uploadedById: author.id,
         versionNumber: nextVersionNumber,
         manuscriptFileUrl: manuscriptUpload.publicUrl,
         manuscriptFileName: manuscriptUpload.originalName,
@@ -227,7 +235,7 @@ export async function submitRevision(formData: FormData) {
 
     await tx.activityLog.create({
       data: {
-        userId: submission.authorId,
+        userId: author.id,
         action: "UPDATE",
         entity: "SubmissionVersion",
         entityId: submissionId,

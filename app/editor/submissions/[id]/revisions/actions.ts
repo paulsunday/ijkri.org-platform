@@ -1,12 +1,43 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { requireAnyActionRole } from "@/lib/auth/permissions";
+import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
+import { prisma } from "@/lib/prisma";
+
 const REVIEW_PERIOD_DAYS = 14;
 
-export async function sendRevisionToReviewers(formData: FormData) {
+async function verifyEditorialPermission(
+  userId: string,
+  journalId: string,
+) {
+  const role = await prisma.userJournalRole.findFirst({
+    where: {
+      userId,
+      journalId,
+      role: {
+        in: EDITORIAL_ROLES,
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!role) {
+    throw new Error(
+      "You do not have editorial permission for this journal.",
+    );
+  }
+}
+
+export async function sendRevisionToReviewers(
+  formData: FormData,
+) {
+  const editor = await requireAnyActionRole(EDITORIAL_ROLES);
+
   const submissionId = String(
     formData.get("submissionId") || "",
   ).trim();
@@ -47,22 +78,17 @@ export async function sendRevisionToReviewers(formData: FormData) {
           },
         },
       },
-
-      decisions: {
-        orderBy: {
-          createdAt: "desc",
-        },
-        take: 1,
-        select: {
-          editorId: true,
-        },
-      },
     },
   });
 
   if (!submission) {
     throw new Error("Submission not found.");
   }
+
+  await verifyEditorialPermission(
+    editor.id,
+    submission.journalId,
+  );
 
   if (
     submission.status === "ACCEPTED" ||
@@ -85,11 +111,9 @@ export async function sendRevisionToReviewers(formData: FormData) {
     );
   }
 
-  /*
-   * The submission currently stores the most recently completed
-   * or active review round. The next re-review round is one higher.
-   */
-  const previousRound = submission.currentReviewRound || 1;
+  const previousRound =
+    submission.currentReviewRound || 1;
+
   const nextRound = previousRound + 1;
 
   const previousRoundAssignments =
@@ -104,9 +128,11 @@ export async function sendRevisionToReviewers(formData: FormData) {
     );
   }
 
-  const activeReviewers = previousRoundAssignments.filter(
-    (assignment) => assignment.reviewer.isActive,
-  );
+  const activeReviewers =
+    previousRoundAssignments.filter(
+      (assignment) =>
+        assignment.reviewer.isActive,
+    );
 
   if (activeReviewers.length === 0) {
     throw new Error(
@@ -114,10 +140,6 @@ export async function sendRevisionToReviewers(formData: FormData) {
     );
   }
 
-  /*
-   * Prevent accidental duplicate creation when the editor clicks
-   * the button more than once.
-   */
   const existingNextRoundAssignments =
     await prisma.reviewAssignment.count({
       where: {
@@ -133,15 +155,11 @@ export async function sendRevisionToReviewers(formData: FormData) {
   }
 
   const invitedAt = new Date();
-
   const dueDate = new Date(invitedAt);
 
   dueDate.setDate(
     dueDate.getDate() + REVIEW_PERIOD_DAYS,
   );
-
-  const editorId =
-    submission.decisions[0]?.editorId || null;
 
   await prisma.$transaction(async (tx) => {
     for (const previousAssignment of activeReviewers) {
@@ -151,17 +169,12 @@ export async function sendRevisionToReviewers(formData: FormData) {
             submissionId,
             reviewerId:
               previousAssignment.reviewerId,
-
-            submissionVersionId: latestVersion.id,
-
+            submissionVersionId:
+              latestVersion.id,
             reviewRound: nextRound,
-
             status: "INVITED",
-
             invitedAt,
-
             dueDate,
-
             blindType:
               previousAssignment.blindType ||
               "DOUBLE_BLIND",
@@ -170,17 +183,14 @@ export async function sendRevisionToReviewers(formData: FormData) {
 
       await tx.notification.create({
         data: {
-          userId: previousAssignment.reviewerId,
-
+          userId:
+            previousAssignment.reviewerId,
           type: "REVIEW",
-
           title: `Re-review invitation — Round ${nextRound}`,
-
           message:
             `A revised version of "${submission.title}" ` +
             `has been submitted. You are invited to review ` +
             `Version ${latestVersion.versionNumber} in review round ${nextRound}.`,
-
           link: `/reviewer/reviews/${newAssignment.id}`,
         },
       });
@@ -198,14 +208,10 @@ export async function sendRevisionToReviewers(formData: FormData) {
 
     await tx.activityLog.create({
       data: {
-        userId: editorId,
-
+        userId: editor.id,
         action: "ASSIGN_REVIEWER",
-
         entity: "Submission",
-
         entityId: submissionId,
-
         metadata: {
           event: "SEND_REVISION_TO_REVIEWERS",
           previousRound,
@@ -213,7 +219,8 @@ export async function sendRevisionToReviewers(formData: FormData) {
           versionId: latestVersion.id,
           versionNumber:
             latestVersion.versionNumber,
-          reviewerCount: activeReviewers.length,
+          reviewerCount:
+            activeReviewers.length,
           reviewerIds: activeReviewers.map(
             (assignment) =>
               assignment.reviewerId,

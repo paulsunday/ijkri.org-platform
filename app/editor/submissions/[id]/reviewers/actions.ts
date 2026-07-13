@@ -1,9 +1,38 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
+import { requireAnyActionRole } from "@/lib/auth/permissions";
+import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
+import { prisma } from "@/lib/prisma";
+
+async function verifyEditorialPermission(
+  userId: string,
+  journalId: string,
+) {
+  const role = await prisma.userJournalRole.findFirst({
+    where: {
+      userId,
+      journalId,
+      role: {
+        in: EDITORIAL_ROLES,
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!role) {
+    throw new Error(
+      "You do not have editorial permission for this journal.",
+    );
+  }
+}
+
 export async function assignReviewer(formData: FormData) {
+  const editor = await requireAnyActionRole(EDITORIAL_ROLES);
+
   const submissionId = String(
     formData.get("submissionId") || "",
   ).trim();
@@ -50,6 +79,11 @@ export async function assignReviewer(formData: FormData) {
   if (!submission) {
     throw new Error("Submission not found.");
   }
+
+  await verifyEditorialPermission(
+    editor.id,
+    submission.journalId,
+  );
 
   const blockedStatuses = [
     "ACCEPTED",
@@ -103,7 +137,7 @@ export async function assignReviewer(formData: FormData) {
 
   if (reviewer.roles.length === 0) {
     throw new Error(
-      "The selected user does not have the Reviewer role for this journal.",
+      "The selected user does not have the REVIEWER role for this journal.",
     );
   }
 
@@ -115,10 +149,14 @@ export async function assignReviewer(formData: FormData) {
   let dueDate: Date | null = null;
 
   if (dueDateValue) {
-    dueDate = new Date(dueDateValue);
+    dueDate = new Date(
+      `${dueDateValue}T23:59:59`,
+    );
 
     if (Number.isNaN(dueDate.getTime())) {
-      throw new Error("The review due date is invalid.");
+      throw new Error(
+        "The review due date is invalid.",
+      );
     }
 
     if (dueDate <= new Date()) {
@@ -150,18 +188,19 @@ export async function assignReviewer(formData: FormData) {
   }
 
   await prisma.$transaction(async (tx) => {
-    const assignment = await tx.reviewAssignment.create({
-      data: {
-        submissionId,
-        reviewerId,
-        submissionVersionId,
-        reviewRound,
-        status: "INVITED",
-        invitedAt: new Date(),
-        dueDate,
-        blindType: "DOUBLE_BLIND",
-      },
-    });
+    const assignment =
+      await tx.reviewAssignment.create({
+        data: {
+          submissionId,
+          reviewerId,
+          submissionVersionId,
+          reviewRound,
+          status: "INVITED",
+          invitedAt: new Date(),
+          dueDate,
+          blindType: "DOUBLE_BLIND",
+        },
+      });
 
     await tx.submission.update({
       where: {
@@ -184,6 +223,7 @@ export async function assignReviewer(formData: FormData) {
 
     await tx.activityLog.create({
       data: {
+        userId: editor.id,
         action: "ASSIGN_REVIEWER",
         entity: "ReviewAssignment",
         entityId: assignment.id,

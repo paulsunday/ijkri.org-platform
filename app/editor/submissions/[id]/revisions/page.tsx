@@ -1,6 +1,10 @@
-import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+
+import { requireAnyRole } from "@/lib/auth/permissions";
+import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
+import { prisma } from "@/lib/prisma";
+
 import { sendRevisionToReviewers } from "./actions";
 
 type PageProps = {
@@ -33,6 +37,8 @@ function formatDate(date: Date | null | undefined) {
 export default async function EditorRevisionHistoryPage({
     params,
 }: PageProps) {
+    const editor =
+        await requireAnyRole(EDITORIAL_ROLES);
     const { id } = await params;
 
     const submission = await prisma.submission.findUnique({
@@ -72,6 +78,23 @@ export default async function EditorRevisionHistoryPage({
     if (!submission) {
         notFound();
     }
+    const editorJournalRole =
+        await prisma.userJournalRole.findFirst({
+            where: {
+                userId: editor.id,
+                journalId: submission.journalId,
+                role: {
+                    in: EDITORIAL_ROLES,
+                },
+            },
+            select: {
+                id: true,
+            },
+        });
+
+    if (!editorJournalRole) {
+        notFound();
+    }
 
     const newestVersion = submission.versions[0];
 
@@ -94,7 +117,7 @@ export default async function EditorRevisionHistoryPage({
                 >
                     Review-Round Summary
                 </Link>
-                
+
                 <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
                     <div>
                         <h1 className="text-3xl font-bold">

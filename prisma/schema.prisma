@@ -38,26 +38,32 @@ model Publisher {
 }
 
 model User {
-  id                         String              @id @default(cuid())
-  name                       String
-  email                      String              @unique
-  passwordHash               String?
-  image                      String?
-  orcid                      String?
-  bio                        String?
-  affiliation                String?
-  country                    String?
-  phone                      String?
-  lastLogin                  DateTime?
-  isActive                   Boolean             @default(true)
-  createdAt                  DateTime            @default(now())
-  updatedAt                  DateTime            @updatedAt
+  id                  String    @id @default(cuid())
+  name                String
+  email               String    @unique
+  passwordHash        String?
+  image               String?
+  orcid               String?
+  bio                 String?
+  affiliation         String?
+  country             String?
+  phone               String?
+  lastLogin           DateTime?
+  isActive            Boolean   @default(true)
+  emailVerified       DateTime?
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  passwordChangedAt   DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
   decisions                  EditorialDecision[]
   notifications              Notification[]
   reviews                    ReviewAssignment[]
   submissions                Submission[]        @relation("AuthorSubmissions")
   uploadedSubmissionVersions SubmissionVersion[] @relation("SubmissionVersionUploader")
   roles                      UserJournalRole[]
+
   assignedProductionTasks ProductionAssignment[] @relation("ProductionAssignee")
   createdProductionTasks  ProductionAssignment[] @relation("ProductionAssignedBy")
   uploadedProductionFiles ProductionFile[]       @relation("ProductionFileUploader")
@@ -195,26 +201,26 @@ model Issue {
 }
 
 model Submission {
-  id                 String              @id @default(cuid())
-  journalId          String
-  authorId           String
-  title              String
-  abstract           String
-  manuscriptType     String?
-  status             SubmissionStatus    @default(DRAFT)
-  currentReviewRound Int                 @default(1)
-  coverLetter        String?
-  submittedAt        DateTime?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  article            Article?
-  decisions          EditorialDecision[]
-  reviewAssignments  ReviewAssignment[]
-  author             User                @relation("AuthorSubmissions", fields: [authorId], references: [id], onDelete: Cascade)
-  journal            Journal             @relation(fields: [journalId], references: [id], onDelete: Cascade)
-  files              SubmissionFile[]
-  keywords           SubmissionKeyword[]
-  versions           SubmissionVersion[]
+  id                    String                 @id @default(cuid())
+  journalId             String
+  authorId              String
+  title                 String
+  abstract              String
+  manuscriptType        String?
+  status                SubmissionStatus       @default(DRAFT)
+  currentReviewRound    Int                    @default(1)
+  coverLetter           String?
+  submittedAt           DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  article               Article?
+  decisions             EditorialDecision[]
+  reviewAssignments     ReviewAssignment[]
+  author                User                   @relation("AuthorSubmissions", fields: [authorId], references: [id], onDelete: Cascade)
+  journal               Journal                @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  files                 SubmissionFile[]
+  keywords              SubmissionKeyword[]
+  versions              SubmissionVersion[]
   productionAssignments ProductionAssignment[]
   productionFiles       ProductionFile[]
   productionNotes       ProductionNote[]
@@ -452,6 +458,7 @@ model ActivityLog {
   @@index([userId])
   @@index([action])
 }
+
 model ProductionAssignment {
   id           String           @id @default(cuid())
   submissionId String

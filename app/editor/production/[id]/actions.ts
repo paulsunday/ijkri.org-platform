@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { requireAnyActionRole } from "@/lib/auth/permissions";
+import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
 
 const EDITOR_ROLES = [
     "SUPER_ADMIN",
@@ -70,13 +72,11 @@ async function verifyEditor(
 export async function approveCopyediting(
     formData: FormData,
 ) {
+    const editor = await requireAnyActionRole(EDITORIAL_ROLES);
     const assignmentId = String(
         formData.get("assignmentId") || "",
     ).trim();
 
-    const editorId = String(
-        formData.get("editorId") || "",
-    ).trim();
 
     const approvalNote = String(
         formData.get("approvalNote") || "",
@@ -88,9 +88,7 @@ export async function approveCopyediting(
         );
     }
 
-    if (!editorId) {
-        throw new Error("Editor ID is missing.");
-    }
+
 
     const assignment =
         await prisma.productionAssignment.findUnique({
@@ -146,7 +144,7 @@ export async function approveCopyediting(
     }
 
     await verifyEditor(
-        editorId,
+        editor.id,
         assignment.submission.journalId,
     );
 
@@ -198,7 +196,7 @@ export async function approveCopyediting(
                 data: {
                     submissionId: assignment.submissionId,
                     productionAssignmentId: assignmentId,
-                    authorId: editorId,
+                    authorId: editor.id,
                     message: approvalNote,
                     isInternal: true,
                 },
@@ -217,7 +215,7 @@ export async function approveCopyediting(
 
         await tx.activityLog.create({
             data: {
-                userId: editorId,
+                userId: editor.id,
                 action: "UPDATE",
                 entity: "ProductionAssignment",
                 entityId: assignmentId,
@@ -245,13 +243,12 @@ export async function approveCopyediting(
 export async function returnCopyeditingForChanges(
     formData: FormData,
 ) {
+    const editor = await requireAnyActionRole(EDITORIAL_ROLES);
     const assignmentId = String(
         formData.get("assignmentId") || "",
     ).trim();
 
-    const editorId = String(
-        formData.get("editorId") || "",
-    ).trim();
+
 
     const correctionNote = String(
         formData.get("correctionNote") || "",
@@ -267,9 +264,6 @@ export async function returnCopyeditingForChanges(
         );
     }
 
-    if (!editorId) {
-        throw new Error("Editor ID is missing.");
-    }
 
     if (!correctionNote) {
         throw new Error(
@@ -332,7 +326,7 @@ export async function returnCopyeditingForChanges(
     }
 
     await verifyEditor(
-        editorId,
+        editor.id,
         assignment.submission.journalId,
     );
 
@@ -367,7 +361,7 @@ export async function returnCopyeditingForChanges(
             data: {
                 submissionId: assignment.submissionId,
                 productionAssignmentId: assignmentId,
-                authorId: editorId,
+                authorId: editor.id,
                 message: correctionNote,
                 isInternal: true,
             },
@@ -385,7 +379,7 @@ export async function returnCopyeditingForChanges(
 
         await tx.activityLog.create({
             data: {
-                userId: editorId,
+                userId: editor.id,
                 action: "UPDATE",
                 entity: "ProductionAssignment",
                 entityId: assignmentId,

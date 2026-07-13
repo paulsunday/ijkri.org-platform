@@ -1,6 +1,10 @@
 import Link from "next/link";
+import { requireAnyRole } from "@/lib/auth/permissions";
+import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 
-export default function AdminDashboardPage() {
+export default async function AdminPage() {
+  await requireAnyRole(ADMIN_ROLES);
+
   return (
     <main className="mx-auto max-w-7xl px-6 py-12">
       <div>

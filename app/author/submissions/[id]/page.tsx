@@ -2,6 +2,9 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { requireAnyRole } from "@/lib/auth/permissions";
+import { AUTHOR_ROLES } from "@/lib/auth/role-groups";
+
 type PageProps = {
   params: Promise<{
     id: string;
@@ -32,6 +35,8 @@ function formatDate(value: Date | null | undefined) {
 export default async function AuthorSubmissionDetailsPage({
   params,
 }: PageProps) {
+  const author =
+    await requireAnyRole(AUTHOR_ROLES);
   const { id } = await params;
 
   const submission = await prisma.submission.findUnique({
@@ -73,6 +78,9 @@ export default async function AuthorSubmissionDetailsPage({
     notFound();
   }
 
+  if (submission.authorId !== author.id) {
+    notFound();
+  }
   const latestVersion = submission.versions[0];
 
   const canSubmitRevision =
@@ -317,6 +325,15 @@ export default async function AuthorSubmissionDetailsPage({
 
                       <p className="text-xs text-gray-500">
                         {file.label || file.fileType || "Submission file"}
+                        {submission.status === "AUTHOR_PROOF_APPROVAL" && (
+                          <Link
+                            href={`/author/submissions/${submission.id}/proof-approval`}
+                            className="rounded-lg bg-indigo-700 px-5 py-3 font-semibold text-white hover:bg-indigo-800"
+                          >
+                            Review Final Proof
+                          </Link>
+                        )}
+
                       </p>
                     </div>
 

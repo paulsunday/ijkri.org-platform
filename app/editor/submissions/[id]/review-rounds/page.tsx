@@ -1,6 +1,9 @@
-import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+
+import { requireAnyRole } from "@/lib/auth/permissions";
+import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
+import { prisma } from "@/lib/prisma";
 
 type PageProps = {
   params: Promise<{
@@ -53,6 +56,8 @@ function getRecommendationClass(
 export default async function EditorReviewRoundsPage({
   params,
 }: PageProps) {
+  const editor =
+    await requireAnyRole(EDITORIAL_ROLES);
   const { id } = await params;
 
   const submission = await prisma.submission.findUnique({
@@ -98,6 +103,23 @@ export default async function EditorReviewRoundsPage({
   });
 
   if (!submission) {
+    notFound();
+  }
+  const editorJournalRole =
+    await prisma.userJournalRole.findFirst({
+      where: {
+        userId: editor.id,
+        journalId: submission.journalId,
+        role: {
+          in: EDITORIAL_ROLES,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+  if (!editorJournalRole) {
     notFound();
   }
 
@@ -417,15 +439,15 @@ export default async function EditorReviewRoundsPage({
 
                           {(assignment.reviewer.affiliation ||
                             assignment.reviewer.country) && (
-                            <p className="mt-1 text-sm text-gray-500">
-                              {[
-                                assignment.reviewer.affiliation,
-                                assignment.reviewer.country,
-                              ]
-                                .filter(Boolean)
-                                .join(" · ")}
-                            </p>
-                          )}
+                              <p className="mt-1 text-sm text-gray-500">
+                                {[
+                                  assignment.reviewer.affiliation,
+                                  assignment.reviewer.country,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" · ")}
+                              </p>
+                            )}
                         </div>
 
                         <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold">

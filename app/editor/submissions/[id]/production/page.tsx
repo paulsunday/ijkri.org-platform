@@ -1,22 +1,20 @@
-import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { assignCopyeditor } from "./actions";
+import { requireAnyRole } from "@/lib/auth/permissions";
+import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
+import { prisma } from "@/lib/prisma";
+
+import {
+    assignCopyeditor,
+    assignProofreader,
+} from "./actions";
 
 type PageProps = {
     params: Promise<{
         id: string;
     }>;
 };
-
-const EDITOR_ROLES = [
-    "SUPER_ADMIN",
-    "ADMIN",
-    "EDITOR_IN_CHIEF",
-    "MANAGING_EDITOR",
-    "SECTION_EDITOR",
-] as const;
 
 function formatStatus(value: string) {
     return value
@@ -27,7 +25,9 @@ function formatStatus(value: string) {
         );
 }
 
-function formatDate(value: Date | null | undefined) {
+function formatDate(
+    value: Date | null | undefined,
+) {
     if (!value) {
         return "Not specified";
     }
@@ -45,16 +45,22 @@ function assignmentStatusClass(status: string) {
     switch (status) {
         case "PENDING":
             return "bg-yellow-100 text-yellow-800";
+
         case "IN_PROGRESS":
             return "bg-blue-100 text-blue-800";
+
         case "SUBMITTED":
             return "bg-purple-100 text-purple-800";
+
         case "CHANGES_REQUESTED":
             return "bg-orange-100 text-orange-800";
+
         case "APPROVED":
             return "bg-green-100 text-green-800";
+
         case "CANCELLED":
             return "bg-red-100 text-red-800";
+
         default:
             return "bg-gray-100 text-gray-700";
     }
@@ -63,6 +69,10 @@ function assignmentStatusClass(status: string) {
 export default async function ProductionPage({
     params,
 }: PageProps) {
+    const editor = await requireAnyRole(
+        EDITORIAL_ROLES,
+    );
+
     const { id } = await params;
 
     const submission =
@@ -70,6 +80,7 @@ export default async function ProductionPage({
             where: {
                 id,
             },
+
             include: {
                 journal: true,
                 author: true,
@@ -110,47 +121,83 @@ export default async function ProductionPage({
         notFound();
     }
 
-    const editor = await prisma.user.findFirst({
-        where: {
-            isActive: true,
+    const editorJournalRole =
+        await prisma.userJournalRole.findFirst({
+            where: {
+                userId: editor.id,
+                journalId: submission.journalId,
+                role: {
+                    in: EDITORIAL_ROLES,
+                },
+            },
 
-            roles: {
-                some: {
-                    journalId: submission.journalId,
-                    role: {
-                        in: [...EDITOR_ROLES],
+            select: {
+                id: true,
+            },
+        });
+
+    if (!editorJournalRole) {
+        notFound();
+    }
+
+    const copyeditors =
+        await prisma.user.findMany({
+            where: {
+                isActive: true,
+
+                roles: {
+                    some: {
+                        journalId: submission.journalId,
+                        role: "COPYEDITOR",
                     },
                 },
             },
-        },
 
-        orderBy: {
-            createdAt: "asc",
-        },
-    });
+            orderBy: {
+                name: "asc",
+            },
+        });
 
-    const copyeditors = await prisma.user.findMany({
-        where: {
-            isActive: true,
+    const proofreaders =
+        await prisma.user.findMany({
+            where: {
+                isActive: true,
 
-            roles: {
-                some: {
-                    journalId: submission.journalId,
-                    role: "COPYEDITOR",
+                roles: {
+                    some: {
+                        journalId: submission.journalId,
+                        role: "PROOFREADER",
+                    },
                 },
             },
-        },
 
-        orderBy: {
-            name: "asc",
-        },
-    });
+            orderBy: {
+                name: "asc",
+            },
+        });
 
     const copyeditingAssignment =
         submission.productionAssignments.find(
             (assignment) =>
                 assignment.stage === "COPYEDITING",
         );
+
+    const typesettingAssignment =
+        submission.productionAssignments.find(
+            (assignment) =>
+                assignment.stage === "TYPESETTING",
+        );
+
+    const proofreadingAssignment =
+        submission.productionAssignments.find(
+            (assignment) =>
+                assignment.stage === "PROOFREADING",
+        );
+
+    const canAssignProofreader =
+        submission.status === "PROOFREADING" &&
+        typesettingAssignment?.status === "APPROVED" &&
+        !proofreadingAssignment;
 
     const canCreateCopyeditingAssignment =
         submission.status === "ACCEPTED" &&
@@ -183,21 +230,30 @@ export default async function ProductionPage({
 
                 <div className="mt-5 grid gap-5 md:grid-cols-2">
                     <div>
-                        <p className="text-sm text-gray-500">Title</p>
+                        <p className="text-sm text-gray-500">
+                            Title
+                        </p>
+
                         <p className="font-medium">
                             {submission.title}
                         </p>
                     </div>
 
                     <div>
-                        <p className="text-sm text-gray-500">Author</p>
+                        <p className="text-sm text-gray-500">
+                            Author
+                        </p>
+
                         <p className="font-medium">
                             {submission.author.name}
                         </p>
                     </div>
 
                     <div>
-                        <p className="text-sm text-gray-500">Journal</p>
+                        <p className="text-sm text-gray-500">
+                            Journal
+                        </p>
+
                         <p className="font-medium">
                             {submission.journal.name}
                         </p>
@@ -207,6 +263,7 @@ export default async function ProductionPage({
                         <p className="text-sm text-gray-500">
                             Current status
                         </p>
+
                         <p className="font-medium">
                             {formatStatus(submission.status)}
                         </p>
@@ -225,33 +282,15 @@ export default async function ProductionPage({
                         copyeditor.
                     </p>
 
-                    {!editor ? (
-                        <div className="mt-5 rounded-lg border border-red-300 bg-red-50 p-5">
-                            <p className="font-semibold text-red-900">
-                                No eligible editor account found
-                            </p>
-
-                            <p className="mt-2 text-sm text-red-800">
-                                An active user must have an editorial role
-                                for this journal before creating a production
-                                assignment.
-                            </p>
-                        </div>
-                    ) : copyeditors.length === 0 ? (
+                    {copyeditors.length === 0 ? (
                         <div className="mt-5 rounded-lg border border-yellow-300 bg-yellow-50 p-5">
                             <p className="font-semibold text-yellow-900">
                                 No eligible copyeditor found
                             </p>
 
                             <p className="mt-2 text-sm text-yellow-800">
-                                Add the COPYEDITOR role to an active user in
-                                UserJournalRole for this journal, then refresh
-                                this page.
-                            </p>
-
-                            <p className="mt-3 text-sm text-yellow-800">
-                                Journal ID:{" "}
-                                <code>{submission.journalId}</code>
+                                Add the COPYEDITOR role to an active user
+                                for this journal.
                             </p>
                         </div>
                     ) : (
@@ -263,12 +302,6 @@ export default async function ProductionPage({
                                 type="hidden"
                                 name="submissionId"
                                 value={submission.id}
-                            />
-
-                            <input
-                                type="hidden"
-                                name="assignedById"
-                                value={editor.id}
                             />
 
                             <div>
@@ -290,28 +323,30 @@ export default async function ProductionPage({
                                         Choose a copyeditor
                                     </option>
 
-                                    {copyeditors.map((copyeditor) => (
-                                        <option
-                                            key={copyeditor.id}
-                                            value={copyeditor.id}
-                                        >
-                                            {copyeditor.name} —{" "}
-                                            {copyeditor.email}
-                                        </option>
-                                    ))}
+                                    {copyeditors.map(
+                                        (copyeditor) => (
+                                            <option
+                                                key={copyeditor.id}
+                                                value={copyeditor.id}
+                                            >
+                                                {copyeditor.name} —{" "}
+                                                {copyeditor.email}
+                                            </option>
+                                        ),
+                                    )}
                                 </select>
                             </div>
 
                             <div>
                                 <label
-                                    htmlFor="dueDate"
+                                    htmlFor="copyeditingDueDate"
                                     className="mb-2 block font-semibold"
                                 >
                                     Copyediting Deadline
                                 </label>
 
                                 <input
-                                    id="dueDate"
+                                    id="copyeditingDueDate"
                                     name="dueDate"
                                     type="date"
                                     className="w-full rounded-lg border p-3"
@@ -320,14 +355,14 @@ export default async function ProductionPage({
 
                             <div>
                                 <label
-                                    htmlFor="instructions"
+                                    htmlFor="copyeditingInstructions"
                                     className="mb-2 block font-semibold"
                                 >
                                     Instructions
                                 </label>
 
                                 <textarea
-                                    id="instructions"
+                                    id="copyeditingInstructions"
                                     name="instructions"
                                     rows={7}
                                     className="w-full rounded-lg border p-3"
@@ -346,8 +381,120 @@ export default async function ProductionPage({
                 </section>
             )}
 
+            {canAssignProofreader && (
+                <section className="rounded-xl border bg-white p-6 shadow-sm">
+                    <h2 className="text-xl font-semibold">
+                        Assign Proofreader
+                    </h2>
+
+                    <p className="mt-2 text-sm text-gray-600">
+                        Send the approved typeset manuscript to an
+                        eligible proofreader.
+                    </p>
+
+                    {proofreaders.length === 0 ? (
+                        <div className="mt-5 rounded-lg border border-yellow-300 bg-yellow-50 p-5">
+                            <p className="font-semibold text-yellow-900">
+                                No eligible proofreader found
+                            </p>
+
+                            <p className="mt-2 text-sm text-yellow-800">
+                                Add the PROOFREADER role to an active user
+                                for this journal.
+                            </p>
+                        </div>
+                    ) : (
+                        <form
+                            action={assignProofreader}
+                            className="mt-6 space-y-6"
+                        >
+                            <input
+                                type="hidden"
+                                name="submissionId"
+                                value={submission.id}
+                            />
+
+                            <div>
+                                <label
+                                    htmlFor="proofreaderId"
+                                    className="mb-2 block font-semibold"
+                                >
+                                    Select Proofreader
+                                </label>
+
+                                <select
+                                    id="proofreaderId"
+                                    name="proofreaderId"
+                                    required
+                                    defaultValue=""
+                                    className="w-full rounded-lg border p-3"
+                                >
+                                    <option value="" disabled>
+                                        Choose a proofreader
+                                    </option>
+
+                                    {proofreaders.map(
+                                        (proofreader) => (
+                                            <option
+                                                key={proofreader.id}
+                                                value={proofreader.id}
+                                            >
+                                                {proofreader.name} —{" "}
+                                                {proofreader.email}
+                                            </option>
+                                        ),
+                                    )}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label
+                                    htmlFor="proofreadingDueDate"
+                                    className="mb-2 block font-semibold"
+                                >
+                                    Proofreading Deadline
+                                </label>
+
+                                <input
+                                    id="proofreadingDueDate"
+                                    name="dueDate"
+                                    type="date"
+                                    required
+                                    className="w-full rounded-lg border p-3"
+                                />
+                            </div>
+
+                            <div>
+                                <label
+                                    htmlFor="proofreadingInstructions"
+                                    className="mb-2 block font-semibold"
+                                >
+                                    Instructions
+                                </label>
+
+                                <textarea
+                                    id="proofreadingInstructions"
+                                    name="instructions"
+                                    rows={7}
+                                    className="w-full rounded-lg border p-3"
+                                    defaultValue="Review grammar, punctuation, typography, layout consistency, figure placement, tables, references, page numbering, headers, footers and publication readiness."
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                className="rounded-lg bg-indigo-700 px-6 py-3 font-semibold text-white hover:bg-indigo-800"
+                            >
+                                Assign Proofreader
+                            </button>
+                        </form>
+                    )}
+                </section>
+            )}
+
             {submission.status !== "ACCEPTED" &&
-                submission.productionAssignments.length === 0 && (
+                submission.productionAssignments.length ===
+                0 && (
                     <section className="rounded-xl border border-yellow-300 bg-yellow-50 p-6">
                         <h2 className="font-semibold text-yellow-900">
                             Copyediting assignment unavailable
@@ -365,7 +512,8 @@ export default async function ProductionPage({
                     Production Assignments
                 </h2>
 
-                {submission.productionAssignments.length === 0 ? (
+                {submission.productionAssignments.length ===
+                    0 ? (
                     <p className="mt-4 text-gray-600">
                         No production task has been created.
                     </p>
@@ -380,7 +528,9 @@ export default async function ProductionPage({
                                     <div className="flex flex-wrap items-start justify-between gap-4">
                                         <div>
                                             <h3 className="text-lg font-semibold">
-                                                {formatStatus(assignment.stage)}
+                                                {formatStatus(
+                                                    assignment.stage,
+                                                )}
                                             </h3>
 
                                             <p className="mt-1 text-sm text-gray-600">
@@ -393,7 +543,9 @@ export default async function ProductionPage({
                                                 assignment.status,
                                             )}`}
                                         >
-                                            {formatStatus(assignment.status)}
+                                            {formatStatus(
+                                                assignment.status,
+                                            )}
                                         </span>
                                     </div>
 
@@ -424,7 +576,9 @@ export default async function ProductionPage({
                                             </p>
 
                                             <p className="font-medium">
-                                                {formatDate(assignment.dueDate)}
+                                                {formatDate(
+                                                    assignment.dueDate,
+                                                )}
                                             </p>
                                         </div>
 
@@ -434,7 +588,9 @@ export default async function ProductionPage({
                                             </p>
 
                                             <p className="font-medium">
-                                                {formatDate(assignment.createdAt)}
+                                                {formatDate(
+                                                    assignment.createdAt,
+                                                )}
                                             </p>
                                         </div>
 
@@ -456,21 +612,62 @@ export default async function ProductionPage({
                                     )}
 
                                     <div className="mt-6 flex flex-wrap gap-3">
-                                        <Link
-                                            href={`/copyeditor/assignments/${assignment.id}`}
-                                            className="rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"
-                                        >
-                                            Open Assignment
-                                        </Link>
-                                        {assignment.stage === "COPYEDITING" && (
-                                            <Link
-                                                href={`/editor/production/${assignment.id}`}
-                                                className="rounded-lg bg-purple-700 px-5 py-3 font-semibold text-white hover:bg-purple-800"
-                                            >
-                                                Review Copyediting
-                                            </Link>
-                                        )}
+                                        {assignment.stage ===
+                                            "COPYEDITING" && (
+                                                <>
+                                                    <Link
+                                                        href={`/copyeditor/assignments/${assignment.id}`}
+                                                        className="rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"
+                                                    >
+                                                        Open Assignment
+                                                    </Link>
 
+                                                    <Link
+                                                        href={`/editor/production/${assignment.id}`}
+                                                        className="rounded-lg bg-purple-700 px-5 py-3 font-semibold text-white hover:bg-purple-800"
+                                                    >
+                                                        Review Copyediting
+                                                    </Link>
+                                                </>
+                                            )}
+
+                                        {assignment.stage ===
+                                            "TYPESETTING" && (
+                                                <>
+                                                    <Link
+                                                        href={`/typesetter/assignments/${assignment.id}`}
+                                                        className="rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"
+                                                    >
+                                                        Open Assignment
+                                                    </Link>
+
+                                                    <Link
+                                                        href={`/editor/typesetting/${assignment.id}`}
+                                                        className="rounded-lg bg-purple-700 px-5 py-3 font-semibold text-white hover:bg-purple-800"
+                                                    >
+                                                        Review Typesetting
+                                                    </Link>
+                                                </>
+                                            )}
+
+                                        {assignment.stage ===
+                                            "PROOFREADING" && (
+                                                <>
+                                                    <Link
+                                                        href={`/proofreader/assignments/${assignment.id}`}
+                                                        className="rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"
+                                                    >
+                                                        Open Assignment
+                                                    </Link>
+
+                                                    <Link
+                                                        href={`/editor/proofreading/${assignment.id}`}
+                                                        className="rounded-lg bg-purple-700 px-5 py-3 font-semibold text-white hover:bg-purple-800"
+                                                    >
+                                                        Review Proofreading
+                                                    </Link>
+                                                </>
+                                            )}
                                     </div>
                                 </article>
                             ),

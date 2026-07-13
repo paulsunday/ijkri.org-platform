@@ -1,6 +1,8 @@
-import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+
+import { requireRole } from "@/lib/auth/permissions";
+import { prisma } from "@/lib/prisma";
 
 import {
     addCopyeditingNote,
@@ -40,12 +42,16 @@ function formatDate(value: Date | null | undefined) {
 export default async function CopyeditorAssignmentPage({
     params,
 }: PageProps) {
+    const copyeditor =
+        await requireRole("COPYEDITOR");
     const { id } = await params;
 
     const assignment =
-        await prisma.productionAssignment.findUnique({
+        await prisma.productionAssignment.findFirst({
             where: {
                 id,
+                assigneeId: copyeditor.id,
+                stage: "COPYEDITING",
             },
 
             include: {
@@ -99,9 +105,6 @@ export default async function CopyeditorAssignmentPage({
         notFound();
     }
 
-    if (assignment.stage !== "COPYEDITING") {
-        notFound();
-    }
 
     const latestSubmissionVersion =
         assignment.submission.versions[0];
@@ -379,11 +382,7 @@ export default async function CopyeditorAssignmentPage({
                             value={assignment.id}
                         />
 
-                        <input
-                            type="hidden"
-                            name="uploadedById"
-                            value={assignment.assigneeId}
-                        />
+
 
                         <div>
                             <label
@@ -589,12 +588,6 @@ export default async function CopyeditorAssignmentPage({
                         type="hidden"
                         name="assignmentId"
                         value={assignment.id}
-                    />
-
-                    <input
-                        type="hidden"
-                        name="authorId"
-                        value={assignment.assigneeId}
                     />
 
                     <input
