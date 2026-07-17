@@ -53,26 +53,6 @@ export async function assignEditor(formData: FormData) {
     );
   }
 
-  const adminJournalRole =
-    await prisma.userJournalRole.findFirst({
-      where: {
-        userId: admin.id,
-        journalId: submission.journalId,
-        role: {
-          in: ADMIN_ROLES,
-        },
-      },
-      select: {
-        id: true,
-      },
-    });
-
-  if (!adminJournalRole) {
-    throw new Error(
-      "You do not have administrative permission for this journal.",
-    );
-  }
-
   await prisma.$transaction(async (tx) => {
     const editorialDecision =
       await tx.editorialDecision.create({

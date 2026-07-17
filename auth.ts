@@ -10,7 +10,7 @@ const loginSchema = z.object({
     password: z.string().min(8).max(128),
 });
 export const { handlers, auth, signIn, signOut } = NextAuth({
-    secret: process.env.BETTER_AUTH_SECRET = "1bce1b36e269adfa4e336cd18d790b7ab621714908fed66a1b5bb21e897ad4fe",
+    secret: process.env.BETTER_AUTH_SECRET,
 
     session: {
         strategy: "jwt",

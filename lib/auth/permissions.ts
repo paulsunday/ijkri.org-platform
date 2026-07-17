@@ -1,50 +1,103 @@
 import { redirect } from "next/navigation";
 
 import type { UserRole } from "@/lib/generated/prisma";
-import { requireActionUser, requireCurrentUser } from "@/lib/auth/current-user";
+import {
+    requireActionUser,
+    requireCurrentUser,
+} from "@/lib/auth/current-user";
 
-export async function requireRole(role: UserRole) {
+const ADMIN_ROLES: UserRole[] = [
+    "SUPER_ADMIN",
+    "ADMIN",
+];
+
+function hasAdministrativeAccess(
+    userRoles: Array<{
+        role: UserRole;
+    }>,
+) {
+    return userRoles.some((roleRecord) =>
+        ADMIN_ROLES.includes(roleRecord.role),
+    );
+}
+
+function hasRequiredRole(
+    userRoles: Array<{
+        role: UserRole;
+    }>,
+    requiredRoles: UserRole[],
+) {
+    if (hasAdministrativeAccess(userRoles)) {
+        return true;
+    }
+
+    return userRoles.some((roleRecord) =>
+        requiredRoles.includes(roleRecord.role),
+    );
+}
+
+export async function requireRole(
+    role: UserRole,
+) {
     const user = await requireCurrentUser();
 
-    const hasRole = user.roles.some((r) => r.role === role);
+    const permitted = hasRequiredRole(
+        user.roles,
+        [role],
+    );
 
-    if (!hasRole) {
+    if (!permitted) {
         redirect("/unauthorized");
     }
 
     return user;
 }
 
-export async function requireAnyRole(roles: UserRole[]) {
+export async function requireAnyRole(
+    roles: UserRole[],
+) {
     const user = await requireCurrentUser();
 
-    const hasRole = user.roles.some((r) => roles.includes(r.role));
+    const permitted = hasRequiredRole(
+        user.roles,
+        roles,
+    );
 
-    if (!hasRole) {
+    if (!permitted) {
         redirect("/unauthorized");
     }
 
     return user;
 }
 
-export async function requireActionRole(role: UserRole) {
+export async function requireActionRole(
+    role: UserRole,
+) {
     const user = await requireActionUser();
 
-    const hasRole = user.roles.some((r) => r.role === role);
+    const permitted = hasRequiredRole(
+        user.roles,
+        [role],
+    );
 
-    if (!hasRole) {
+    if (!permitted) {
         throw new Error("Permission denied.");
     }
 
     return user;
 }
 
-export async function requireAnyActionRole(roles: UserRole[]) {
+export async function requireAnyActionRole(
+    roles: UserRole[],
+) {
     const user = await requireActionUser();
 
-    const hasRole = user.roles.some((r) => roles.includes(r.role));
+    const permitted = hasRequiredRole(
+        user.roles,
+        roles,
+    );
 
-    if (!hasRole) {
+    if (!permitted) {
         throw new Error("Permission denied.");
     }
 

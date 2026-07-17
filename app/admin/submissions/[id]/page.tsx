@@ -11,8 +11,7 @@ export default async function SubmissionDetailsPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const administrator =
-    await requireAnyRole(ADMIN_ROLES);
+  await requireAnyRole(ADMIN_ROLES);
 
   const { id } = await params;
 
@@ -27,24 +26,6 @@ export default async function SubmissionDetailsPage({
   });
 
   if (!submission) {
-    notFound();
-  }
-
-  const administratorJournalRole =
-    await prisma.userJournalRole.findFirst({
-      where: {
-        userId: administrator.id,
-        journalId: submission.journalId,
-        role: {
-          in: ADMIN_ROLES,
-        },
-      },
-      select: {
-        id: true,
-      },
-    });
-
-  if (!administratorJournalRole) {
     notFound();
   }
 
@@ -101,7 +82,7 @@ export default async function SubmissionDetailsPage({
               Manuscript Type
             </h3>
 
-            <p>{submission.manuscriptType}</p>
+            <p>{submission.manuscriptType || "—"}</p>
           </div>
 
           <div>
@@ -109,7 +90,7 @@ export default async function SubmissionDetailsPage({
               Status
             </h3>
 
-            <p>{submission.status}</p>
+            <p>{submission.status.replaceAll("_", " ")}</p>
           </div>
 
           <div>
@@ -144,8 +125,8 @@ export default async function SubmissionDetailsPage({
 
         {assignmentBlocked && (
           <div className="mt-8 rounded-lg border border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-900">
-            An editor cannot be assigned because this submission is
-            already {submission.status.replaceAll("_", " ").toLowerCase()}.
+            An editor cannot be assigned because this submission is already{" "}
+            {submission.status.replaceAll("_", " ").toLowerCase()}.
           </div>
         )}
 

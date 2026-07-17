@@ -38,72 +38,90 @@ model Publisher {
 }
 
 model User {
-  id                  String    @id @default(cuid())
-  name                String
-  email               String    @unique
-  passwordHash        String?
-  image               String?
-  orcid               String?
-  bio                 String?
-  affiliation         String?
-  country             String?
-  phone               String?
-  lastLogin           DateTime?
-  isActive            Boolean   @default(true)
-  emailVerified       DateTime?
-  failedLoginAttempts Int       @default(0)
-  lockedUntil         DateTime?
-  passwordChangedAt   DateTime?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-
-  decisions                  EditorialDecision[]
-  notifications              Notification[]
-  reviews                    ReviewAssignment[]
-  submissions                Submission[]        @relation("AuthorSubmissions")
-  uploadedSubmissionVersions SubmissionVersion[] @relation("SubmissionVersionUploader")
-  roles                      UserJournalRole[]
-
-  assignedProductionTasks ProductionAssignment[] @relation("ProductionAssignee")
-  createdProductionTasks  ProductionAssignment[] @relation("ProductionAssignedBy")
-  uploadedProductionFiles ProductionFile[]       @relation("ProductionFileUploader")
-  productionNotes         ProductionNote[]       @relation("ProductionNoteAuthor")
+  id                           String                 @id @default(cuid())
+  name                         String
+  email                        String                 @unique
+  passwordHash                 String?
+  image                        String?
+  orcid                        String?
+  bio                          String?
+  affiliation                  String?
+  country                      String?
+  phone                        String?
+  lastLogin                    DateTime?
+  isActive                     Boolean                @default(true)
+  createdAt                    DateTime               @default(now())
+  updatedAt                    DateTime               @updatedAt
+  emailVerified                DateTime?
+  failedLoginAttempts          Int                    @default(0)
+  lockedUntil                  DateTime?
+  passwordChangedAt            DateTime?
+  reviewedCareerApplications   CareerApplication[]    @relation("CareerApplicationReviewer")
+  careerApplications           CareerApplication[]    @relation("CareerApplicationApplicant")
+  decisions                    EditorialDecision[]
+  notifications                Notification[]
+  passwordResetTokens          PasswordResetToken[]
+  createdProductionTasks       ProductionAssignment[] @relation("ProductionAssignedBy")
+  assignedProductionTasks      ProductionAssignment[] @relation("ProductionAssignee")
+  uploadedProductionFiles      ProductionFile[]       @relation("ProductionFileUploader")
+  productionNotes              ProductionNote[]       @relation("ProductionNoteAuthor")
+  reviews                      ReviewAssignment[]
+  reviewedReviewerApplications ReviewerApplication[]  @relation("ReviewerApplicationReviewer")
+  reviewerApplications         ReviewerApplication[]  @relation("ReviewerApplicationApplicant")
+  submissions                  Submission[]           @relation("AuthorSubmissions")
+  uploadedSubmissionVersions   SubmissionVersion[]    @relation("SubmissionVersionUploader")
+  roles                        UserJournalRole[]
 
   @@index([email])
 }
 
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
 model Journal {
-  id               String                 @id @default(cuid())
-  tenantId         String
-  publisherId      String?
-  name             String
-  shortName        String
-  slug             String                 @unique
-  issnPrint        String?
-  issnOnline       String?
-  description      String?
-  aimsScope        String?
-  authorGuidelines String?
-  ethicsPolicy     String?
-  peerReviewPolicy String?
-  openAccessPolicy String?
-  apcInfo          String?
-  contactEmail     String?
-  websiteUrl       String?
-  logo             String?
-  isActive         Boolean                @default(true)
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
-  articles         Article[]
-  categories       Category[]
-  editorialBoards  EditorialBoardMember[]
-  issues           Issue[]
-  publisher        Publisher?             @relation(fields: [publisherId], references: [id])
-  tenant           Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  settings         JournalSettings?
-  submissions      Submission[]
-  roles            UserJournalRole[]
-  volumes          Volume[]
+  id                   String                 @id @default(cuid())
+  tenantId             String
+  publisherId          String?
+  name                 String
+  shortName            String
+  slug                 String                 @unique
+  issnPrint            String?
+  issnOnline           String?
+  description          String?
+  aimsScope            String?
+  authorGuidelines     String?
+  ethicsPolicy         String?
+  peerReviewPolicy     String?
+  openAccessPolicy     String?
+  apcInfo              String?
+  contactEmail         String?
+  websiteUrl           String?
+  logo                 String?
+  isActive             Boolean                @default(true)
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  articles             Article[]
+  careerApplications   CareerApplication[]
+  categories           Category[]
+  editorialBoards      EditorialBoardMember[]
+  issues               Issue[]
+  publisher            Publisher?             @relation(fields: [publisherId], references: [id])
+  tenant               Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  settings             JournalSettings?
+  reviewerApplications ReviewerApplication[]
+  submissions          Submission[]
+  roles                UserJournalRole[]
+  volumes              Volume[]
 
   @@index([slug])
   @@index([tenantId])
@@ -208,22 +226,22 @@ model Submission {
   abstract              String
   manuscriptType        String?
   status                SubmissionStatus       @default(DRAFT)
-  currentReviewRound    Int                    @default(1)
   coverLetter           String?
   submittedAt           DateTime?
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
+  currentReviewRound    Int                    @default(1)
   article               Article?
   decisions             EditorialDecision[]
+  productionAssignments ProductionAssignment[]
+  productionFiles       ProductionFile[]
+  productionNotes       ProductionNote[]
   reviewAssignments     ReviewAssignment[]
   author                User                   @relation("AuthorSubmissions", fields: [authorId], references: [id], onDelete: Cascade)
   journal               Journal                @relation(fields: [journalId], references: [id], onDelete: Cascade)
   files                 SubmissionFile[]
   keywords              SubmissionKeyword[]
   versions              SubmissionVersion[]
-  productionAssignments ProductionAssignment[]
-  productionFiles       ProductionFile[]
-  productionNotes       ProductionNote[]
 
   @@index([journalId])
   @@index([authorId])
@@ -257,9 +275,9 @@ model SubmissionVersion {
   authorNotes        String?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
+  reviewAssignments  ReviewAssignment[]
   submission         Submission         @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   uploadedBy         User               @relation("SubmissionVersionUploader", fields: [uploadedById], references: [id], onDelete: Cascade)
-  reviewAssignments  ReviewAssignment[]
 
   @@unique([submissionId, versionNumber])
   @@index([submissionId])
@@ -297,24 +315,23 @@ model Category {
 }
 
 model ReviewAssignment {
-  id                  String       @id @default(cuid())
+  id                  String             @id @default(cuid())
   submissionId        String
   reviewerId          String
-  submissionVersionId String?
-  reviewRound         Int          @default(1)
-  status              ReviewStatus @default(INVITED)
-  invitedAt           DateTime     @default(now())
+  status              ReviewStatus       @default(INVITED)
+  invitedAt           DateTime           @default(now())
   acceptedAt          DateTime?
   dueDate             DateTime?
   completedAt         DateTime?
-  blindType           String       @default("DOUBLE_BLIND")
-  createdAt           DateTime     @default(now())
-  updatedAt           DateTime     @updatedAt
-
-  submission        Submission         @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  reviewer          User               @relation(fields: [reviewerId], references: [id], onDelete: Cascade)
-  submissionVersion SubmissionVersion? @relation(fields: [submissionVersionId], references: [id], onDelete: SetNull)
-  review            Review?
+  blindType           String             @default("DOUBLE_BLIND")
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  reviewRound         Int                @default(1)
+  submissionVersionId String?
+  review              Review?
+  reviewer            User               @relation(fields: [reviewerId], references: [id], onDelete: Cascade)
+  submission          Submission         @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  submissionVersion   SubmissionVersion? @relation(fields: [submissionVersionId], references: [id])
 
   @@unique([submissionId, reviewerId, reviewRound])
   @@index([reviewerId])
@@ -381,6 +398,59 @@ model Article {
   @@index([journalId])
   @@index([issueId])
   @@index([status])
+}
+
+model ReviewerApplication {
+  id                      String                    @id @default(cuid())
+  journalId               String
+  userId                  String?
+  fullName                String
+  email                   String
+  phone                   String?
+  affiliation             String
+  department              String?
+  country                 String
+  currentPosition         String
+  highestQualification    String
+  primaryField            String
+  secondaryFields         String?
+  areasOfExpertise        String
+  researchInterests       String?
+  orcid                   String?
+  googleScholarUrl        String?
+  researchGateUrl         String?
+  scopusId                String?
+  webOfScienceId          String?
+  profileUrl              String?
+  yearsResearchExperience Int
+  yearsReviewExperience   Int?
+  publicationCount        Int?
+  journalsReviewedFor     String?
+  preferredTopics         String?
+  availability            String?
+  professionalStatement   String
+  cvUrl                   String?
+  recentPublicationUrl    String?
+  conflictDeclaration     Boolean
+  ethicsAgreement         Boolean
+  dataConsent             Boolean
+  status                  ReviewerApplicationStatus @default(PENDING)
+  reviewNotes             String?
+  reviewedById            String?
+  reviewedAt              DateTime?
+  submittedAt             DateTime                  @default(now())
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  journal                 Journal                   @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  reviewedBy              User?                     @relation("ReviewerApplicationReviewer", fields: [reviewedById], references: [id])
+  applicant               User?                     @relation("ReviewerApplicationApplicant", fields: [userId], references: [id])
+
+  @@unique([journalId, email])
+  @@index([journalId])
+  @@index([userId])
+  @@index([email])
+  @@index([status])
+  @@index([reviewedById])
 }
 
 model ArticleAuthor {
@@ -475,13 +545,11 @@ model ProductionAssignment {
   completedAt  DateTime?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
-
-  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  assignee   User       @relation("ProductionAssignee", fields: [assigneeId], references: [id], onDelete: Cascade)
-  assignedBy User       @relation("ProductionAssignedBy", fields: [assignedById], references: [id], onDelete: Restrict)
-
-  files ProductionFile[]
-  notes ProductionNote[]
+  assignedBy   User             @relation("ProductionAssignedBy", fields: [assignedById], references: [id])
+  assignee     User             @relation("ProductionAssignee", fields: [assigneeId], references: [id], onDelete: Cascade)
+  submission   Submission       @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  files        ProductionFile[]
+  notes        ProductionNote[]
 
   @@unique([submissionId, stage, round])
   @@index([submissionId])
@@ -492,7 +560,7 @@ model ProductionAssignment {
 }
 
 model ProductionFile {
-  id                     String             @id @default(cuid())
+  id                     String                @id @default(cuid())
   submissionId           String
   productionAssignmentId String?
   uploadedById           String
@@ -501,15 +569,14 @@ model ProductionFile {
   fileUrl                String
   mimeType               String?
   fileSize               Int?
-  versionNumber          Int                @default(1)
+  versionNumber          Int                   @default(1)
   description            String?
-  isFinal                Boolean            @default(false)
-  createdAt              DateTime           @default(now())
-  updatedAt              DateTime           @updatedAt
-
-  submission           Submission            @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  productionAssignment ProductionAssignment? @relation(fields: [productionAssignmentId], references: [id], onDelete: SetNull)
-  uploadedBy           User                  @relation("ProductionFileUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+  isFinal                Boolean               @default(false)
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  productionAssignment   ProductionAssignment? @relation(fields: [productionAssignmentId], references: [id])
+  submission             Submission            @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  uploadedBy             User                  @relation("ProductionFileUploader", fields: [uploadedById], references: [id])
 
   @@index([submissionId])
   @@index([productionAssignmentId])
@@ -519,18 +586,17 @@ model ProductionFile {
 }
 
 model ProductionNote {
-  id                     String   @id @default(cuid())
+  id                     String                @id @default(cuid())
   submissionId           String
   productionAssignmentId String?
   authorId               String
   message                String
-  isInternal             Boolean  @default(true)
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
-
-  submission           Submission            @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  productionAssignment ProductionAssignment? @relation(fields: [productionAssignmentId], references: [id], onDelete: Cascade)
-  author               User                  @relation("ProductionNoteAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  isInternal             Boolean               @default(true)
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  author                 User                  @relation("ProductionNoteAuthor", fields: [authorId], references: [id])
+  productionAssignment   ProductionAssignment? @relation(fields: [productionAssignmentId], references: [id], onDelete: Cascade)
+  submission             Submission            @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 
   @@index([submissionId])
   @@index([productionAssignmentId])
@@ -543,6 +609,59 @@ model Setting {
   value     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model CareerApplication {
+  id                    String                  @id @default(cuid())
+  journalId             String
+  userId                String?
+  position              CareerPosition
+  fullName              String
+  email                 String
+  phone                 String?
+  country               String
+  affiliation           String?
+  department            String?
+  currentPosition       String?
+  highestQualification  String
+  fieldOfStudy          String?
+  yearsExperience       Int
+  publicationCount      Int?
+  areasOfExpertise      String?
+  professionalSkills    String?
+  orcid                 String?
+  googleScholarUrl      String?
+  researchGateUrl       String?
+  linkedinUrl           String?
+  scopusId              String?
+  webOfScienceId        String?
+  cvUrl                 String?
+  coverLetterUrl        String?
+  certificatesUrl       String?
+  portfolioUrl          String?
+  professionalStatement String
+  availability          String?
+  salaryExpectation     String?
+  consentAccepted       Boolean                 @default(false)
+  declarationAccepted   Boolean                 @default(false)
+  status                CareerApplicationStatus @default(PENDING)
+  reviewNotes           String?
+  interviewDate         DateTime?
+  reviewedById          String?
+  reviewedAt            DateTime?
+  submittedAt           DateTime                @default(now())
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  journal               Journal                 @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  reviewedBy            User?                   @relation("CareerApplicationReviewer", fields: [reviewedById], references: [id])
+  applicant             User?                   @relation("CareerApplicationApplicant", fields: [userId], references: [id])
+
+  @@index([journalId])
+  @@index([userId])
+  @@index([email])
+  @@index([position])
+  @@index([status])
+  @@index([reviewedById])
 }
 
 enum UserRole {
@@ -566,15 +685,15 @@ enum SubmissionStatus {
   UNDER_INITIAL_REVIEW
   UNDER_PEER_REVIEW
   REVISION_REQUIRED
+  ACCEPTED
+  REJECTED
+  PUBLISHED
+  WITHDRAWN
   COPYEDITING
   TYPESETTING
   PROOFREADING
   AUTHOR_PROOF_APPROVAL
   READY_FOR_PUBLICATION
-  ACCEPTED
-  REJECTED
-  PUBLISHED
-  WITHDRAWN
 }
 
 enum ReviewRecommendation {
@@ -655,4 +774,33 @@ enum ProductionFileType {
   PROOF_FILE
   FINAL_PUBLICATION_FILE
   SUPPLEMENTARY_FILE
+}
+
+enum ReviewerApplicationStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+enum CareerApplicationStatus {
+  PENDING
+  UNDER_REVIEW
+  SHORTLISTED
+  INTERVIEW_SCHEDULED
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+enum CareerPosition {
+  EDITOR_IN_CHIEF
+  MANAGING_EDITOR
+  SECTION_EDITOR
+  REVIEWER
+  COPYEDITOR
+  PROOFREADER
+  TYPESETTER
+  EDITORIAL_ASSISTANT
 }

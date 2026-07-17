@@ -1,4 +1,4 @@
-import { requireAnyRole } from "@/lib/auth/permissions";
+﻿import { requireAnyRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 
 export default async function AdminJournalsPage() {
@@ -36,11 +36,11 @@ export default async function AdminJournalsPage() {
         <div className="p-6">
           <div className="rounded-lg border p-5">
             <h3 className="text-lg font-bold">
-              International Journal of Advanced Research and Innovation
+              International Journal of Knowledge, Research and Innovation
             </h3>
 
             <p className="mt-2 text-sm text-slate-600">
-              Short name: IJARI · Status: Active · Publisher:
+              Short name: IJKRI Â· Status: Active Â· Publisher:
               {" "}
               Innovare Academic Publishing
             </p>

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import AuthProvider from "@/components/providers/session-provider";
@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "IJARI | International Journal of Advanced Research and Innovation",
+  title: "IJKRI | International Journal of Knowledge, Research and Innovation",
   description:
     "Official publishing platform of Innovare Academic Publishing.",
 };

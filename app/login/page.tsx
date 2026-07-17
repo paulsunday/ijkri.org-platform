@@ -1,78 +1,58 @@
-"use client";
+﻿import LoginForm from "./LoginForm";
 
-import { useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+type LoginPageProps = {
+    searchParams: Promise<{
+        passwordReset?: string;
+        activated?: string;
+        registered?: string;
+        callbackUrl?: string;
+    }>;
+};
 
-export default function LoginPage() {
-    const router = useRouter();
-
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
-
-    async function handleSubmit(e: React.FormEvent) {
-        e.preventDefault();
-
-        setLoading(true);
-        setError("");
-
-        const result = await signIn("credentials", {
-            email,
-            password,
-            redirect: false,
-        });
-
-        setLoading(false);
-
-        if (result?.error) {
-            setError("Invalid email or password.");
-            return;
-        }
-
-        router.push("/");
-        router.refresh();
+function safeCallbackUrl(value?: string) {
+    if (
+        !value ||
+        !value.startsWith("/") ||
+        value.startsWith("//")
+    ) {
+        return "/post-login";
     }
 
+    /*
+     * Prevent a callback loop if an invalid login URL
+     * was supplied as the destination.
+     */
+    if (
+        value === "/login" ||
+        value.startsWith("/login?")
+    ) {
+        return "/post-login";
+    }
+
+    return value;
+}
+
+export default async function LoginPage({
+    searchParams,
+}: LoginPageProps) {
+    const params = await searchParams;
+
     return (
-        <main className="mx-auto mt-20 max-w-md rounded-lg border p-8">
-            <h1 className="mb-6 text-2xl font-bold">
-                Sign in
-            </h1>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-
-                <input
-                    className="w-full rounded border p-2"
-                    type="email"
-                    placeholder="Email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                />
-
-                <input
-                    className="w-full rounded border p-2"
-                    type="password"
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                />
-
-                {error && (
-                    <p className="text-red-600">
-                        {error}
-                    </p>
+        <main className="bg-slate-50">
+            <LoginForm
+                passwordReset={
+                    params.passwordReset === "true"
+                }
+                accountActivated={
+                    params.activated === "true"
+                }
+                registered={
+                    params.registered === "true"
+                }
+                callbackUrl={safeCallbackUrl(
+                    params.callbackUrl,
                 )}
-
-                <button
-                    disabled={loading}
-                    className="w-full rounded bg-black py-2 text-white"
-                >
-                    {loading ? "Signing in..." : "Sign in"}
-                </button>
-
-            </form>
+            />
         </main>
     );
 }

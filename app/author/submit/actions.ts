@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 
@@ -29,7 +29,7 @@ export async function submitManuscript(formData: FormData) {
 
   let journal = await prisma.journal.findUnique({
     where: {
-      slug: "ijari",
+      slug: "IJKRI",
     },
   });
 
@@ -49,10 +49,10 @@ export async function submitManuscript(formData: FormData) {
     journal = await prisma.journal.create({
       data: {
         tenantId: tenant.id,
-        name: "International Journal of Advanced Research and Innovation",
-        shortName: "IJARI",
-        slug: "ijari",
-        contactEmail: "editor@ijari.org",
+        name: "International Journal of Knowledge, Research and Innovation",
+        shortName: "IJKRI",
+        slug: "IJKRI",
+        contactEmail: "editor@IJKRI.org",
         description:
           "A peer-reviewed academic journal for advanced research and innovation.",
         isActive: true,

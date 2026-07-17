@@ -17,21 +17,43 @@ async function verifyVolumeAdminPermission(
     administratorId: string,
     journalId: string,
 ) {
-    const permission =
-        await prisma.userJournalRole.findFirst({
-            where: {
-                userId: administratorId,
-                journalId,
-                role: {
-                    in: [...ADMIN_ROLES],
+    const administrator = await prisma.user.findUnique({
+        where: {
+            id: administratorId,
+        },
+        select: {
+            roles: {
+                select: {
+                    role: true,
+                    journalId: true,
                 },
             },
-            select: {
-                id: true,
-            },
-        });
+        },
+    });
 
-    if (!permission) {
+    if (!administrator) {
+        throw new Error("Administrator account not found.");
+    }
+
+    // Global administrators can manage every journal
+    const isGlobalAdministrator = administrator.roles.some(
+        (roleRecord) =>
+            roleRecord.role === "SUPER_ADMIN" ||
+            roleRecord.role === "ADMIN",
+    );
+
+    if (isGlobalAdministrator) {
+        return;
+    }
+
+    // Otherwise, require admin permission for the specific journal
+    const hasJournalPermission = administrator.roles.some(
+        (roleRecord) =>
+            roleRecord.journalId === journalId &&
+            ADMIN_ROLES.includes(roleRecord.role),
+    );
+
+    if (!hasJournalPermission) {
         throw new Error(
             "You do not have administrative permission for this journal.",
         );

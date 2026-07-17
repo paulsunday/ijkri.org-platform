@@ -56,24 +56,6 @@ export default async function AssignReviewersPage({
     notFound();
   }
 
-  const editorJournalRole =
-    await prisma.userJournalRole.findFirst({
-      where: {
-        userId: editor.id,
-        journalId: submission.journalId,
-        role: {
-          in: EDITORIAL_ROLES,
-        },
-      },
-      select: {
-        id: true,
-      },
-    });
-
-  if (!editorJournalRole) {
-    notFound();
-  }
-
   const currentReviewRound =
     submission.currentReviewRound || 1;
 

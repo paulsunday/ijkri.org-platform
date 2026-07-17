@@ -1,4 +1,4 @@
-import { requireAnyRole } from "@/lib/auth/permissions";
+﻿import { requireAnyRole } from "@/lib/auth/permissions";
 import { AUTHOR_ROLES } from "@/lib/auth/role-groups";
 
 import { submitManuscript } from "./actions";
@@ -14,7 +14,7 @@ export default async function SubmitManuscriptPage() {
 
       <p className="mb-8 text-gray-600">
         Submit your manuscript to the International Journal of Advanced
-        Research and Innovation (IJARI).
+        Research and Innovation (IJKRI).
       </p>
 
       <form action={submitManuscript} className="space-y-6">

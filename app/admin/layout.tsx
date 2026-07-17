@@ -3,12 +3,15 @@ import Link from "next/link";
 const adminLinks = [
   ["Dashboard", "/admin"],
   ["Journals", "/admin/journals"],
+  ["Editorial Board", "/admin/editorial-board"],
   ["Submissions", "/admin/submissions"],
   ["Users & Roles", "/admin/users"],
   ["Volumes", "/admin/volumes"],
   ["Issues", "/admin/issues"],
   ["Articles", "/admin/articles"],
   ["Reviews", "/admin/reviews"],
+  ["Reviewer Applications", "/admin/reviewer-applications"],
+  ["Career Applications", "/admin/career-applications"],
   ["DOI Records", "/admin/doi-records"],
   ["Settings", "/admin/settings"],
 ];

@@ -1,10 +1,17 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+
 import { requireAnyActionRole } from "@/lib/auth/permissions";
 import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
+import { sendEmail } from "@/lib/email/send-email";
+import {
+  manuscriptAcceptedEmail,
+  manuscriptRejectedEmail,
+  revisionRequestedEmail,
+} from "@/lib/email/templates";
+import { prisma } from "@/lib/prisma";
 
 const VALID_DECISIONS = [
   "REVISION_REQUIRED",
@@ -23,15 +30,59 @@ const EDITOR_ROLES = [
   "SECTION_EDITOR",
 ] as const;
 
+function getAppUrl() {
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "http://localhost:3000"
+  ).replace(/\/+$/, "");
+}
+
+async function deliverDecisionEmail({
+  to,
+  submissionId,
+  decision,
+  emailContent,
+}: {
+  to: string;
+  submissionId: string;
+  decision: EditorialDecisionValue;
+  emailContent: {
+    subject: string;
+    html: string;
+    text: string;
+  };
+}) {
+  try {
+    await sendEmail({
+      to,
+      subject: emailContent.subject,
+      html: emailContent.html,
+      text: emailContent.text,
+    });
+  } catch (error) {
+    console.error(
+      "Editorial decision email delivery failed:",
+      {
+        submissionId,
+        decision,
+        recipient: to,
+        error,
+      },
+    );
+  }
+}
+
 export async function sendEditorialDecision(
   formData: FormData,
 ) {
-  const editor = await requireAnyActionRole(EDITORIAL_ROLES);
+  const editor =
+    await requireAnyActionRole(
+      EDITORIAL_ROLES,
+    );
+
   const submissionId = String(
     formData.get("submissionId") || "",
   ).trim();
-
-
 
   const decision = String(
     formData.get("decision") || "",
@@ -46,7 +97,9 @@ export async function sendEditorialDecision(
   ).trim();
 
   if (!submissionId) {
-    throw new Error("Submission ID is missing.");
+    throw new Error(
+      "Submission ID is missing.",
+    );
   }
 
   if (!VALID_DECISIONS.includes(decision)) {
@@ -74,7 +127,11 @@ export async function sendEditorialDecision(
       `${revisionDeadlineValue}T23:59:59`,
     );
 
-    if (Number.isNaN(revisionDeadline.getTime())) {
+    if (
+      Number.isNaN(
+        revisionDeadline.getTime(),
+      )
+    ) {
       throw new Error(
         "The revision deadline is invalid.",
       );
@@ -92,6 +149,7 @@ export async function sendEditorialDecision(
       where: {
         id: submissionId,
       },
+
       include: {
         author: {
           select: {
@@ -105,13 +163,16 @@ export async function sendEditorialDecision(
           select: {
             id: true,
             name: true,
+            shortName: true,
           },
         },
       },
     });
 
   if (!submission) {
-    throw new Error("Submission not found.");
+    throw new Error(
+      "Submission not found.",
+    );
   }
 
   const terminalStatuses = [
@@ -119,9 +180,14 @@ export async function sendEditorialDecision(
     "REJECTED",
     "PUBLISHED",
     "WITHDRAWN",
-  ];
+  ] as const;
 
-  if (terminalStatuses.includes(submission.status)) {
+  if (
+    terminalStatuses.includes(
+      submission.status as
+      (typeof terminalStatuses)[number],
+    )
+  ) {
     throw new Error(
       `A new decision cannot be recorded because this submission is already ${submission.status
         .replaceAll("_", " ")
@@ -129,27 +195,26 @@ export async function sendEditorialDecision(
     );
   }
 
-  const editorJournalRole = await prisma.userJournalRole.findFirst({
-    where: {
-      userId: editor.id,
-      journalId: submission.journalId,
-      role: {
-        in: [...EDITOR_ROLES],
+  const editorJournalRole =
+    await prisma.userJournalRole.findFirst({
+      where: {
+        userId: editor.id,
+        journalId: submission.journalId,
+
+        role: {
+          in: [...EDITOR_ROLES],
+        },
       },
-    },
-    select: {
-      id: true,
-    },
-  });
+
+      select: {
+        id: true,
+      },
+    });
 
   if (!editorJournalRole) {
     throw new Error(
       "You do not have editorial permission for this journal.",
     );
-  }
-
-  if (!editor) {
-    throw new Error("Editor account not found.");
   }
 
   if (!editor.isActive) {
@@ -158,17 +223,17 @@ export async function sendEditorialDecision(
     );
   }
 
-  const editorHasPermission = editor.roles.some(
-    (roleRecord) =>
+  const editorHasPermission =
+    editor.roles.some((roleRecord) =>
       EDITOR_ROLES.includes(
         roleRecord.role as
         (typeof EDITOR_ROLES)[number],
       ),
-  );
+    );
 
   if (!editorHasPermission) {
     throw new Error(
-      "The selected user does not have editorial permission for this journal.",
+      "Your account does not have permission to issue editorial decisions.",
     );
   }
 
@@ -181,6 +246,7 @@ export async function sendEditorialDecision(
         submissionId,
         reviewRound: currentRound,
       },
+
       include: {
         review: true,
       },
@@ -239,65 +305,185 @@ export async function sendEditorialDecision(
   const authorNotificationLink =
     `/author/submissions/${submissionId}`;
 
-  await prisma.$transaction(async (tx) => {
-    const editorialDecision =
-      await tx.editorialDecision.create({
-        data: {
-          submissionId,
-          editorId: editor.id,
-          decision,
-          comments,
-          revisionDeadline,
-        },
+  const editorialDecision =
+    await prisma.$transaction(
+      async (tx) => {
+        const createdDecision =
+          await tx.editorialDecision.create({
+            data: {
+              submissionId,
+              editorId: editor.id,
+              decision,
+              comments,
+              revisionDeadline,
+            },
+
+            select: {
+              id: true,
+              decision: true,
+              revisionDeadline: true,
+              createdAt: true,
+            },
+          });
+
+        await tx.submission.update({
+          where: {
+            id: submissionId,
+          },
+
+          data: {
+            status: decision,
+          },
+        });
+
+        await tx.notification.create({
+          data: {
+            userId: submission.authorId,
+            type: "DECISION",
+            title: decisionTitle,
+            message: decisionMessage,
+            link: authorNotificationLink,
+          },
+        });
+
+        await tx.activityLog.create({
+          data: {
+            userId: editor.id,
+            action: "MAKE_DECISION",
+            entity: "EditorialDecision",
+            entityId: createdDecision.id,
+
+            metadata: {
+              event:
+                "EDITORIAL_DECISION_ISSUED",
+              submissionId,
+              submissionTitle:
+                submission.title,
+              authorId:
+                submission.authorId,
+              authorEmail:
+                submission.author.email,
+              journalId:
+                submission.journalId,
+              journalName:
+                submission.journal.name,
+              reviewRound:
+                currentRound,
+              decision,
+              revisionDeadline:
+                revisionDeadline?.toISOString() ||
+                null,
+              submittedReviewCount:
+                submittedReviews.length,
+
+              reviewerRecommendations:
+                submittedReviews.map(
+                  (assignment) => ({
+                    assignmentId:
+                      assignment.id,
+                    reviewerId:
+                      assignment.reviewerId,
+                    recommendation:
+                      assignment.review
+                        ?.recommendation,
+                    score:
+                      assignment.review
+                        ?.score,
+                  }),
+                ),
+            },
+          },
+        });
+
+        return createdDecision;
+      },
+    );
+
+  const appUrl = getAppUrl();
+
+  const submissionUrl =
+    `${appUrl}/author/submissions/${submissionId}`;
+
+  const contactUrl =
+    `${appUrl}/contact`;
+
+  if (
+    decision === "REVISION_REQUIRED" &&
+    revisionDeadline
+  ) {
+    const emailContent =
+      revisionRequestedEmail({
+        authorName:
+          submission.author.name,
+        journalName:
+          submission.journal.name,
+        manuscriptTitle:
+          submission.title,
+        decisionComments: comments,
+        revisionDeadline,
+        submissionUrl,
       });
 
-    await tx.submission.update({
-      where: {
-        id: submissionId,
-      },
-      data: {
-        status: decision,
-      },
+    await deliverDecisionEmail({
+      to: submission.author.email,
+      submissionId,
+      decision,
+      emailContent,
     });
+  }
 
-    await tx.notification.create({
-      data: {
-        userId: submission.authorId,
-        type: "DECISION",
-        title: decisionTitle,
-        message: decisionMessage,
-        link: authorNotificationLink,
-      },
-    });
+  if (decision === "ACCEPTED") {
+    const emailContent =
+      manuscriptAcceptedEmail({
+        authorName:
+          submission.author.name,
+        journalName:
+          submission.journal.name,
+        manuscriptTitle:
+          submission.title,
+        decisionComments: comments,
+        submissionUrl,
+      });
 
-    await tx.activityLog.create({
-      data: {
-        userId: editor.id,
-        action: "MAKE_DECISION",
-        entity: "EditorialDecision",
-        entityId: editorialDecision.id,
-        metadata: {
-          submissionId,
-          reviewRound: currentRound,
-          decision,
-          revisionDeadline:
-            revisionDeadline?.toISOString() || null,
-          submittedReviewCount:
-            submittedReviews.length,
-          reviewerRecommendations:
-            submittedReviews.map(
-              (assignment) => ({
-                assignmentId: assignment.id,
-                reviewerId: assignment.reviewerId,
-                recommendation:
-                  assignment.review?.recommendation,
-                score: assignment.review?.score,
-              }),
-            ),
-        },
-      },
+    await deliverDecisionEmail({
+      to: submission.author.email,
+      submissionId,
+      decision,
+      emailContent,
     });
-  });
+  }
+
+  if (decision === "REJECTED") {
+    const emailContent =
+      manuscriptRejectedEmail({
+        authorName:
+          submission.author.name,
+        journalName:
+          submission.journal.name,
+        manuscriptTitle:
+          submission.title,
+        decisionComments: comments,
+        submissionUrl,
+        contactUrl,
+      });
+
+    await deliverDecisionEmail({
+      to: submission.author.email,
+      submissionId,
+      decision,
+      emailContent,
+    });
+  }
+
+  console.info(
+    "Editorial decision completed:",
+    {
+      editorialDecisionId:
+        editorialDecision.id,
+      submissionId,
+      decision,
+    },
+  );
 
   revalidatePath(
     `/editor/submissions/${submissionId}`,
@@ -315,8 +501,19 @@ export async function sendEditorialDecision(
     `/editor/submissions/${submissionId}/revisions`,
   );
 
+  revalidatePath(
+    `/author/submissions/${submissionId}`,
+  );
+
+  revalidatePath(
+    `/author/submissions/${submissionId}/revision`,
+  );
+
   revalidatePath("/editor/dashboard");
   revalidatePath("/author/dashboard");
+  revalidatePath("/admin/submissions");
 
-  redirect(`/editor/submissions/${submissionId}`);
+  redirect(
+    `/editor/submissions/${submissionId}`,
+  );
 }
