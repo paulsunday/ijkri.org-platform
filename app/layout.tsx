@@ -1,23 +1,14 @@
 ﻿import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+
 import AuthProvider from "@/components/providers/session-provider";
-
-import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import Header from "@/components/layout/Header";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "IJKRI | International Journal of Knowledge, Research and Innovation",
+  title:
+    "IJKRI | International Journal of Knowledge, Research and Innovation",
   description:
     "Official publishing platform of Innovare Academic Publishing.",
 };
@@ -28,11 +19,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">
+    <html lang="en" className="h-full">
+      <body className="min-h-full flex flex-col antialiased">
         <AuthProvider>
           <Header />
 
@@ -46,4 +34,3 @@ export default function RootLayout({
     </html>
   );
 }
-
