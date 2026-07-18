@@ -1,0 +1,3092 @@
+===== EDITOR DECISION PAGE =====
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+import { requireAnyRole } from "@/lib/auth/permissions";
+import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
+import { prisma } from "@/lib/prisma";
+
+import { sendEditorialDecision } from "./actions";
+
+type PageProps = {
+  params: Promise<{
+    id: string;
+  }>;
+};
+
+
+function formatStatus(value: string) {
+  return value
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (character) =>
+      character.toUpperCase(),
+    );
+}
+
+function formatDate(
+  value: Date | null | undefined,
+) {
+  if (!value) {
+    return "Not available";
+  }
+
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(value);
+}
+
+function recommendationStyle(
+  recommendation: string | null | undefined,
+) {
+  switch (recommendation) {
+    case "ACCEPT":
+      return "bg-green-100 text-green-800";
+
+    case "MINOR_REVISION":
+      return "bg-yellow-100 text-yellow-800";
+
+    case "MAJOR_REVISION":
+      return "bg-orange-100 text-orange-800";
+
+    case "REJECT":
+      return "bg-red-100 text-red-800";
+
+    default:
+      return "bg-gray-100 text-gray-700";
+  }
+}
+
+export default async function EditorialDecisionPage({
+  params,
+}: PageProps) {
+  const editor =
+    await requireAnyRole(EDITORIAL_ROLES);
+
+  const { id } = await params;
+
+  const submission =
+    await prisma.submission.findUnique({
+      where: {
+        id,
+      },
+      include: {
+        author: true,
+        journal: true,
+
+        versions: {
+          orderBy: {
+            versionNumber: "desc",
+          },
+          take: 1,
+        },
+
+        reviewAssignments: {
+          include: {
+            reviewer: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+
+            review: true,
+            submissionVersion: true,
+          },
+
+          orderBy: [
+            {
+              reviewRound: "desc",
+            },
+            {
+              invitedAt: "asc",
+            },
+          ],
+        },
+
+        decisions: {
+          include: {
+            editor: true,
+          },
+
+          orderBy: {
+            createdAt: "desc",
+          },
+        },
+      },
+    });
+
+  if (!submission) {
+    notFound();
+  }
+
+  const editorJournalRole =
+    await prisma.userJournalRole.findFirst({
+      where: {
+        userId: editor.id,
+        journalId: submission.journalId,
+        role: {
+          in: EDITORIAL_ROLES,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+  if (!editorJournalRole) {
+    notFound();
+  }
+
+  const currentRound =
+    submission.currentReviewRound || 1;
+
+  const currentRoundAssignments =
+    submission.reviewAssignments.filter(
+      (assignment) =>
+        assignment.reviewRound === currentRound,
+    );
+
+  const submittedAssignments =
+    currentRoundAssignments.filter(
+      (assignment) =>
+        assignment.status === "SUBMITTED" &&
+        assignment.review,
+    );
+
+  const pendingAssignments =
+    currentRoundAssignments.filter(
+      (assignment) =>
+        assignment.status === "INVITED" ||
+        assignment.status === "ACCEPTED",
+    );
+
+  const declinedAssignments =
+    currentRoundAssignments.filter(
+      (assignment) =>
+        assignment.status === "DECLINED",
+    );
+
+  const roundComplete =
+    currentRoundAssignments.length > 0 &&
+    pendingAssignments.length === 0 &&
+    submittedAssignments.length > 0;
+
+  const latestVersion =
+    submission.versions[0];
+
+  const terminalStatus = [
+    "ACCEPTED",
+    "REJECTED",
+    "PUBLISHED",
+    "WITHDRAWN",
+  ].includes(submission.status);
+
+  const recommendationCounts = {
+    ACCEPT: submittedAssignments.filter(
+      (assignment) =>
+        assignment.review?.recommendation ===
+        "ACCEPT",
+    ).length,
+
+    MINOR_REVISION: submittedAssignments.filter(
+      (assignment) =>
+        assignment.review?.recommendation ===
+        "MINOR_REVISION",
+    ).length,
+
+    MAJOR_REVISION: submittedAssignments.filter(
+      (assignment) =>
+        assignment.review?.recommendation ===
+        "MAJOR_REVISION",
+    ).length,
+
+    REJECT: submittedAssignments.filter(
+      (assignment) =>
+        assignment.review?.recommendation ===
+        "REJECT",
+    ).length,
+  };
+
+  return (
+    <main className="mx-auto max-w-7xl space-y-8 px-6 py-12">
+      <header>
+        <Link
+          href={`/editor/submissions/${submission.id}`}
+          className="text-sm font-medium text-blue-700 hover:underline"
+        >
+          ← Back to editor workspace
+        </Link>
+
+        <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">
+              Editorial Decision
+            </h1>
+
+            <p className="mt-2 text-gray-600">
+              Assess the reports submitted during review
+              round {currentRound} and issue the next
+              editorial decision.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href={`/editor/submissions/${submission.id}/review-rounds`}
+              className="rounded-lg bg-cyan-700 px-5 py-3 font-semibold text-white hover:bg-cyan-800"
+            >
+              Review-Round Summary
+            </Link>
+
+            <Link
+              href={`/editor/submissions/${submission.id}/revisions`}
+              className="rounded-lg bg-purple-700 px-5 py-3 font-semibold text-white hover:bg-purple-800"
+            >
+              Revision History
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <section className="rounded-xl border bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-semibold">
+          Manuscript Information
+        </h2>
+
+        <div className="mt-5 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          <div>
+            <p className="text-sm text-gray-500">
+              Title
+            </p>
+
+            <p className="font-medium">
+              {submission.title}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-sm text-gray-500">
+              Journal
+            </p>
+
+            <p className="font-medium">
+              {submission.journal.name}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-sm text-gray-500">
+              Author
+            </p>
+
+            <p className="font-medium">
+              {submission.author.name}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-sm text-gray-500">
+              Current status
+            </p>
+
+            <p className="font-medium">
+              {formatStatus(submission.status)}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-sm text-gray-500">
+              Current review round
+            </p>
+
+            <p className="font-medium">
+              Round {currentRound}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-sm text-gray-500">
+              Manuscript version reviewed
+            </p>
+
+            <p className="font-medium">
+              {latestVersion
+                ? `Version ${latestVersion.versionNumber}`
+                : "Version 1 — Original submission"}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-sm text-gray-500">
+              Submitted
+            </p>
+
+            <p className="font-medium">
+              {formatDate(
+                submission.submittedAt ??
+                submission.createdAt,
+              )}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-xl border bg-white p-5 shadow-sm">
+          <p className="text-sm text-gray-500">
+            Assignments
+          </p>
+
+          <p className="mt-2 text-3xl font-bold">
+            {currentRoundAssignments.length}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-green-200 bg-green-50 p-5">
+          <p className="text-sm text-green-700">
+            Submitted
+          </p>
+
+          <p className="mt-2 text-3xl font-bold text-green-900">
+            {submittedAssignments.length}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-5">
+          <p className="text-sm text-yellow-700">
+            Pending
+          </p>
+
+          <p className="mt-2 text-3xl font-bold text-yellow-900">
+            {pendingAssignments.length}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-red-200 bg-red-50 p-5">
+          <p className="text-sm text-red-700">
+            Declined
+          </p>
+
+          <p className="mt-2 text-3xl font-bold text-red-900">
+            {declinedAssignments.length}
+          </p>
+        </div>
+      </section>
+
+      <section className="rounded-xl border bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-semibold">
+          Recommendation Summary — Round{" "}
+          {currentRound}
+        </h2>
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-lg bg-green-50 p-4">
+            <p className="text-sm text-green-700">
+              Accept
+            </p>
+
+            <p className="mt-1 text-2xl font-bold text-green-900">
+              {recommendationCounts.ACCEPT}
+            </p>
+          </div>
+
+          <div className="rounded-lg bg-yellow-50 p-4">
+            <p className="text-sm text-yellow-700">
+              Minor Revision
+            </p>
+
+            <p className="mt-1 text-2xl font-bold text-yellow-900">
+              {recommendationCounts.MINOR_REVISION}
+            </p>
+          </div>
+
+          <div className="rounded-lg bg-orange-50 p-4">
+            <p className="text-sm text-orange-700">
+              Major Revision
+            </p>
+
+            <p className="mt-1 text-2xl font-bold text-orange-900">
+              {recommendationCounts.MAJOR_REVISION}
+            </p>
+          </div>
+
+          <div className="rounded-lg bg-red-50 p-4">
+            <p className="text-sm text-red-700">
+              Reject
+            </p>
+
+            <p className="mt-1 text-2xl font-bold text-red-900">
+              {recommendationCounts.REJECT}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-xl border bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-semibold">
+          Reviewer Reports — Round {currentRound}
+        </h2>
+
+        {currentRoundAssignments.length === 0 ? (
+          <div className="mt-5 rounded-lg border border-yellow-300 bg-yellow-50 p-5">
+            <p className="font-semibold text-yellow-900">
+              No reviewer assignments were found for this
+              round.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-6 space-y-6">
+            {currentRoundAssignments.map(
+              (assignment) => (
+                <article
+                  key={assignment.id}
+                  className="rounded-xl border p-5"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-lg font-semibold">
+                        {assignment.reviewer.name}
+                      </h3>
+
+                      <p className="mt-1 text-sm text-gray-600">
+                        {assignment.reviewer.email}
+                      </p>
+                    </div>
+
+                    <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold">
+                      {formatStatus(
+                        assignment.status,
+                      )}
+                    </span>
+                  </div>
+
+                  {!assignment.review ? (
+                    <div className="mt-5 rounded-lg bg-gray-50 p-4">
+                      <p className="text-sm text-gray-600">
+                        This reviewer has not submitted a
+                        review report.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="mt-6 space-y-5">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span
+                          className={`rounded-full px-4 py-2 text-sm font-semibold ${recommendationStyle(
+                            assignment.review
+                              .recommendation,
+                          )}`}
+                        >
+                          {formatStatus(
+                            assignment.review
+                              .recommendation,
+                          )}
+                        </span>
+
+                        <span className="rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-800">
+                          Score:{" "}
+                          {assignment.review.score ??
+                            "Not supplied"}
+                          /10
+                        </span>
+
+                        <span className="text-sm text-gray-500">
+                          Submitted{" "}
+                          {formatDate(
+                            assignment.review
+                              .submittedAt,
+                          )}
+                        </span>
+                      </div>
+
+                      <div>
+                        <h4 className="font-semibold">
+                          Comments to Author
+                        </h4>
+
+                        <div className="mt-2 whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm">
+                          {assignment.review
+                            .commentsToAuthor ||
+                            "No comments provided."}
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="font-semibold">
+                          Confidential Comments to Editor
+                        </h4>
+
+                        <div className="mt-2 whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm">
+                          {assignment.review
+                            .commentsToEditor ||
+                            "No confidential comments provided."}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </article>
+              ),
+            )}
+          </div>
+        )}
+      </section>
+
+      {!roundComplete && !terminalStatus && (
+        <section className="rounded-xl border border-yellow-300 bg-yellow-50 p-6">
+          <h2 className="font-semibold text-yellow-900">
+            Decision unavailable
+          </h2>
+
+          <p className="mt-2 text-sm text-yellow-800">
+            An editorial decision cannot be issued until
+            the current review round has at least one
+            submitted report and no outstanding invited or
+            accepted assignments.
+          </p>
+
+          <Link
+            href={`/editor/submissions/${submission.id}/review-rounds`}
+            className="mt-5 inline-block rounded-lg bg-yellow-700 px-5 py-3 font-semibold text-white hover:bg-yellow-800"
+          >
+            View Review-Round Progress
+          </Link>
+        </section>
+      )}
+
+      {terminalStatus && (
+        <section className="rounded-xl border border-gray-300 bg-gray-50 p-6">
+          <h2 className="font-semibold">
+            Submission decision is closed
+          </h2>
+
+          <p className="mt-2 text-sm text-gray-700">
+            This submission currently has the status{" "}
+            <strong>
+              {formatStatus(submission.status)}
+            </strong>
+            . A further decision cannot be issued.
+          </p>
+        </section>
+      )}
+
+      {roundComplete &&
+        !terminalStatus && (
+          <section className="rounded-xl border border-red-300 bg-red-50 p-6">
+            <h2 className="font-semibold text-red-900">
+              No eligible editor account found
+            </h2>
+
+            <p className="mt-2 text-sm text-red-800">
+              Assign an active editorial role for this
+              journal before recording a decision.
+            </p>
+          </section>
+        )}
+
+      {roundComplete &&
+        !terminalStatus &&
+        editor && (
+          <section className="rounded-xl border bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-semibold">
+              Make Decision After Round{" "}
+              {currentRound}
+            </h2>
+
+            <p className="mt-2 text-sm text-gray-600">
+              Decision will be recorded by{" "}
+              <strong>{editor.name}</strong>.
+            </p>
+
+            <form
+              action={sendEditorialDecision}
+              className="mt-6 space-y-6"
+            >
+
+
+              <input
+                type="hidden"
+                name="editorId"
+                value={editor.id}
+              />
+
+              <div>
+                <label
+                  htmlFor="decision"
+                  className="mb-2 block font-semibold"
+                >
+                  Editorial Decision
+                </label>
+
+                <select
+                  id="decision"
+                  name="decision"
+                  required
+                  defaultValue=""
+                  className="w-full rounded-lg border p-3"
+                >
+                  <option value="" disabled>
+                    Select decision
+                  </option>
+
+                  <option value="REVISION_REQUIRED">
+                    Request Another Revision
+                  </option>
+
+                  <option value="ACCEPTED">
+                    Accept Manuscript
+                  </option>
+
+                  <option value="REJECTED">
+                    Reject Manuscript
+                  </option>
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="revisionDeadline"
+                  className="mb-2 block font-semibold"
+                >
+                  Revision Deadline
+                </label>
+
+                <p className="mb-2 text-sm text-gray-500">
+                  Required only when requesting another
+                  revision.
+                </p>
+
+                <input
+                  id="revisionDeadline"
+                  name="revisionDeadline"
+                  type="date"
+                  className="w-full rounded-lg border p-3"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="comments"
+                  className="mb-2 block font-semibold"
+                >
+                  Decision Letter / Comments to Author
+                </label>
+
+                <textarea
+                  id="comments"
+                  name="comments"
+                  rows={12}
+                  required
+                  className="w-full rounded-lg border p-3"
+                  placeholder="Dear Author, after considering the reviewer reports from the current review round..."
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="rounded-lg bg-black px-6 py-3 font-semibold text-white hover:bg-gray-800"
+              >
+                Send Round {currentRound} Decision
+              </button>
+            </form>
+          </section>
+        )}
+
+      <section className="rounded-xl border bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-semibold">
+          Previous Editorial Decisions
+        </h2>
+
+        {submission.decisions.length === 0 ? (
+          <p className="mt-4 text-gray-600">
+            No editorial decision has been recorded.
+          </p>
+        ) : (
+          <div className="mt-5 space-y-4">
+            {submission.decisions.map(
+              (previousDecision) => (
+                <article
+                  key={previousDecision.id}
+                  className="rounded-lg border p-4"
+                >
+                  <div className="flex flex-wrap justify-between gap-3">
+                    <div>
+                      <p className="font-semibold">
+                        {formatStatus(
+                          previousDecision.decision,
+                        )}
+                      </p>
+
+                      <p className="mt-1 text-sm text-gray-600">
+                        By{" "}
+                        {
+                          previousDecision.editor
+                            .name
+                        }{" "}
+                        on{" "}
+                        {formatDate(
+                          previousDecision.createdAt,
+                        )}
+                      </p>
+                    </div>
+
+                    {previousDecision.revisionDeadline && (
+                      <p className="text-sm font-medium">
+                        Revision deadline:{" "}
+                        {formatDate(
+                          previousDecision.revisionDeadline,
+                        )}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="mt-4 whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm">
+                    {previousDecision.comments ||
+                      "No decision comments were recorded."}
+                  </div>
+                </article>
+              ),
+            )}
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
+===== EDITOR DECISION ACTIONS =====
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+
+import { requireAnyActionRole } from "@/lib/auth/permissions";
+import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
+import { sendEmail } from "@/lib/email/send-email";
+import {
+  manuscriptAcceptedEmail,
+  manuscriptRejectedEmail,
+  revisionRequestedEmail,
+} from "@/lib/email/templates";
+import { prisma } from "@/lib/prisma";
+
+const VALID_DECISIONS = [
+  "REVISION_REQUIRED",
+  "ACCEPTED",
+  "REJECTED",
+] as const;
+
+type EditorialDecisionValue =
+  (typeof VALID_DECISIONS)[number];
+
+const EDITOR_ROLES = [
+  "SUPER_ADMIN",
+  "ADMIN",
+  "EDITOR_IN_CHIEF",
+  "MANAGING_EDITOR",
+  "SECTION_EDITOR",
+] as const;
+
+function getAppUrl() {
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "http://localhost:3000"
+  ).replace(/\/+$/, "");
+}
+
+async function deliverDecisionEmail({
+  to,
+  submissionId,
+  decision,
+  emailContent,
+}: {
+  to: string;
+  submissionId: string;
+  decision: EditorialDecisionValue;
+  emailContent: {
+    subject: string;
+    html: string;
+    text: string;
+  };
+}) {
+  try {
+    await sendEmail({
+      to,
+      subject: emailContent.subject,
+      html: emailContent.html,
+      text: emailContent.text,
+    });
+  } catch (error) {
+    console.error(
+      "Editorial decision email delivery failed:",
+      {
+        submissionId,
+        decision,
+        recipient: to,
+        error,
+      },
+    );
+  }
+}
+
+export async function sendEditorialDecision(
+  formData: FormData,
+) {
+  const editor =
+    await requireAnyActionRole(
+      EDITORIAL_ROLES,
+    );
+
+  const submissionId = String(
+    formData.get("submissionId") || "",
+  ).trim();
+
+  const decision = String(
+    formData.get("decision") || "",
+  ).trim() as EditorialDecisionValue;
+
+  const comments = String(
+    formData.get("comments") || "",
+  ).trim();
+
+  const revisionDeadlineValue = String(
+    formData.get("revisionDeadline") || "",
+  ).trim();
+
+  if (!submissionId) {
+    throw new Error(
+      "Submission ID is missing.",
+    );
+  }
+
+  if (!VALID_DECISIONS.includes(decision)) {
+    throw new Error(
+      "Please select a valid editorial decision.",
+    );
+  }
+
+  if (!comments) {
+    throw new Error(
+      "A decision letter or comments to the author are required.",
+    );
+  }
+
+  let revisionDeadline: Date | null = null;
+
+  if (decision === "REVISION_REQUIRED") {
+    if (!revisionDeadlineValue) {
+      throw new Error(
+        "A revision deadline is required when requesting a revision.",
+      );
+    }
+
+    revisionDeadline = new Date(
+      `${revisionDeadlineValue}T23:59:59`,
+    );
+
+    if (
+      Number.isNaN(
+        revisionDeadline.getTime(),
+      )
+    ) {
+      throw new Error(
+        "The revision deadline is invalid.",
+      );
+    }
+
+    if (revisionDeadline <= new Date()) {
+      throw new Error(
+        "The revision deadline must be in the future.",
+      );
+    }
+  }
+
+  const submission =
+    await prisma.submission.findUnique({
+      where: {
+        id: submissionId,
+      },
+
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+
+        journal: {
+          select: {
+            id: true,
+            name: true,
+            shortName: true,
+          },
+        },
+      },
+    });
+
+  if (!submission) {
+    throw new Error(
+      "Submission not found.",
+    );
+  }
+
+  const terminalStatuses = [
+    "ACCEPTED",
+    "REJECTED",
+    "PUBLISHED",
+    "WITHDRAWN",
+  ] as const;
+
+  if (
+    terminalStatuses.includes(
+      submission.status as
+      (typeof terminalStatuses)[number],
+    )
+  ) {
+    throw new Error(
+      `A new decision cannot be recorded because this submission is already ${submission.status
+        .replaceAll("_", " ")
+        .toLowerCase()}.`,
+    );
+  }
+
+  const editorJournalRole =
+    await prisma.userJournalRole.findFirst({
+      where: {
+        userId: editor.id,
+        journalId: submission.journalId,
+
+        role: {
+          in: [...EDITOR_ROLES],
+        },
+      },
+
+      select: {
+        id: true,
+      },
+    });
+
+  if (!editorJournalRole) {
+    throw new Error(
+      "You do not have editorial permission for this journal.",
+    );
+  }
+
+  if (!editor.isActive) {
+    throw new Error(
+      "This editor account is inactive.",
+    );
+  }
+
+  const editorHasPermission =
+    editor.roles.some((roleRecord) =>
+      EDITOR_ROLES.includes(
+        roleRecord.role as
+        (typeof EDITOR_ROLES)[number],
+      ),
+    );
+
+  if (!editorHasPermission) {
+    throw new Error(
+      "Your account does not have permission to issue editorial decisions.",
+    );
+  }
+
+  const currentRound =
+    submission.currentReviewRound || 1;
+
+  const currentRoundAssignments =
+    await prisma.reviewAssignment.findMany({
+      where: {
+        submissionId,
+        reviewRound: currentRound,
+      },
+
+      include: {
+        review: true,
+      },
+    });
+
+  if (currentRoundAssignments.length === 0) {
+    throw new Error(
+      `No reviewer assignments were found for review round ${currentRound}.`,
+    );
+  }
+
+  const pendingAssignments =
+    currentRoundAssignments.filter(
+      (assignment) =>
+        assignment.status === "INVITED" ||
+        assignment.status === "ACCEPTED",
+    );
+
+  if (pendingAssignments.length > 0) {
+    throw new Error(
+      `An editorial decision cannot yet be made. ${pendingAssignments.length
+      } review assignment${pendingAssignments.length === 1
+        ? " is"
+        : "s are"
+      } still outstanding in review round ${currentRound}.`,
+    );
+  }
+
+  const submittedReviews =
+    currentRoundAssignments.filter(
+      (assignment) =>
+        assignment.status === "SUBMITTED" &&
+        assignment.review,
+    );
+
+  if (submittedReviews.length === 0) {
+    throw new Error(
+      `No submitted reviewer report was found for review round ${currentRound}.`,
+    );
+  }
+
+  const decisionTitle =
+    decision === "ACCEPTED"
+      ? "Manuscript Accepted"
+      : decision === "REJECTED"
+        ? "Manuscript Rejected"
+        : "Revision Required";
+
+  const decisionMessage =
+    decision === "ACCEPTED"
+      ? `Your manuscript "${submission.title}" has been accepted.`
+      : decision === "REJECTED"
+        ? `A rejection decision has been made on your manuscript "${submission.title}".`
+        : `A revision has been requested for your manuscript "${submission.title}".`;
+
+  const authorNotificationLink =
+    `/author/submissions/${submissionId}`;
+
+  const editorialDecision =
+    await prisma.$transaction(
+      async (tx) => {
+        const createdDecision =
+          await tx.editorialDecision.create({
+            data: {
+              submissionId,
+              editorId: editor.id,
+              decision,
+              comments,
+              revisionDeadline,
+            },
+
+            select: {
+              id: true,
+              decision: true,
+              revisionDeadline: true,
+              createdAt: true,
+            },
+          });
+
+        await tx.submission.update({
+          where: {
+            id: submissionId,
+          },
+
+          data: {
+            status: decision,
+          },
+        });
+
+        await tx.notification.create({
+          data: {
+            userId: submission.authorId,
+            type: "DECISION",
+            title: decisionTitle,
+            message: decisionMessage,
+            link: authorNotificationLink,
+          },
+        });
+
+        await tx.activityLog.create({
+          data: {
+            userId: editor.id,
+            action: "MAKE_DECISION",
+            entity: "EditorialDecision",
+            entityId: createdDecision.id,
+
+            metadata: {
+              event:
+                "EDITORIAL_DECISION_ISSUED",
+              submissionId,
+              submissionTitle:
+                submission.title,
+              authorId:
+                submission.authorId,
+              authorEmail:
+                submission.author.email,
+              journalId:
+                submission.journalId,
+              journalName:
+                submission.journal.name,
+              reviewRound:
+                currentRound,
+              decision,
+              revisionDeadline:
+                revisionDeadline?.toISOString() ||
+                null,
+              submittedReviewCount:
+                submittedReviews.length,
+
+              reviewerRecommendations:
+                submittedReviews.map(
+                  (assignment) => ({
+                    assignmentId:
+                      assignment.id,
+                    reviewerId:
+                      assignment.reviewerId,
+                    recommendation:
+                      assignment.review
+                        ?.recommendation,
+                    score:
+                      assignment.review
+                        ?.score,
+                  }),
+                ),
+            },
+          },
+        });
+
+        return createdDecision;
+      },
+    );
+
+  const appUrl = getAppUrl();
+
+  const submissionUrl =
+    `${appUrl}/author/submissions/${submissionId}`;
+
+  const contactUrl =
+    `${appUrl}/contact`;
+
+  if (
+    decision === "REVISION_REQUIRED" &&
+    revisionDeadline
+  ) {
+    const emailContent =
+      revisionRequestedEmail({
+        authorName:
+          submission.author.name,
+        journalName:
+          submission.journal.name,
+        manuscriptTitle:
+          submission.title,
+        decisionComments: comments,
+        revisionDeadline,
+        submissionUrl,
+      });
+
+    await deliverDecisionEmail({
+      to: submission.author.email,
+      submissionId,
+      decision,
+      emailContent,
+    });
+  }
+
+  if (decision === "ACCEPTED") {
+    const emailContent =
+      manuscriptAcceptedEmail({
+        authorName:
+          submission.author.name,
+        journalName:
+          submission.journal.name,
+        manuscriptTitle:
+          submission.title,
+        decisionComments: comments,
+        submissionUrl,
+      });
+
+    await deliverDecisionEmail({
+      to: submission.author.email,
+      submissionId,
+      decision,
+      emailContent,
+    });
+  }
+
+  if (decision === "REJECTED") {
+    const emailContent =
+      manuscriptRejectedEmail({
+        authorName:
+          submission.author.name,
+        journalName:
+          submission.journal.name,
+        manuscriptTitle:
+          submission.title,
+        decisionComments: comments,
+        submissionUrl,
+        contactUrl,
+      });
+
+    await deliverDecisionEmail({
+      to: submission.author.email,
+      submissionId,
+      decision,
+      emailContent,
+    });
+  }
+
+  console.info(
+    "Editorial decision completed:",
+    {
+      editorialDecisionId:
+        editorialDecision.id,
+      submissionId,
+      decision,
+    },
+  );
+
+  revalidatePath(
+    `/editor/submissions/${submissionId}`,
+  );
+
+  revalidatePath(
+    `/editor/submissions/${submissionId}/decisions`,
+  );
+
+  revalidatePath(
+    `/editor/submissions/${submissionId}/review-rounds`,
+  );
+
+  revalidatePath(
+    `/editor/submissions/${submissionId}/revisions`,
+  );
+
+  revalidatePath(
+    `/author/submissions/${submissionId}`,
+  );
+
+  revalidatePath(
+    `/author/submissions/${submissionId}/revision`,
+  );
+
+  revalidatePath("/editor/dashboard");
+  revalidatePath("/author/dashboard");
+  revalidatePath("/admin/submissions");
+
+  redirect(
+    `/editor/submissions/${submissionId}`,
+  );
+}
+===== AUTHOR REVISION PAGE =====
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+import { requireAnyRole } from "@/lib/auth/permissions";
+import { AUTHOR_ROLES } from "@/lib/auth/role-groups";
+import { prisma } from "@/lib/prisma";
+
+import { submitRevision } from "./actions";
+
+type PageProps = {
+    params: Promise<{
+        id: string;
+    }>;
+};
+
+function formatStatus(status: string) {
+    return status
+        .replaceAll("_", " ")
+        .toLowerCase()
+        .replace(/\b\w/g, (character) =>
+            character.toUpperCase(),
+        );
+}
+
+export default async function AuthorRevisionPage({
+    params,
+}: PageProps) {
+    const author = await requireAnyRole(AUTHOR_ROLES);
+
+    const { id } = await params;
+
+    const submission =
+        await prisma.submission.findFirst({
+            where: {
+                id,
+                authorId: author.id,
+            },
+
+            include: {
+                journal: true,
+                author: true,
+                decisions: {
+                    orderBy: {
+                        createdAt: "desc",
+                    },
+                },
+                versions: {
+                    include: {
+                        uploadedBy: true,
+                    },
+                    orderBy: {
+                        versionNumber: "desc",
+                    },
+                },
+                files: {
+                    orderBy: {
+                        createdAt: "asc",
+                    },
+                },
+            },
+        });
+
+    if (!submission) {
+        notFound();
+    }
+
+    const latestDecision = submission.decisions[0];
+
+    const latestVersionNumber =
+        submission.versions[0]?.versionNumber || 1;
+
+    const nextVersionNumber = latestVersionNumber + 1;
+
+    const revisionAllowed =
+        submission.status === "REVISION_REQUIRED";
+
+    const deadlinePassed =
+        latestDecision?.revisionDeadline
+            ? new Date() > latestDecision.revisionDeadline
+            : false;
+
+    return (
+        <main className="mx-auto max-w-5xl space-y-8 px-6 py-12">
+            <div>
+                <Link
+                    href={`/author/submissions/${submission.id}`}
+                    className="text-sm font-medium text-blue-700 hover:underline"
+                >
+                    ← Back to submission
+                </Link>
+
+                <h1 className="mt-4 text-3xl font-bold">
+                    Submit Revised Manuscript
+                </h1>
+
+                <p className="mt-2 text-gray-600">
+                    Upload the revised manuscript and your response to
+                    the editor and reviewers.
+                </p>
+            </div>
+
+            <section className="rounded-xl border bg-white p-6 shadow-sm">
+                <h2 className="text-xl font-semibold">
+                    Manuscript Information
+                </h2>
+
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                    <div>
+                        <p className="text-sm text-gray-500">
+                            Manuscript title
+                        </p>
+                        <p className="font-medium">
+                            {submission.title}
+                        </p>
+                    </div>
+
+                    <div>
+                        <p className="text-sm text-gray-500">
+                            Journal
+                        </p>
+                        <p className="font-medium">
+                            {submission.journal.name}
+                        </p>
+                    </div>
+
+                    <div>
+                        <p className="text-sm text-gray-500">
+                            Author
+                        </p>
+                        <p className="font-medium">
+                            {submission.author.name}
+                        </p>
+                    </div>
+
+                    <div>
+                        <p className="text-sm text-gray-500">
+                            Current status
+                        </p>
+                        <p className="font-medium">
+                            {formatStatus(submission.status)}
+                        </p>
+                    </div>
+
+                    <div>
+                        <p className="text-sm text-gray-500">
+                            Current version
+                        </p>
+                        <p className="font-medium">
+                            Version {latestVersionNumber}
+                        </p>
+                    </div>
+
+                    <div>
+                        <p className="text-sm text-gray-500">
+                            Next version
+                        </p>
+                        <p className="font-medium">
+                            Version {nextVersionNumber}
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <section className="rounded-xl border bg-white p-6 shadow-sm">
+                <h2 className="text-xl font-semibold">
+                    Editorial Decision
+                </h2>
+
+                {!latestDecision ? (
+                    <p className="mt-4 text-gray-600">
+                        No editorial decision is available.
+                    </p>
+                ) : (
+                    <div className="mt-5 space-y-4">
+                        <div>
+                            <p className="text-sm text-gray-500">
+                                Decision
+                            </p>
+                            <p className="font-semibold">
+                                {formatStatus(latestDecision.decision)}
+                            </p>
+                        </div>
+
+                        <div>
+                            <p className="text-sm text-gray-500">
+                                Revision deadline
+                            </p>
+                            <p className="font-medium">
+                                {latestDecision.revisionDeadline
+                                    ? new Date(
+                                        latestDecision.revisionDeadline,
+                                    ).toLocaleDateString()
+                                    : "No deadline specified"}
+                            </p>
+                        </div>
+
+                        <div>
+                            <p className="text-sm text-gray-500">
+                                Editor’s comments
+                            </p>
+
+                            <div className="mt-2 whitespace-pre-wrap rounded-lg bg-gray-50 p-4">
+                                {latestDecision.comments ||
+                                    "No comments were provided."}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </section>
+
+            {!revisionAllowed ? (
+                <section className="rounded-xl border border-yellow-300 bg-yellow-50 p-6">
+                    <h2 className="font-semibold text-yellow-900">
+                        Revision upload is unavailable
+                    </h2>
+
+                    <p className="mt-2 text-sm text-yellow-800">
+                        This submission currently has the status{" "}
+                        <strong>
+                            {formatStatus(submission.status)}
+                        </strong>
+                        . A revised manuscript can only be uploaded when
+                        the status is Revision Required.
+                    </p>
+                </section>
+            ) : deadlinePassed ? (
+                <section className="rounded-xl border border-red-300 bg-red-50 p-6">
+                    <h2 className="font-semibold text-red-900">
+                        Revision deadline has passed
+                    </h2>
+
+                    <p className="mt-2 text-sm text-red-800">
+                        Contact the journal editorial office before
+                        attempting to submit a late revision.
+                    </p>
+                </section>
+            ) : (
+                <section className="rounded-xl border bg-white p-6 shadow-sm">
+                    <h2 className="text-xl font-semibold">
+                        Upload Version {nextVersionNumber}
+                    </h2>
+
+                    <form
+                        action={submitRevision}
+                        className="mt-6 space-y-6"
+                    >
+                        <input
+                            type="hidden"
+                            name="submissionId"
+                            value={submission.id}
+                        />
+
+                        <div>
+                            <label
+                                htmlFor="manuscriptFile"
+                                className="block font-medium"
+                            >
+                                Revised manuscript
+                            </label>
+
+                            <p className="mt-1 text-sm text-gray-500">
+                                Required. Accepted formats: PDF, DOC, or
+                                DOCX. Maximum size: 20 MB.
+                            </p>
+
+                            <input
+                                id="manuscriptFile"
+                                name="manuscriptFile"
+                                type="file"
+                                accept=".pdf,.doc,.docx"
+                                required
+                                className="mt-3 block w-full rounded-lg border p-3"
+                            />
+                        </div>
+
+                        <div>
+                            <label
+                                htmlFor="responseFile"
+                                className="block font-medium"
+                            >
+                                Response to reviewers
+                            </label>
+
+                            <p className="mt-1 text-sm text-gray-500">
+                                Optional but strongly recommended. Explain how
+                                each reviewer comment was addressed.
+                            </p>
+
+                            <input
+                                id="responseFile"
+                                name="responseFile"
+                                type="file"
+                                accept=".pdf,.doc,.docx"
+                                className="mt-3 block w-full rounded-lg border p-3"
+                            />
+                        </div>
+
+                        <div>
+                            <label
+                                htmlFor="coverLetter"
+                                className="block font-medium"
+                            >
+                                Revision cover letter
+                            </label>
+
+                            <textarea
+                                id="coverLetter"
+                                name="coverLetter"
+                                rows={7}
+                                className="mt-2 w-full rounded-lg border p-3"
+                                placeholder="Dear Editor, please find attached the revised manuscript..."
+                            />
+                        </div>
+
+                        <div>
+                            <label
+                                htmlFor="authorNotes"
+                                className="block font-medium"
+                            >
+                                Additional notes
+                            </label>
+
+                            <textarea
+                                id="authorNotes"
+                                name="authorNotes"
+                                rows={5}
+                                className="mt-2 w-full rounded-lg border p-3"
+                                placeholder="Provide any additional information for the editorial office."
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            className="rounded-lg bg-blue-700 px-6 py-3 font-semibold text-white hover:bg-blue-800"
+                        >
+                            Submit Revision
+                        </button>
+                    </form>
+                </section>
+            )}
+
+            <section className="rounded-xl border bg-white p-6 shadow-sm">
+                <h2 className="text-xl font-semibold">
+                    Version History
+                </h2>
+
+                <div className="mt-5 space-y-4">
+                    {submission.versions.length === 0 ? (
+                        <div className="rounded-lg border p-4">
+                            <p className="font-semibold">Version 1</p>
+
+                            <p className="mt-1 text-sm text-gray-600">
+                                Original manuscript submitted{" "}
+                                {submission.submittedAt
+                                    ? new Date(
+                                        submission.submittedAt,
+                                    ).toLocaleDateString()
+                                    : new Date(
+                                        submission.createdAt,
+                                    ).toLocaleDateString()}
+                            </p>
+
+                            {submission.files.length > 0 && (
+                                <div className="mt-3 space-y-1">
+                                    {submission.files.map((file) => (
+                                        <a
+                                            key={file.id}
+                                            href={file.fileUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="block text-sm text-blue-700 hover:underline"
+                                        >
+                                            {file.fileName}
+                                        </a>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <>
+                            {submission.versions.map((version) => (
+                                <div
+                                    key={version.id}
+                                    className="rounded-lg border p-4"
+                                >
+                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                        <div>
+                                            <p className="font-semibold">
+                                                Version {version.versionNumber}
+                                            </p>
+
+                                            <p className="mt-1 text-sm text-gray-600">
+                                                Uploaded by {version.uploadedBy.name} on{" "}
+                                                {new Date(
+                                                    version.createdAt,
+                                                ).toLocaleDateString()}
+                                            </p>
+                                        </div>
+
+                                        <div className="flex flex-wrap gap-3">
+                                            <a
+                                                href={version.manuscriptFileUrl}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="text-sm font-medium text-blue-700 hover:underline"
+                                            >
+                                                Download manuscript
+                                            </a>
+
+                                            {version.responseFileUrl && (
+                                                <a
+                                                    href={version.responseFileUrl}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="text-sm font-medium text-blue-700 hover:underline"
+                                                >
+                                                    Download response
+                                                </a>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {version.authorNotes && (
+                                        <div className="mt-4 rounded bg-gray-50 p-3 text-sm whitespace-pre-wrap">
+                                            {version.authorNotes}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+
+                            <div className="rounded-lg border p-4">
+                                <p className="font-semibold">Version 1</p>
+
+                                <p className="mt-1 text-sm text-gray-600">
+                                    Original manuscript submitted{" "}
+                                    {submission.submittedAt
+                                        ? new Date(
+                                            submission.submittedAt,
+                                        ).toLocaleDateString()
+                                        : new Date(
+                                            submission.createdAt,
+                                        ).toLocaleDateString()}
+                                </p>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </section>
+        </main>
+    );
+}
+===== AUTHOR REVISION ACTIONS =====
+"use server";
+
+import { randomUUID } from "crypto";
+import { mkdir, writeFile } from "fs/promises";
+import path from "path";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+
+import { requireAnyActionRole } from "@/lib/auth/permissions";
+import { AUTHOR_ROLES } from "@/lib/auth/role-groups";
+import { prisma } from "@/lib/prisma";
+
+const MAX_FILE_SIZE = 20 * 1024 * 1024;
+
+const ALLOWED_FILE_EXTENSIONS = [
+  ".pdf",
+  ".doc",
+  ".docx",
+];
+
+function sanitizeFileName(fileName: string) {
+  return fileName
+    .replace(/[^a-zA-Z0-9._-]/g, "-")
+    .replace(/-+/g, "-");
+}
+
+function validateUploadedFile(file: File, required: boolean) {
+  if (!file || file.size === 0) {
+    if (required) {
+      throw new Error("The revised manuscript file is required.");
+    }
+
+    return;
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error(
+      `${file.name} is larger than the permitted 20 MB file size.`,
+    );
+  }
+
+  const extension = path.extname(file.name).toLowerCase();
+
+  if (!ALLOWED_FILE_EXTENSIONS.includes(extension)) {
+    throw new Error(
+      `${file.name} is not supported. Upload a PDF, DOC, or DOCX file.`,
+    );
+  }
+}
+
+async function saveUploadedFile(
+  file: File,
+  submissionId: string,
+  fileCategory: "manuscript" | "response",
+) {
+  validateUploadedFile(file, fileCategory === "manuscript");
+
+  const extension = path.extname(file.name).toLowerCase();
+  const originalName = sanitizeFileName(file.name);
+  const storedName = `${fileCategory}-${randomUUID()}${extension}`;
+
+  const relativeDirectory = path.join(
+    "uploads",
+    "revisions",
+    submissionId,
+  );
+
+  const absoluteDirectory = path.join(
+    process.cwd(),
+    "public",
+    relativeDirectory,
+  );
+
+  await mkdir(absoluteDirectory, {
+    recursive: true,
+  });
+
+  const bytes = await file.arrayBuffer();
+  const buffer = Buffer.from(bytes);
+
+  await writeFile(
+    path.join(absoluteDirectory, storedName),
+    buffer,
+  );
+
+  return {
+    originalName,
+    publicUrl: `/${relativeDirectory
+      .replaceAll("\\", "/")}/${storedName}`,
+  };
+}
+
+export async function submitRevision(formData: FormData) {
+  const author = await requireAnyActionRole(AUTHOR_ROLES);
+
+  const submissionId = String(
+    formData.get("submissionId") || "",
+  );
+
+  const authorNotes = String(
+    formData.get("authorNotes") || "",
+  ).trim();
+
+  const coverLetter = String(
+    formData.get("coverLetter") || "",
+  ).trim();
+
+  const manuscriptFile = formData.get(
+    "manuscriptFile",
+  ) as File | null;
+
+  const responseFile = formData.get(
+    "responseFile",
+  ) as File | null;
+
+  if (!submissionId) {
+    throw new Error("Submission ID is missing.");
+  }
+
+  if (!manuscriptFile) {
+    throw new Error("Revised manuscript file is required.");
+  }
+
+  validateUploadedFile(manuscriptFile, true);
+
+  if (responseFile && responseFile.size > 0) {
+    validateUploadedFile(responseFile, false);
+  }
+
+  const submission = await prisma.submission.findFirst({
+    where: {
+      id: submissionId,
+      authorId: author.id,
+    },
+    include: {
+      versions: {
+        orderBy: {
+          versionNumber: "desc",
+        },
+        take: 1,
+      },
+      decisions: {
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 1,
+      },
+    },
+  });
+
+  if (!submission) {
+    throw new Error(
+      "Submission not found or you do not have permission to revise it.",
+    );
+  }
+
+  if (submission.status !== "REVISION_REQUIRED") {
+    throw new Error(
+      "A revision cannot be uploaded because this submission is not currently awaiting revision.",
+    );
+  }
+
+  const latestDecision = submission.decisions[0];
+
+  if (
+    latestDecision?.revisionDeadline &&
+    new Date() > latestDecision.revisionDeadline
+  ) {
+    throw new Error(
+      "The revision deadline has passed. Contact the editorial office for assistance.",
+    );
+  }
+
+  const manuscriptUpload = await saveUploadedFile(
+    manuscriptFile,
+    submissionId,
+    "manuscript",
+  );
+
+  let responseUpload:
+    | {
+      originalName: string;
+      publicUrl: string;
+    }
+    | undefined;
+
+  if (responseFile && responseFile.size > 0) {
+    responseUpload = await saveUploadedFile(
+      responseFile,
+      submissionId,
+      "response",
+    );
+  }
+
+  const latestVersionNumber =
+    submission.versions[0]?.versionNumber || 1;
+
+  const nextVersionNumber = latestVersionNumber + 1;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.submissionVersion.create({
+      data: {
+        submissionId,
+        uploadedById: author.id,
+        versionNumber: nextVersionNumber,
+        manuscriptFileUrl: manuscriptUpload.publicUrl,
+        manuscriptFileName: manuscriptUpload.originalName,
+        responseFileUrl: responseUpload?.publicUrl,
+        responseFileName: responseUpload?.originalName,
+        coverLetter: coverLetter || null,
+        authorNotes: authorNotes || null,
+      },
+    });
+
+    await tx.submission.update({
+      where: {
+        id: submissionId,
+      },
+      data: {
+        status: "UNDER_INITIAL_REVIEW",
+      },
+    });
+
+    if (latestDecision?.editorId) {
+      await tx.notification.create({
+        data: {
+          userId: latestDecision.editorId,
+          type: "SUBMISSION",
+          title: "Revised manuscript submitted",
+          message: `The author submitted Version ${nextVersionNumber} of: ${submission.title}`,
+          link: `/editor/submissions/${submissionId}`,
+        },
+      });
+    }
+
+    await tx.activityLog.create({
+      data: {
+        userId: author.id,
+        action: "UPDATE",
+        entity: "SubmissionVersion",
+        entityId: submissionId,
+        metadata: {
+          versionNumber: nextVersionNumber,
+          manuscriptFileName: manuscriptUpload.originalName,
+          responseFileName:
+            responseUpload?.originalName || null,
+        },
+      },
+    });
+  });
+
+  revalidatePath(
+    `/author/submissions/${submissionId}/revision`,
+  );
+
+  revalidatePath(
+    `/author/submissions/${submissionId}`,
+  );
+
+  revalidatePath("/author/dashboard");
+  revalidatePath(`/editor/submissions/${submissionId}`);
+  revalidatePath("/editor/dashboard");
+
+  redirect(`/author/submissions/${submissionId}`);
+}
+===== EDITOR REVISIONS PAGE =====
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+import { requireAnyRole } from "@/lib/auth/permissions";
+import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
+import { prisma } from "@/lib/prisma";
+
+import { sendRevisionToReviewers } from "./actions";
+
+type PageProps = {
+    params: Promise<{
+        id: string;
+    }>;
+};
+
+function formatStatus(status: string) {
+    return status
+        .replaceAll("_", " ")
+        .toLowerCase()
+        .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function formatDate(date: Date | null | undefined) {
+    if (!date) {
+        return "Not available";
+    }
+
+    return new Intl.DateTimeFormat("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    }).format(date);
+}
+
+export default async function EditorRevisionHistoryPage({
+    params,
+}: PageProps) {
+    const editor =
+        await requireAnyRole(EDITORIAL_ROLES);
+    const { id } = await params;
+
+    const submission = await prisma.submission.findUnique({
+        where: {
+            id,
+        },
+        include: {
+            journal: true,
+            author: true,
+
+            files: {
+                orderBy: {
+                    createdAt: "asc",
+                },
+            },
+
+            versions: {
+                include: {
+                    uploadedBy: true,
+                },
+                orderBy: {
+                    versionNumber: "desc",
+                },
+            },
+
+            decisions: {
+                include: {
+                    editor: true,
+                },
+                orderBy: {
+                    createdAt: "desc",
+                },
+            },
+        },
+    });
+
+    if (!submission) {
+        notFound();
+    }
+    const editorJournalRole =
+        await prisma.userJournalRole.findFirst({
+            where: {
+                userId: editor.id,
+                journalId: submission.journalId,
+                role: {
+                    in: EDITORIAL_ROLES,
+                },
+            },
+            select: {
+                id: true,
+            },
+        });
+
+    if (!editorJournalRole) {
+        notFound();
+    }
+
+    const newestVersion = submission.versions[0];
+
+    const currentVersionNumber =
+        newestVersion?.versionNumber ?? 1;
+
+    return (
+        <main className="mx-auto max-w-6xl space-y-8 px-6 py-12">
+            <header>
+                <Link
+                    href={`/editor/submissions/${submission.id}`}
+                    className="text-sm font-medium text-blue-700 hover:underline"
+                >
+                    ← Back to editor workspace
+                </Link>
+
+                <Link
+                    href={`/editor/submissions/${submission.id}/review-rounds`}
+                    className="rounded-lg bg-cyan-700 px-5 py-3 font-semibold text-white hover:bg-cyan-800"
+                >
+                    Review-Round Summary
+                </Link>
+
+                <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold">
+                            Revision History
+                        </h1>
+
+                        <p className="mt-2 text-gray-600">
+                            Review all manuscript versions and the author’s
+                            responses before making another editorial decision.
+                        </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3">
+                        {newestVersion &&
+                            submission.status !== "ACCEPTED" &&
+                            submission.status !== "REJECTED" &&
+                            submission.status !== "PUBLISHED" &&
+                            submission.status !== "WITHDRAWN" && (
+                                <form action={sendRevisionToReviewers}>
+                                    <input
+                                        type="hidden"
+                                        name="submissionId"
+                                        value={submission.id}
+                                    />
+
+                                    <button
+                                        type="submit"
+                                        className="rounded-lg bg-purple-700 px-5 py-3 font-semibold text-white hover:bg-purple-800"
+                                    >
+                                        Send Revision to Reviewers
+                                    </button>
+                                </form>
+                            )}
+
+                        <Link
+                            href={`/editor/submissions/${submission.id}/decisions`}
+                            className="rounded-lg bg-black px-5 py-3 font-semibold text-white hover:bg-gray-800"
+                        >
+                            Make Editorial Decision
+                        </Link>
+                    </div>
+
+                </div>
+            </header>
+
+            <section className="rounded-xl border bg-white p-6 shadow-sm">
+                <h2 className="text-xl font-semibold">
+                    Manuscript Information
+                </h2>
+
+                <div className="mt-5 grid gap-5 md:grid-cols-2">
+                    <div>
+                        <p className="text-sm text-gray-500">
+                            Manuscript title
+                        </p>
+                        <p className="font-medium">
+                            {submission.title}
+                        </p>
+                    </div>
+
+                    <div>
+                        <p className="text-sm text-gray-500">
+                            Journal
+                        </p>
+                        <p className="font-medium">
+                            {submission.journal.name}
+                        </p>
+                    </div>
+
+                    <div>
+                        <p className="text-sm text-gray-500">
+                            Author
+                        </p>
+                        <p className="font-medium">
+                            {submission.author.name}
+                        </p>
+                    </div>
+
+                    <div>
+                        <p className="text-sm text-gray-500">
+                            Author email
+                        </p>
+                        <p className="font-medium">
+                            {submission.author.email}
+                        </p>
+                    </div>
+
+                    <div>
+                        <p className="text-sm text-gray-500">
+                            Current status
+                        </p>
+                        <p className="font-medium">
+                            {formatStatus(submission.status)}
+                        </p>
+                    </div>
+
+                    <div>
+                        <p className="text-sm text-gray-500">
+                            Current version
+                        </p>
+                        <p className="font-medium">
+                            Version {currentVersionNumber}
+                        </p>
+                    </div>
+
+                    <div>
+                        <p className="text-sm text-gray-500">
+                            Original submission date
+                        </p>
+                        <p className="font-medium">
+                            {formatDate(
+                                submission.submittedAt ??
+                                submission.createdAt,
+                            )}
+                        </p>
+                    </div>
+
+                    <div>
+                        <p className="text-sm text-gray-500">
+                            Manuscript type
+                        </p>
+                        <p className="font-medium">
+                            {submission.manuscriptType ||
+                                "Not specified"}
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <section className="rounded-xl border bg-white p-6 shadow-sm">
+                <h2 className="text-xl font-semibold">
+                    Latest Revision
+                </h2>
+
+                {!newestVersion ? (
+                    <div className="mt-5 rounded-lg border border-yellow-300 bg-yellow-50 p-5">
+                        <p className="font-semibold text-yellow-900">
+                            No revised version has been uploaded.
+                        </p>
+
+                        <p className="mt-2 text-sm text-yellow-800">
+                            The manuscript currently contains only its
+                            original submission files.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-5">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div>
+                                <p className="text-lg font-semibold text-blue-950">
+                                    Version {newestVersion.versionNumber}
+                                </p>
+
+                                <p className="mt-1 text-sm text-blue-800">
+                                    Uploaded by {newestVersion.uploadedBy.name} on{" "}
+                                    {formatDate(newestVersion.createdAt)}
+                                </p>
+                            </div>
+
+                            <div className="flex flex-wrap gap-3">
+                                <a
+                                    href={newestVersion.manuscriptFileUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
+                                >
+                                    Download Revised Manuscript
+                                </a>
+
+                                {newestVersion.responseFileUrl && (
+                                    <a
+                                        href={newestVersion.responseFileUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="rounded-lg border border-blue-700 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+                                    >
+                                        Download Response to Reviewers
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="mt-6 grid gap-5">
+                            <div>
+                                <p className="text-sm font-semibold text-blue-950">
+                                    Revised manuscript filename
+                                </p>
+
+                                <p className="mt-1 text-sm text-blue-900">
+                                    {newestVersion.manuscriptFileName ||
+                                        "Filename not recorded"}
+                                </p>
+                            </div>
+
+                            {newestVersion.responseFileName && (
+                                <div>
+                                    <p className="text-sm font-semibold text-blue-950">
+                                        Response file
+                                    </p>
+
+                                    <p className="mt-1 text-sm text-blue-900">
+                                        {newestVersion.responseFileName}
+                                    </p>
+                                </div>
+                            )}
+
+                            <div>
+                                <p className="text-sm font-semibold text-blue-950">
+                                    Revision cover letter
+                                </p>
+
+                                <div className="mt-2 whitespace-pre-wrap rounded-lg bg-white p-4 text-sm text-gray-800">
+                                    {newestVersion.coverLetter ||
+                                        "No revision cover letter was provided."}
+                                </div>
+                            </div>
+
+                            <div>
+                                <p className="text-sm font-semibold text-blue-950">
+                                    Additional author notes
+                                </p>
+
+                                <div className="mt-2 whitespace-pre-wrap rounded-lg bg-white p-4 text-sm text-gray-800">
+                                    {newestVersion.authorNotes ||
+                                        "No additional notes were provided."}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </section>
+
+            <section className="rounded-xl border bg-white p-6 shadow-sm">
+                <h2 className="text-xl font-semibold">
+                    All Manuscript Versions
+                </h2>
+
+                <div className="mt-6 space-y-5">
+                    {submission.versions.map((version) => (
+                        <article
+                            key={version.id}
+                            className="rounded-xl border p-5"
+                        >
+                            <div className="flex flex-wrap items-start justify-between gap-4">
+                                <div>
+                                    <h3 className="text-lg font-semibold">
+                                        Version {version.versionNumber}
+                                    </h3>
+
+                                    <p className="mt-1 text-sm text-gray-600">
+                                        Uploaded by {version.uploadedBy.name} on{" "}
+                                        {formatDate(version.createdAt)}
+                                    </p>
+                                </div>
+
+                                <div className="flex flex-wrap gap-3">
+                                    <a
+                                        href={version.manuscriptFileUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-sm font-semibold text-blue-700 hover:underline"
+                                    >
+                                        Download manuscript
+                                    </a>
+
+                                    {version.responseFileUrl && (
+                                        <a
+                                            href={version.responseFileUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-sm font-semibold text-blue-700 hover:underline"
+                                        >
+                                            Download response
+                                        </a>
+                                    )}
+                                </div>
+                            </div>
+
+                            {version.coverLetter && (
+                                <div className="mt-5">
+                                    <p className="text-sm font-semibold">
+                                        Cover letter
+                                    </p>
+
+                                    <div className="mt-2 whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm">
+                                        {version.coverLetter}
+                                    </div>
+                                </div>
+                            )}
+
+                            {version.authorNotes && (
+                                <div className="mt-5">
+                                    <p className="text-sm font-semibold">
+                                        Author notes
+                                    </p>
+
+                                    <div className="mt-2 whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm">
+                                        {version.authorNotes}
+                                    </div>
+                                </div>
+                            )}
+                        </article>
+                    ))}
+
+                    <article className="rounded-xl border p-5">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div>
+                                <h3 className="text-lg font-semibold">
+                                    Version 1 — Original Submission
+                                </h3>
+
+                                <p className="mt-1 text-sm text-gray-600">
+                                    Submitted by {submission.author.name} on{" "}
+                                    {formatDate(
+                                        submission.submittedAt ??
+                                        submission.createdAt,
+                                    )}
+                                </p>
+                            </div>
+                        </div>
+
+                        {submission.files.length === 0 ? (
+                            <p className="mt-4 text-sm text-gray-600">
+                                No original manuscript files were found.
+                            </p>
+                        ) : (
+                            <div className="mt-4 space-y-2">
+                                {submission.files.map((file) => (
+                                    <div
+                                        key={file.id}
+                                        className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-gray-50 p-3"
+                                    >
+                                        <div>
+                                            <p className="text-sm font-medium">
+                                                {file.fileName}
+                                            </p>
+
+                                            <p className="text-xs text-gray-500">
+                                                {file.label ||
+                                                    file.fileType ||
+                                                    "Submission file"}
+                                            </p>
+                                        </div>
+
+                                        <a
+                                            href={file.fileUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-sm font-semibold text-blue-700 hover:underline"
+                                        >
+                                            Download
+                                        </a>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </article>
+                </div>
+            </section>
+
+            <section className="rounded-xl border bg-white p-6 shadow-sm">
+                <h2 className="text-xl font-semibold">
+                    Editorial Decision History
+                </h2>
+
+                {submission.decisions.length === 0 ? (
+                    <p className="mt-4 text-gray-600">
+                        No editorial decisions have been recorded.
+                    </p>
+                ) : (
+                    <div className="mt-5 space-y-4">
+                        {submission.decisions.map((decision) => (
+                            <article
+                                key={decision.id}
+                                className="rounded-lg border p-4"
+                            >
+                                <div className="flex flex-wrap justify-between gap-3">
+                                    <div>
+                                        <p className="font-semibold">
+                                            {formatStatus(decision.decision)}
+                                        </p>
+
+                                        <p className="mt-1 text-sm text-gray-600">
+                                            By {decision.editor.name} on{" "}
+                                            {formatDate(decision.createdAt)}
+                                        </p>
+                                    </div>
+
+                                    {decision.revisionDeadline && (
+                                        <p className="text-sm font-medium">
+                                            Deadline:{" "}
+                                            {formatDate(
+                                                decision.revisionDeadline,
+                                            )}
+                                        </p>
+                                    )}
+                                </div>
+
+                                {decision.comments && (
+                                    <div className="mt-4 whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm">
+                                        {decision.comments}
+                                    </div>
+                                )}
+                            </article>
+                        ))}
+                    </div>
+                )}
+            </section>
+        </main>
+    );
+}
+===== EDITOR REVISION ACTIONS =====
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+
+import { requireAnyActionRole } from "@/lib/auth/permissions";
+import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
+import { prisma } from "@/lib/prisma";
+
+const REVIEW_PERIOD_DAYS = 14;
+
+async function verifyEditorialPermission(
+  userId: string,
+  journalId: string,
+) {
+  const role = await prisma.userJournalRole.findFirst({
+    where: {
+      userId,
+      journalId,
+      role: {
+        in: EDITORIAL_ROLES,
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!role) {
+    throw new Error(
+      "You do not have editorial permission for this journal.",
+    );
+  }
+}
+
+export async function sendRevisionToReviewers(
+  formData: FormData,
+) {
+  const editor = await requireAnyActionRole(EDITORIAL_ROLES);
+
+  const submissionId = String(
+    formData.get("submissionId") || "",
+  ).trim();
+
+  if (!submissionId) {
+    throw new Error("Submission ID is missing.");
+  }
+
+  const submission = await prisma.submission.findUnique({
+    where: {
+      id: submissionId,
+    },
+    include: {
+      versions: {
+        orderBy: {
+          versionNumber: "desc",
+        },
+        take: 1,
+      },
+
+      reviewAssignments: {
+        orderBy: [
+          {
+            reviewRound: "desc",
+          },
+          {
+            createdAt: "asc",
+          },
+        ],
+        include: {
+          reviewer: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              isActive: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!submission) {
+    throw new Error("Submission not found.");
+  }
+
+  await verifyEditorialPermission(
+    editor.id,
+    submission.journalId,
+  );
+
+  if (
+    submission.status === "ACCEPTED" ||
+    submission.status === "REJECTED" ||
+    submission.status === "PUBLISHED" ||
+    submission.status === "WITHDRAWN"
+  ) {
+    throw new Error(
+      `This submission cannot be sent for re-review because its current status is ${submission.status
+        .replaceAll("_", " ")
+        .toLowerCase()}.`,
+    );
+  }
+
+  const latestVersion = submission.versions[0];
+
+  if (!latestVersion) {
+    throw new Error(
+      "No revised manuscript version was found. The author must upload a revision before it can be sent to reviewers.",
+    );
+  }
+
+  const previousRound =
+    submission.currentReviewRound || 1;
+
+  const nextRound = previousRound + 1;
+
+  const previousRoundAssignments =
+    submission.reviewAssignments.filter(
+      (assignment) =>
+        assignment.reviewRound === previousRound,
+    );
+
+  if (previousRoundAssignments.length === 0) {
+    throw new Error(
+      `No reviewers were found for review round ${previousRound}. Assign reviewers before starting the next round.`,
+    );
+  }
+
+  const activeReviewers =
+    previousRoundAssignments.filter(
+      (assignment) =>
+        assignment.reviewer.isActive,
+    );
+
+  if (activeReviewers.length === 0) {
+    throw new Error(
+      "None of the previous reviewers currently has an active account.",
+    );
+  }
+
+  const existingNextRoundAssignments =
+    await prisma.reviewAssignment.count({
+      where: {
+        submissionId,
+        reviewRound: nextRound,
+      },
+    });
+
+  if (existingNextRoundAssignments > 0) {
+    throw new Error(
+      `Review round ${nextRound} has already been created for this submission.`,
+    );
+  }
+
+  const invitedAt = new Date();
+  const dueDate = new Date(invitedAt);
+
+  dueDate.setDate(
+    dueDate.getDate() + REVIEW_PERIOD_DAYS,
+  );
+
+  await prisma.$transaction(async (tx) => {
+    for (const previousAssignment of activeReviewers) {
+      const newAssignment =
+        await tx.reviewAssignment.create({
+          data: {
+            submissionId,
+            reviewerId:
+              previousAssignment.reviewerId,
+            submissionVersionId:
+              latestVersion.id,
+            reviewRound: nextRound,
+            status: "INVITED",
+            invitedAt,
+            dueDate,
+            blindType:
+              previousAssignment.blindType ||
+              "DOUBLE_BLIND",
+          },
+        });
+
+      await tx.notification.create({
+        data: {
+          userId:
+            previousAssignment.reviewerId,
+          type: "REVIEW",
+          title: `Re-review invitation — Round ${nextRound}`,
+          message:
+            `A revised version of "${submission.title}" ` +
+            `has been submitted. You are invited to review ` +
+            `Version ${latestVersion.versionNumber} in review round ${nextRound}.`,
+          link: `/reviewer/reviews/${newAssignment.id}`,
+        },
+      });
+    }
+
+    await tx.submission.update({
+      where: {
+        id: submissionId,
+      },
+      data: {
+        currentReviewRound: nextRound,
+        status: "UNDER_PEER_REVIEW",
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        userId: editor.id,
+        action: "ASSIGN_REVIEWER",
+        entity: "Submission",
+        entityId: submissionId,
+        metadata: {
+          event: "SEND_REVISION_TO_REVIEWERS",
+          previousRound,
+          newRound: nextRound,
+          versionId: latestVersion.id,
+          versionNumber:
+            latestVersion.versionNumber,
+          reviewerCount:
+            activeReviewers.length,
+          reviewerIds: activeReviewers.map(
+            (assignment) =>
+              assignment.reviewerId,
+          ),
+          dueDate: dueDate.toISOString(),
+        },
+      },
+    });
+  });
+
+  revalidatePath(
+    `/editor/submissions/${submissionId}`,
+  );
+
+  revalidatePath(
+    `/editor/submissions/${submissionId}/revisions`,
+  );
+
+  revalidatePath(
+    `/editor/submissions/${submissionId}/reviewers`,
+  );
+
+  revalidatePath("/editor/dashboard");
+  revalidatePath("/reviewer/dashboard");
+
+  redirect(
+    `/editor/submissions/${submissionId}/reviewers`,
+  );
+}
+===== EDITOR SUBMISSION ACTIONS =====
+"use server";
+
+import { revalidatePath } from "next/cache";
+
+import { requireAnyActionRole } from "@/lib/auth/permissions";
+import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
+import { prisma } from "@/lib/prisma";
+
+async function verifyEditorialPermission(
+  userId: string,
+  journalId: string,
+) {
+  const role = await prisma.userJournalRole.findFirst({
+    where: {
+      userId,
+      journalId,
+      role: {
+        in: EDITORIAL_ROLES,
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!role) {
+    throw new Error(
+      "You do not have permission to manage this submission.",
+    );
+  }
+}
+
+export async function sendToReview(formData: FormData) {
+  const editor = await requireAnyActionRole(EDITORIAL_ROLES);
+
+  const submissionId = String(
+    formData.get("submissionId") || "",
+  ).trim();
+
+  if (!submissionId) {
+    throw new Error("Submission ID is missing.");
+  }
+
+  const submission = await prisma.submission.findUnique({
+    where: {
+      id: submissionId,
+    },
+    select: {
+      id: true,
+      journalId: true,
+    },
+  });
+
+  if (!submission) {
+    throw new Error("Submission not found.");
+  }
+
+  await verifyEditorialPermission(
+    editor.id,
+    submission.journalId,
+  );
+
+  await prisma.$transaction(async (tx) => {
+    await tx.submission.update({
+      where: {
+        id: submissionId,
+      },
+      data: {
+        status: "UNDER_PEER_REVIEW",
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        userId: editor.id,
+        action: "UPDATE",
+        entity: "Submission",
+        entityId: submissionId,
+        metadata: {
+          event: "SEND_TO_REVIEW",
+        },
+      },
+    });
+  });
+
+  revalidatePath(
+    `/editor/submissions/${submissionId}`,
+  );
+  revalidatePath(
+    `/editor/submissions/${submissionId}/reviewers`,
+  );
+  revalidatePath("/admin/submissions");
+}
+
+export async function requestRevision(
+  formData: FormData,
+) {
+  const editor = await requireAnyActionRole(EDITORIAL_ROLES);
+
+  const submissionId = String(
+    formData.get("submissionId") || "",
+  ).trim();
+
+  if (!submissionId) {
+    throw new Error("Submission ID is missing.");
+  }
+
+  const submission = await prisma.submission.findUnique({
+    where: {
+      id: submissionId,
+    },
+    select: {
+      id: true,
+      journalId: true,
+    },
+  });
+
+  if (!submission) {
+    throw new Error("Submission not found.");
+  }
+
+  await verifyEditorialPermission(
+    editor.id,
+    submission.journalId,
+  );
+
+  await prisma.$transaction(async (tx) => {
+    await tx.submission.update({
+      where: {
+        id: submissionId,
+      },
+      data: {
+        status: "REVISION_REQUIRED",
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        userId: editor.id,
+        action: "UPDATE",
+        entity: "Submission",
+        entityId: submissionId,
+        metadata: {
+          event: "REQUEST_REVISION",
+        },
+      },
+    });
+  });
+
+  revalidatePath(
+    `/editor/submissions/${submissionId}`,
+  );
+  revalidatePath("/admin/submissions");
+}
+
+export async function rejectSubmission(
+  formData: FormData,
+) {
+  const editor = await requireAnyActionRole(EDITORIAL_ROLES);
+
+  const submissionId = String(
+    formData.get("submissionId") || "",
+  ).trim();
+
+  if (!submissionId) {
+    throw new Error("Submission ID is missing.");
+  }
+
+  const submission = await prisma.submission.findUnique({
+    where: {
+      id: submissionId,
+    },
+    select: {
+      id: true,
+      journalId: true,
+    },
+  });
+
+  if (!submission) {
+    throw new Error("Submission not found.");
+  }
+
+  await verifyEditorialPermission(
+    editor.id,
+    submission.journalId,
+  );
+
+  await prisma.$transaction(async (tx) => {
+    await tx.submission.update({
+      where: {
+        id: submissionId,
+      },
+      data: {
+        status: "REJECTED",
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        userId: editor.id,
+        action: "UPDATE",
+        entity: "Submission",
+        entityId: submissionId,
+        metadata: {
+          event: "REJECT_SUBMISSION",
+        },
+      },
+    });
+  });
+
+  revalidatePath(
+    `/editor/submissions/${submissionId}`,
+  );
+  revalidatePath("/admin/submissions");
+}
+===== SUBMISSION VERSION MODEL =====
+> C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:265:model SubmissionVersion {
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:266:  id                 String             @id @default(cuid())
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:267:  submissionId       String
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:268:  uploadedById       String
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:269:  versionNumber      Int
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:270:  manuscriptFileUrl  String
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:271:  manuscriptFileName String?
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:272:  responseFileUrl    String?
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:273:  responseFileName   String?
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:274:  coverLetter        String?
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:275:  authorNotes        String?
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:276:  createdAt          DateTime           @default(now())
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:277:  updatedAt          DateTime           @updatedAt
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:278:  reviewAssignments  ReviewAssignment[]
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:279:  submission         Submission         @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:280:  uploadedBy         User               @relation("SubmissionVersionUploader", fields: [uploadedById], references: [id], onDelete: Cascade)
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:281:
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:282:  @@unique([submissionId, versionNumber])
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:283:  @@index([submissionId])
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:284:  @@index([uploadedById])
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:285:}
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:286:
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:287:model Keyword {
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:288:  id          String              @id @default(cuid())
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:289:  name        String              @unique
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:290:  createdAt   DateTime            @default(now())
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:291:  articles    ArticleKeyword[]
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:292:  submissions SubmissionKeyword[]
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:293:}
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:294:
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:295:model SubmissionKeyword {
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:296:  submissionId String
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:297:  keywordId    String
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:298:  keyword      Keyword    @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:299:  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:300:
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:301:  @@id([submissionId, keywordId])
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:302:}
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:303:
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:304:model Category {
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:305:  id        String    @id @default(cuid())
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:306:  journalId String
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:307:  name      String
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:308:  slug      String
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:309:  createdAt DateTime  @default(now())
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:310:  articles  Article[]
+===== EDITORIAL DECISION MODEL =====
+> C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:357:model EditorialDecision {
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:358:  id               String           @id @default(cuid())
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:359:  submissionId     String
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:360:  editorId         String
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:361:  decision         SubmissionStatus
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:362:  comments         String?
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:363:  createdAt        DateTime         @default(now())
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:364:  revisionDeadline DateTime?
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:365:  editor           User             @relation(fields: [editorId], references: [id], onDelete: Cascade)
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:366:  submission       Submission       @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:367:
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:368:  @@index([submissionId])
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:369:  @@index([editorId])
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:370:}
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:371:
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:372:model Article {
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:373:  id           String             @id @default(cuid())
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:374:  journalId    String
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:375:  issueId      String?
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:376:  categoryId   String?
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:377:  submissionId String?            @unique
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:378:  title        String
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:379:  slug         String
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:380:  abstract     String
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:381:  body         String?
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:382:  pdfUrl       String?
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:383:  doi          String?
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:384:  status       ArticleStatus      @default(DRAFT)
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:385:  publishedAt  DateTime?
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:386:  createdAt    DateTime           @default(now())
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:387:  updatedAt    DateTime           @updatedAt
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:388:  category     Category?          @relation(fields: [categoryId], references: [id])
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:389:  issue        Issue?             @relation(fields: [issueId], references: [id])
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:390:  journal      Journal            @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:391:  submission   Submission?        @relation(fields: [submissionId], references: [id])
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:392:  authors      ArticleAuthor[]
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:393:  keywords     ArticleKeyword[]
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:394:  references   ArticleReference[]
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:395:  doiRecord    DoiRecord?
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:396:
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:397:  @@unique([journalId, slug])
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:398:  @@index([journalId])
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:399:  @@index([issueId])
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:400:  @@index([status])
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:401:}
+  C:\Users\HP\Documents\publication\journal-platform\prisma\schema.prisma:402:

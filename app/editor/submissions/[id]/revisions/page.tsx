@@ -5,7 +5,7 @@ import { requireAnyRole } from "@/lib/auth/permissions";
 import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 
-import { sendRevisionToReviewers } from "./actions";
+
 
 type PageProps = {
     params: Promise<{
@@ -136,20 +136,13 @@ export default async function EditorRevisionHistoryPage({
                             submission.status !== "REJECTED" &&
                             submission.status !== "PUBLISHED" &&
                             submission.status !== "WITHDRAWN" && (
-                                <form action={sendRevisionToReviewers}>
-                                    <input
-                                        type="hidden"
-                                        name="submissionId"
-                                        value={submission.id}
-                                    />
+                                -<Link
+                                    href={`/editor/submissions/${submission.id}/review-rounds/new`}
+                                    className="rounded-lg bg-purple-700 px-5 py-3 font-semibold text-white hover:bg-purple-800"
+                                >
+                                    Start Next Review Round
+                                </Link>
 
-                                    <button
-                                        type="submit"
-                                        className="rounded-lg bg-purple-700 px-5 py-3 font-semibold text-white hover:bg-purple-800"
-                                    >
-                                        Send Revision to Reviewers
-                                    </button>
-                                </form>
                             )}
 
                         <Link
