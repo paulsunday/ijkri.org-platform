@@ -1,23 +1,29 @@
-import "next-auth";
-import "next-auth/jwt";
+import type { DefaultSession } from "next-auth";
+import type { JWT } from "next-auth/jwt";
+
+type JournalRoleAssignment = {
+    role: string;
+    journalId: string;
+};
 
 declare module "next-auth" {
     interface Session {
         user: {
             id: string;
-            name?: string | null;
-            email?: string | null;
-            image?: string | null;
-        };
+            roles: JournalRoleAssignment[];
+        } & DefaultSession["user"];
     }
 
     interface User {
-        id: string;
+        roles?: JournalRoleAssignment[];
+        passwordChangedAt?: string | null;
     }
 }
 
 declare module "next-auth/jwt" {
     interface JWT {
         userId?: string;
+        roles?: JournalRoleAssignment[];
+        passwordChangedAt?: string | null;
     }
 }

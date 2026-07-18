@@ -9,19 +9,61 @@ type LoginFormProps = {
     passwordReset?: boolean;
     accountActivated?: boolean;
     registered?: boolean;
+    activationRequired?: boolean;
     callbackUrl?: string;
 };
+
+function EyeIcon() {
+    return (
+        <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            className="h-5 w-5"
+        >
+            <path d="M2.062 12.348a1 1 0 0 1 0-.696C3.423 7.51 7.36 5 12 5c4.638 0 8.573 2.507 9.938 6.644a1 1 0 0 1 0 .712C20.577 16.49 16.64 19 12 19c-4.638 0-8.573-2.507-9.938-6.652" />
+            <circle cx="12" cy="12" r="3" />
+        </svg>
+    );
+}
+
+function EyeOffIcon() {
+    return (
+        <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            className="h-5 w-5"
+        >
+            <path d="m2 2 20 20" />
+            <path d="M6.71 6.71C4.78 7.9 3.33 9.63 2.62 11.65a1 1 0 0 0 0 .7C4 16.28 7.73 19 12 19c1.5 0 2.91-.34 4.17-.94" />
+            <path d="M10.73 5.08C11.15 5.03 11.57 5 12 5c4.64 0 8.58 2.51 9.94 6.65a1 1 0 0 1 0 .7 11.1 11.1 0 0 1-1.33 2.6" />
+            <path d="M14.12 14.12A3 3 0 0 1 9.88 9.88" />
+        </svg>
+    );
+}
 
 export default function LoginForm({
     passwordReset = false,
     accountActivated = false,
     registered = false,
+    activationRequired = false,
     callbackUrl = "/post-login",
 }: LoginFormProps) {
     const router = useRouter();
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] =
+        useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
@@ -35,14 +77,16 @@ export default function LoginForm({
 
         try {
             const result = await signIn("credentials", {
-                email,
+                email: email.trim().toLowerCase(),
                 password,
                 redirect: false,
                 callbackUrl,
             });
 
             if (!result || result.error) {
-                setError("Invalid email or password.");
+                setError(
+                    "The email or password is incorrect, or the account is unavailable.",
+                );
                 return;
             }
 
@@ -52,7 +96,10 @@ export default function LoginForm({
             router.replace(destination);
             router.refresh();
         } catch (signInError) {
-            console.error("Login failed:", signInError);
+            console.error(
+                "Login failed:",
+                signInError,
+            );
 
             setError(
                 "Unable to sign in at the moment. Please try again.",
@@ -74,25 +121,34 @@ export default function LoginForm({
                 </h1>
 
                 <p className="mt-4 leading-7 text-slate-600">
-                    Sign in to your IJKRI account to manage manuscripts,
-                    reviews, editorial work and production assignments.
+                    Sign in to your IJKRI account to manage
+                    manuscripts, reviews, editorial work and
+                    production assignments.
                 </p>
 
                 {passwordReset && (
                     <div className="mt-6 rounded-lg border border-green-300 bg-green-50 p-4 text-sm text-green-800">
-                        Your password has been reset successfully. You can
-                        now sign in with your new password.
+                        Your password has been reset successfully.
+                        You can now sign in with your new password.
                     </div>
                 )}
 
                 {accountActivated && (
                     <div className="mt-6 rounded-lg border border-green-300 bg-green-50 p-4 text-sm text-green-800">
-                        Your account has been activated successfully. You
-                        can now sign in.
+                        Your account has been activated
+                        successfully. You can now sign in.
                     </div>
                 )}
 
-                {registered && (
+                {registered && activationRequired && (
+                    <div className="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                        Your account has been created successfully. Please
+                        check your email and activate your account before
+                        signing in.
+                    </div>
+                )}
+
+                {registered && !activationRequired && (
                     <div className="mt-6 rounded-lg border border-green-300 bg-green-50 p-4 text-sm text-green-800">
                         Your account has been created successfully. Sign in
                         to continue.
@@ -100,7 +156,10 @@ export default function LoginForm({
                 )}
 
                 {error && (
-                    <div className="mt-6 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800">
+                    <div
+                        role="alert"
+                        className="mt-6 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800"
+                    >
                         {error}
                     </div>
                 )}
@@ -149,19 +208,57 @@ export default function LoginForm({
                             </Link>
                         </div>
 
-                        <input
-                            id="password"
-                            name="password"
-                            type="password"
-                            required
-                            minLength={8}
-                            autoComplete="current-password"
-                            value={password}
-                            onChange={(event) =>
-                                setPassword(event.target.value)
-                            }
-                            className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
-                        />
+                        <div className="relative">
+                            <input
+                                id="password"
+                                name="password"
+                                type={
+                                    showPassword
+                                        ? "text"
+                                        : "password"
+                                }
+                                required
+                                minLength={8}
+                                autoComplete="current-password"
+                                value={password}
+                                onChange={(event) =>
+                                    setPassword(
+                                        event.target.value,
+                                    )
+                                }
+                                className="w-full rounded-lg border border-slate-300 px-4 py-3 pr-12 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
+                            />
+
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setShowPassword(
+                                        (current) =>
+                                            !current,
+                                    )
+                                }
+                                aria-label={
+                                    showPassword
+                                        ? "Hide password"
+                                        : "Show password"
+                                }
+                                aria-pressed={
+                                    showPassword
+                                }
+                                title={
+                                    showPassword
+                                        ? "Hide password"
+                                        : "Show password"
+                                }
+                                className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-slate-500 transition hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-amber-400"
+                            >
+                                {showPassword ? (
+                                    <EyeOffIcon />
+                                ) : (
+                                    <EyeIcon />
+                                )}
+                            </button>
+                        </div>
                     </div>
 
                     <button
@@ -169,7 +266,9 @@ export default function LoginForm({
                         disabled={loading}
                         className="w-full rounded-lg bg-slate-950 px-6 py-3 font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                        {loading ? "Signing in..." : "Sign in"}
+                        {loading
+                            ? "Signing in..."
+                            : "Sign in"}
                     </button>
                 </form>
 

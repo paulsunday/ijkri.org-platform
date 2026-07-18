@@ -4,8 +4,9 @@ import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 
 import { sendEmail } from "@/lib/email/send-email";
-import { registrationEmail } from "@/lib/email/templates";
 import { prisma } from "@/lib/prisma";
+import { createAccountActivationLink } from "@/lib/auth/account-activation";
+import { accountActivationEmail } from "@/lib/email/templates";
 
 function normalizeEmail(value: string) {
     return value.trim().toLowerCase();
@@ -98,6 +99,7 @@ export async function registerUser(formData: FormData) {
             },
             select: {
                 id: true,
+                name: true,
             },
         });
 
@@ -116,6 +118,7 @@ export async function registerUser(formData: FormData) {
         },
         select: {
             id: true,
+            name: true,
         },
     });
 
@@ -141,8 +144,9 @@ export async function registerUser(formData: FormData) {
                     country: country || null,
                     phone: phone || null,
                     orcid: orcid || null,
-                    isActive: true,
-                    passwordChangedAt: new Date(),
+                    isActive: false,
+                    emailVerified: null,
+                    passwordChangedAt: null,
                 },
             });
 
@@ -173,16 +177,20 @@ export async function registerUser(formData: FormData) {
         },
     );
 
-    const appUrl =
-        process.env.NEXT_PUBLIC_APP_URL ||
-        "http://localhost:3000";
+    const { activationUrl, expiresInHours } =
+        await createAccountActivationLink(
+            createdUser.id,
+        );
 
-    const loginUrl = `${appUrl}/login`;
-
-    const emailContent = registrationEmail({
-        name: createdUser.name,
-        loginUrl,
-    });
+    const emailContent =
+        accountActivationEmail({
+            name: createdUser.name,
+            journalName:
+                journal.name,
+            assignedRole: "AUTHOR",
+            activationUrl,
+            expiresInHours,
+        });
 
     try {
         await sendEmail({
@@ -193,10 +201,12 @@ export async function registerUser(formData: FormData) {
         });
     } catch (error) {
         console.error(
-            "Registration confirmation email failed:",
+            "Activation email failed:",
             error,
         );
     }
 
-    redirect("/login?registered=true");
+    redirect(
+        "/login?registered=true&activationRequired=true",
+    );
 }

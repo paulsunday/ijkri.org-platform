@@ -3,8 +3,9 @@
 type LoginPageProps = {
     searchParams: Promise<{
         passwordReset?: string;
-        activated?: string;
+        accountActivated?: string;
         registered?: string;
+        activationRequired?: string;
         callbackUrl?: string;
     }>;
 };
@@ -18,10 +19,6 @@ function safeCallbackUrl(value?: string) {
         return "/post-login";
     }
 
-    /*
-     * Prevent a callback loop if an invalid login URL
-     * was supplied as the destination.
-     */
     if (
         value === "/login" ||
         value.startsWith("/login?")
@@ -44,10 +41,13 @@ export default async function LoginPage({
                     params.passwordReset === "true"
                 }
                 accountActivated={
-                    params.activated === "true"
+                    params.accountActivated === "true"
                 }
                 registered={
                     params.registered === "true"
+                }
+                activationRequired={
+                    params.activationRequired === "true"
                 }
                 callbackUrl={safeCallbackUrl(
                     params.callbackUrl,

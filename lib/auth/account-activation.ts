@@ -68,7 +68,7 @@ export async function createAccountActivationLink(
 
     return {
         activationUrl:
-            `${getAppUrl()}/reset-password/${rawToken}`,
+            `${getAppUrl()}/activate-account/${rawToken}`,
 
         expiresInHours:
             ACTIVATION_TOKEN_LIFETIME_HOURS,
