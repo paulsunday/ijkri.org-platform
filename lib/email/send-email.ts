@@ -48,13 +48,10 @@ export async function sendEmail({
     });
 
     if (result.error) {
-        console.error(
-            "Email delivery failed:",
-            result.error,
-        );
+        console.error("Resend API Error:", result.error);
 
         throw new Error(
-            "The email could not be delivered.",
+            JSON.stringify(result.error, null, 2),
         );
     }
 
