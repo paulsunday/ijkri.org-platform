@@ -436,7 +436,7 @@ export default async function AdminUsersPage() {
                               className="text-sm font-bold text-red-700 hover:text-red-900"
                               aria-label="Remove role"
                             >
-                              Ã—
+                              ×
                             </button>
                           </form>
                         </div>

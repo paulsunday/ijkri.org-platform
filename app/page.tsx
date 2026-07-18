@@ -72,7 +72,7 @@ export default function Home() {
         <div className="mx-auto grid max-w-7xl items-center gap-12 px-6 py-16 lg:grid-cols-[1.15fr_0.85fr] lg:py-24">
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.24em] text-amber-400">
-              Knowledge . Innovation . Impact
+              KNOWLEDGE {"\u2022"} INNOVATION {"\u2022"} IMPACT
             </p>
 
             <h1 className="mt-6 max-w-4xl text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
@@ -104,7 +104,7 @@ export default function Home() {
                 href="/author-guidelines"
                 className="rounded-lg px-6 py-3 font-semibold text-amber-300 transition hover:text-amber-200"
               >
-                Author Guidelines’
+                Author Guidelines {"\u2192"}
               </Link>
             </div>
           </div>
@@ -176,7 +176,7 @@ export default function Home() {
             href="/aims-scope"
             className="mt-8 inline-flex font-semibold text-amber-700 hover:text-amber-800"
           >
-            Read our aims and scope’
+            Read our aims and scope {"\u2192"}
           </Link>
         </div>
 
