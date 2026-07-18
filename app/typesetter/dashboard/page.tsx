@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 import { requireRole } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";

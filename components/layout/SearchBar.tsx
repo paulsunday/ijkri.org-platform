@@ -77,7 +77,7 @@ export default function Header() {
             className="flex min-w-0 items-center gap-4"
           >
             <Image
-              src="/IJKRI-logo.png"
+              src="/logo.png"
               alt="IJKRI logo"
               width={90}
               height={90}
@@ -96,7 +96,7 @@ export default function Header() {
               </p>
 
               <p className="mt-1 hidden text-xs font-semibold uppercase tracking-[0.18em] text-amber-700 lg:block">
-                Knowledge Â· Innovation Â· Impact
+                Knowledge • Innovation • Impact
               </p>
             </div>
           </Link>
@@ -152,4 +152,5 @@ export default function Header() {
     </header>
   );
 }
+
 

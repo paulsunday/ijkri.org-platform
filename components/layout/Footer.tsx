@@ -78,7 +78,7 @@ export default function Footer() {
           <div className="flex items-center gap-4">
             <div className="rounded-xl bg-white p-2">
               <Image
-                src="/IJKRI-logo.png"
+                src="/logo.png"
                 alt="IJKRI logo"
                 width={80}
                 height={80}
@@ -188,7 +188,7 @@ export default function Footer() {
       <div className="border-t border-slate-800">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-6 text-sm text-slate-400">
           <p>
-            Â© {new Date().getFullYear()} Innovare Academic
+            © {new Date().getFullYear()} Innovare Academic
             Publishing. All rights reserved.
           </p>
 
@@ -219,3 +219,4 @@ export default function Footer() {
     </footer>
   );
 }
+

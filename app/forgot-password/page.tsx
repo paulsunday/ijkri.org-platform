@@ -83,7 +83,7 @@ export default async function ForgotPasswordPage({
                             href="/login"
                             className="font-semibold text-amber-700 hover:underline"
                         >
-                            â† Return to login
+                            ← Return to login
                         </Link>
 
                         <Link
@@ -98,3 +98,4 @@ export default async function ForgotPasswordPage({
         </main>
     );
 }
+

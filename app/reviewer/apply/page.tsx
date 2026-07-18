@@ -102,7 +102,7 @@ export default async function ReviewerApplicationPage({
                             href="/register"
                             className="mt-5 inline-flex font-semibold text-amber-800 hover:underline"
                         >
-                            Create an account â†’
+                            Create an account →
                         </Link>
                     </article>
                 </aside>
@@ -385,7 +385,7 @@ export default async function ReviewerApplicationPage({
 
                             <Declaration
                                 name="ethicsAgreement"
-                                text="I agree to maintain confidentiality and follow the journalâ€™s reviewer and publication-ethics policies."
+                                text="I agree to maintain confidentiality and follow the journal’s reviewer and publication-ethics policies."
                             />
 
                             <Declaration
@@ -507,3 +507,4 @@ function Declaration({
         </label>
     );
 }
+

@@ -72,7 +72,7 @@ export default function Home() {
         <div className="mx-auto grid max-w-7xl items-center gap-12 px-6 py-16 lg:grid-cols-[1.15fr_0.85fr] lg:py-24">
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.24em] text-amber-400">
-              Knowledge Â· Innovation Â· Impact
+              Knowledge . Innovation . Impact
             </p>
 
             <h1 className="mt-6 max-w-4xl text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
@@ -104,7 +104,7 @@ export default function Home() {
                 href="/author-guidelines"
                 className="rounded-lg px-6 py-3 font-semibold text-amber-300 transition hover:text-amber-200"
               >
-                Author Guidelines â†’
+                Author Guidelines’
               </Link>
             </div>
           </div>
@@ -112,7 +112,7 @@ export default function Home() {
           <div className="flex justify-center lg:justify-end">
             <div className="rounded-3xl bg-white p-6 shadow-2xl">
               <Image
-                src="/IJKRI-logo.png"
+                src="/logo.png"
                 alt="International Journal of Knowledge, Research and Innovation logo"
                 width={560}
                 height={560}
@@ -176,7 +176,7 @@ export default function Home() {
             href="/aims-scope"
             className="mt-8 inline-flex font-semibold text-amber-700 hover:text-amber-800"
           >
-            Read our aims and scope â†’
+            Read our aims and scope’
           </Link>
         </div>
 
@@ -367,3 +367,4 @@ export default function Home() {
     </main>
   );
 }
+

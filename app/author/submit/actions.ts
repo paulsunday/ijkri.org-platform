@@ -75,3 +75,4 @@ export async function submitManuscript(formData: FormData) {
   revalidatePath("/admin/submissions");
   revalidatePath("/author/submit");
 }
+

@@ -1,4 +1,4 @@
-
+﻿
 import Link from "next/link";
 
 import type { UserRole } from "@/lib/generated/prisma";
@@ -587,7 +587,7 @@ export default async function EditorialBoardAdminPage({
                                                                 "Affiliation not provided"}
 
                                                             {member.country
-                                                                ? ` · ${member.country}`
+                                                                ? ` • ${member.country}`
                                                                 : ""}
                                                         </p>
                                                     </div>

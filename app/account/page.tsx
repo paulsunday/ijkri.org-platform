@@ -1,4 +1,4 @@
-import LogoutButton from "@/components/auth/logout-button";
+﻿import LogoutButton from "@/components/auth/logout-button";
 import { requireCurrentUser } from "@/lib/auth/current-user";
 
 export default async function AccountPage() {
@@ -36,3 +36,4 @@ export default async function AccountPage() {
         </main>
     );
 }
+

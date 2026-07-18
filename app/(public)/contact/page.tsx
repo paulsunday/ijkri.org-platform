@@ -81,7 +81,7 @@ const frequentlyAskedQuestions = [
   {
     question: "How do I submit a revised manuscript?",
     answer:
-      "Open the relevant submission in your author dashboard, review the editorâ€™s instructions and upload the revised manuscript with a point-by-point response.",
+      "Open the relevant submission in your author dashboard, review the editor’s instructions and upload the revised manuscript with a point-by-point response.",
   },
   {
     question: "Will my article receive a DOI?",
@@ -190,7 +190,7 @@ export default function ContactPage() {
                   Office hours
                 </dt>
                 <dd className="mt-1 font-semibold">
-                  Mondayâ€“Friday, 09:00â€“17:00 WAT
+                  Monday–Friday, 09:00–17:00 WAT
                 </dd>
               </div>
 
@@ -462,7 +462,7 @@ export default function ContactPage() {
                 <ul className="mt-5 space-y-2 text-sm text-slate-700">
                   {department.items.map((item) => (
                     <li key={item} className="flex gap-2">
-                      <span className="text-amber-600">â€¢</span>
+                      <span className="text-amber-600">•</span>
                       <span>{item}</span>
                     </li>
                   ))}
@@ -590,3 +590,4 @@ export default function ContactPage() {
     </main>
   );
 }
+

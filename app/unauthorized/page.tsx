@@ -1,4 +1,4 @@
-export default function UnauthorizedPage() {
+﻿export default function UnauthorizedPage() {
     return (
         <main className="mx-auto mt-20 max-w-xl rounded-lg border p-8">
             <h1 className="text-3xl font-bold">

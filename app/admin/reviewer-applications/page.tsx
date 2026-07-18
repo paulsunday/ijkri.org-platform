@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 import { requireAnyRole } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
@@ -409,7 +409,7 @@ export default async function ReviewerApplicationsPage({
                                             {
                                                 application.affiliation
                                             }
-                                            {" · "}
+                                            {" • "}
                                             {application.country}
                                         </p>
                                     </div>

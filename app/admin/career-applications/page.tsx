@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 import type {
     CareerApplicationStatus,
@@ -596,7 +596,7 @@ export default async function CareerApplicationsPage({
                                                     {application.affiliation ||
                                                         "Institution not provided"}
 
-                                                    {" · "}
+                                                    {" • "}
 
                                                     {
                                                         application.country

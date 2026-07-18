@@ -81,7 +81,7 @@ export default function Header() {
             className="flex min-w-0 items-center gap-4"
           >
             <Image
-              src="/IJKRI-logo.png"
+              src="/logo.png"
               alt="International Journal of Knowledge, Research and Innovation logo"
               width={90}
               height={90}

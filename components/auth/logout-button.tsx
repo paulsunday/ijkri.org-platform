@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { signOut } from "next-auth/react";
 import { useState } from "react";
@@ -25,3 +25,4 @@ export default function LogoutButton() {
         </button>
     );
 }
+

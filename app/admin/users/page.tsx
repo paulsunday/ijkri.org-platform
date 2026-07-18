@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireAnyRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
@@ -436,7 +436,7 @@ export default async function AdminUsersPage() {
                               className="text-sm font-bold text-red-700 hover:text-red-900"
                               aria-label="Remove role"
                             >
-                              ×
+                              Ã—
                             </button>
                           </form>
                         </div>

@@ -3,7 +3,7 @@
 const manuscriptTypes = [
   {
     title: "Original Research Article",
-    wordGuide: "5,000â€“8,000 words",
+    wordGuide: "5,000–8,000 words",
     description:
       "Reports original empirical or theoretical research with a clearly defined problem, rigorous methodology, substantial analysis and a meaningful contribution to knowledge.",
     structure:
@@ -11,7 +11,7 @@ const manuscriptTypes = [
   },
   {
     title: "Review Article",
-    wordGuide: "6,000â€“10,000 words",
+    wordGuide: "6,000–10,000 words",
     description:
       "Provides a critical and well-structured synthesis of existing literature, identifies gaps and proposes directions for future research.",
     structure:
@@ -19,7 +19,7 @@ const manuscriptTypes = [
   },
   {
     title: "Short Communication",
-    wordGuide: "2,000â€“4,000 words",
+    wordGuide: "2,000–4,000 words",
     description:
       "Presents important preliminary findings, concise empirical results, methodological innovations or time-sensitive scholarly observations.",
     structure:
@@ -27,7 +27,7 @@ const manuscriptTypes = [
   },
   {
     title: "Case Study",
-    wordGuide: "3,500â€“6,000 words",
+    wordGuide: "3,500–6,000 words",
     description:
       "Examines a specific organisation, event, intervention, policy, industry or social setting and draws clear theoretical or practical lessons.",
     structure:
@@ -35,7 +35,7 @@ const manuscriptTypes = [
   },
   {
     title: "Conceptual Paper",
-    wordGuide: "4,000â€“7,000 words",
+    wordGuide: "4,000–7,000 words",
     description:
       "Develops or extends concepts, frameworks, models or theoretical propositions through logical analysis and engagement with relevant literature.",
     structure:
@@ -43,7 +43,7 @@ const manuscriptTypes = [
   },
   {
     title: "Technical Note",
-    wordGuide: "2,000â€“4,000 words",
+    wordGuide: "2,000–4,000 words",
     description:
       "Describes a practical method, research instrument, process improvement, technical development or applied innovation.",
     structure:
@@ -58,7 +58,7 @@ const preparationSections = [
     items: [
       "Provide a clear, specific and informative manuscript title.",
       "List the full names of all authors in the correct publication order.",
-      "State each authorâ€™s institutional affiliation, department, city and country.",
+      "State each author’s institutional affiliation, department, city and country.",
       "Identify the corresponding author and provide a valid email address.",
       "Include ORCID identifiers where available.",
       "Provide a short running title where appropriate.",
@@ -71,7 +71,7 @@ const preparationSections = [
       "Remove author names, affiliations, acknowledgements and identifying information.",
       "Remove identifying details from file properties and tracked changes.",
       "Avoid self-references that reveal the identity of the authors.",
-      "Use neutral wording such as â€˜previous researchâ€™ instead of â€˜our previous studyâ€™ where anonymity may be compromised.",
+      "Use neutral wording such as ‘previous research’ instead of ‘our previous study’ where anonymity may be compromised.",
     ],
   },
   {
@@ -79,7 +79,7 @@ const preparationSections = [
     title: "Abstract",
     items: [
       "Use a structured or unstructured abstract depending on the manuscript type.",
-      "The abstract should normally contain 150â€“300 words.",
+      "The abstract should normally contain 150–300 words.",
       "State the purpose, method, principal findings, implications and conclusion.",
       "Do not include citations, unexplained abbreviations, tables or figures.",
       "Ensure the abstract accurately reflects the content of the manuscript.",
@@ -156,7 +156,7 @@ const preparationSections = [
     number: "10",
     title: "Conclusion and Recommendations",
     items: [
-      "Summarise the studyâ€™s main contribution without repeating the abstract.",
+      "Summarise the study’s main contribution without repeating the abstract.",
       "State the practical and scholarly significance of the findings.",
       "Present recommendations that follow directly from the evidence.",
       "Acknowledge important limitations.",
@@ -255,7 +255,7 @@ const referenceExamples = [
   {
     type: "Journal article",
     example:
-      "Author, A. A., & Author, B. B. (2024). Title of the article. Journal Title, 12(3), 101â€“118. https://doi.org/10.xxxx/xxxxx",
+      "Author, A. A., & Author, B. B. (2024). Title of the article. Journal Title, 12(3), 101–118. https://doi.org/10.xxxx/xxxxx",
   },
   {
     type: "Book",
@@ -265,7 +265,7 @@ const referenceExamples = [
   {
     type: "Chapter in an edited book",
     example:
-      "Author, A. A. (2022). Title of chapter. In B. B. Editor (Ed.), Title of book (pp. 25â€“48). Publisher.",
+      "Author, A. A. (2022). Title of chapter. In B. B. Editor (Ed.), Title of book (pp. 25–48). Publisher.",
   },
   {
     type: "Webpage",
@@ -406,7 +406,7 @@ const submissionChecklist = [
   "Funding, conflicts of interest and data availability are declared.",
   "Any use of generative AI has been disclosed.",
   "Permission has been obtained for copyrighted material.",
-  "The corresponding authorâ€™s contact information is complete.",
+  "The corresponding author’s contact information is complete.",
 ];
 
 export default function AuthorGuidelinesPage() {
@@ -448,7 +448,7 @@ export default function AuthorGuidelinesPage() {
               href="/contact"
               className="rounded-lg px-6 py-3 font-semibold text-amber-300 transition hover:text-amber-200"
             >
-              Contact Editorial Office â†’
+              Contact Editorial Office →
             </Link>
           </div>
         </div>
@@ -513,7 +513,7 @@ export default function AuthorGuidelinesPage() {
             </p>
 
             <p>
-              Authors must ensure that the study falls within the journalâ€™s
+              Authors must ensure that the study falls within the journal’s
               multidisciplinary scope and that all research, ethical and
               reporting requirements have been satisfied.
             </p>
@@ -523,7 +523,7 @@ export default function AuthorGuidelinesPage() {
             href="/aims-scope"
             className="mt-7 inline-flex font-semibold text-amber-700 hover:underline"
           >
-            Review the journalâ€™s aims and scope â†’
+            Review the journal’s aims and scope →
           </Link>
         </article>
 
@@ -1079,11 +1079,11 @@ export default function AuthorGuidelinesPage() {
             </h3>
 
             <p className="mt-4 leading-8 text-slate-200">
-              â€œDuring the preparation of this manuscript, the
+              “During the preparation of this manuscript, the
               author(s) used [tool name and version] for [specific
               purpose]. The author(s) reviewed and edited the resulting
               material and accept full responsibility for the final
-              content.â€
+              content.”
             </p>
           </div>
         </div>
@@ -1173,7 +1173,7 @@ export default function AuthorGuidelinesPage() {
             <p className="mt-4 leading-8 text-slate-700">
               Any submission, processing or article-publication charge
               must be stated clearly before payment is requested.
-              Editorial decisions must not depend on an authorâ€™s
+              Editorial decisions must not depend on an author's
               ability to pay.
             </p>
 
@@ -1307,3 +1307,4 @@ export default function AuthorGuidelinesPage() {
     </main>
   );
 }
+

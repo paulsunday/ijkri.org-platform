@@ -80,7 +80,7 @@ export default async function RegisterPage({
                             href="/reviewer/apply"
                             className="mt-5 inline-flex font-semibold text-amber-800 hover:text-amber-950"
                         >
-                            Become a reviewer â†’
+                            Become a reviewer →
                         </Link>
                     </div>
                 </aside>
@@ -311,3 +311,4 @@ export default async function RegisterPage({
         </main>
     );
 }
+

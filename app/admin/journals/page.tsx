@@ -40,7 +40,7 @@ export default async function AdminJournalsPage() {
             </h3>
 
             <p className="mt-2 text-sm text-slate-600">
-              Short name: IJKRI Â· Status: Active Â· Publisher:
+              Short name: IJKRI • Status: Active • Publisher:
               {" "}
               Innovare Academic Publishing
             </p>
@@ -50,3 +50,4 @@ export default async function AdminJournalsPage() {
     </main>
   );
 }
+

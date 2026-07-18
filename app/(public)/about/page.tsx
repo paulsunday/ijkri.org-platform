@@ -296,7 +296,7 @@ export default function AboutPage() {
             href="/peer-review"
             className="mt-6 inline-flex font-semibold text-amber-700 hover:underline"
           >
-            Read the peer-review policy â†’
+            Read the peer-review policy →
           </Link>
         </article>
 
@@ -338,7 +338,7 @@ export default function AboutPage() {
               href="/publication-ethics"
               className="mt-5 inline-flex font-semibold text-amber-700 hover:underline"
             >
-              View ethics policy â†’
+              View ethics policy →
             </Link>
           </article>
 
@@ -403,3 +403,4 @@ export default function AboutPage() {
     </main>
   );
 }
+
