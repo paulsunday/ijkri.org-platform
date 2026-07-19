@@ -2,17 +2,29 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAnyActionRole } from "@/lib/auth/permissions";
+import {
+  isSuperAdmin,
+  requireAnyActionRole,
+} from "@/lib/auth/permissions";
 import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 
 async function verifyEditorialPermission(
-  userId: string,
+  editor: {
+    id: string;
+    roles: {
+      role: import("@/lib/generated/prisma").UserRole;
+    }[];
+  },
   journalId: string,
 ) {
+  if (isSuperAdmin(editor)) {
+    return;
+  }
+
   const role = await prisma.userJournalRole.findFirst({
     where: {
-      userId,
+      userId: editor.id,
       journalId,
       role: {
         in: EDITORIAL_ROLES,
@@ -56,7 +68,7 @@ export async function sendToReview(formData: FormData) {
   }
 
   await verifyEditorialPermission(
-    editor.id,
+    editor,
     submission.journalId,
   );
 
@@ -120,7 +132,7 @@ export async function requestRevision(
   }
 
   await verifyEditorialPermission(
-    editor.id,
+    editor,
     submission.journalId,
   );
 
@@ -181,7 +193,7 @@ export async function rejectSubmission(
   }
 
   await verifyEditorialPermission(
-    editor.id,
+    editor,
     submission.journalId,
   );
 

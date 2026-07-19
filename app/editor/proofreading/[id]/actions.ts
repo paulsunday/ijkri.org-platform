@@ -3,7 +3,10 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireAnyActionRole } from "@/lib/auth/permissions";
+import {
+    isSuperAdmin,
+    requireAnyActionRole,
+} from "@/lib/auth/permissions";
 import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
 
 const EDITOR_ROLES = [
@@ -15,37 +18,33 @@ const EDITOR_ROLES = [
 ] as const;
 
 async function verifyEditor(
-    editorId: string,
+    editor: {
+        id: string;
+        roles: {
+            role: import("@/lib/generated/prisma").UserRole;
+        }[];
+    },
     journalId: string,
 ) {
-    const editor = await prisma.user.findUnique({
-        where: {
-            id: editorId,
-        },
-        select: {
-            id: true,
-            isActive: true,
-            roles: {
-                where: {
-                    journalId,
-                    role: {
-                        in: [...EDITOR_ROLES],
-                    },
-                },
-                select: {
-                    id: true,
-                },
-            },
-        },
-    });
-
-    if (!editor || !editor.isActive) {
-        throw new Error(
-            "The editor account was not found or is inactive.",
-        );
+    if (isSuperAdmin(editor)) {
+        return;
     }
 
-    if (editor.roles.length === 0) {
+    const editorJournalRole =
+        await prisma.userJournalRole.findFirst({
+            where: {
+                userId: editor.id,
+                journalId,
+                role: {
+                    in: [...EDITOR_ROLES],
+                },
+            },
+            select: {
+                id: true,
+            },
+        });
+
+    if (!editorJournalRole) {
         throw new Error(
             "This user does not have editorial permission for this journal.",
         );
@@ -145,7 +144,7 @@ export async function approveProofreading(
     }
 
     await verifyEditor(
-        editor.id,
+        editor,
         assignment.submission.journalId,
     );
 
@@ -329,7 +328,7 @@ export async function returnProofreadingForChanges(
     }
 
     await verifyEditor(
-        editor.id,
+        editor,
         assignment.submission.journalId,
     );
 

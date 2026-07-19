@@ -3,20 +3,33 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireAnyActionRole } from "@/lib/auth/permissions";
+import {
+    isSuperAdmin,
+    requireAnyActionRole,
+} from "@/lib/auth/permissions";
 import { PROOFREADER_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 
 async function getProofreaderAssignment(
     assignmentId: string,
-    proofreaderId: string,
+    proofreader: {
+        id: string;
+        roles: {
+            role: import("@/lib/generated/prisma").UserRole;
+        }[];
+    },
 ) {
     const assignment =
         await prisma.productionAssignment.findFirst({
             where: {
                 id: assignmentId,
-                assigneeId: proofreaderId,
                 stage: "PROOFREADING",
+
+                ...(isSuperAdmin(proofreader)
+                    ? {}
+                    : {
+                        assigneeId: proofreader.id,
+                    }),
             },
         });
 
@@ -67,12 +80,10 @@ export async function startProofreading(
     if (!assignmentId) {
         throw new Error("Assignment ID is missing.");
     }
-
     const assignment = await getProofreaderAssignment(
         assignmentId,
-        proofreader.id,
+        proofreader,
     );
-
     if (
         assignment.status !== "PENDING" &&
         assignment.status !== "CHANGES_REQUESTED"
@@ -149,7 +160,7 @@ export async function addProofreadingNote(
 
     const assignment = await getProofreaderAssignment(
         assignmentId,
-        proofreader.id,
+        proofreader,
     );
 
     await prisma.productionNote.create({
@@ -235,8 +246,13 @@ export async function submitProofreading(
         await prisma.productionAssignment.findFirst({
             where: {
                 id: assignmentId,
-                assigneeId: proofreader.id,
                 stage: "PROOFREADING",
+
+                ...(isSuperAdmin(proofreader)
+                    ? {}
+                    : {
+                        assigneeId: proofreader.id,
+                    }),
             },
             include: {
                 submission: {

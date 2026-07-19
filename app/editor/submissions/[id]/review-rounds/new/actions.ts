@@ -3,7 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireAnyActionRole } from "@/lib/auth/permissions";
+import {
+    isSuperAdmin,
+    requireAnyActionRole,
+} from "@/lib/auth/permissions";
 import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
 import { sendEmail } from "@/lib/email/send-email";
 import { reviewerInvitationEmail } from "@/lib/email/templates";
@@ -189,26 +192,26 @@ export async function startNewReviewRound(
         );
     }
 
-    const editorJournalRole =
-        await prisma.userJournalRole.findFirst({
-            where: {
-                userId: editor.id,
-                journalId: submission.journalId,
-
-                role: {
-                    in: EDITORIAL_ROLES,
+    if (!isSuperAdmin(editor)) {
+        const editorJournalRole =
+            await prisma.userJournalRole.findFirst({
+                where: {
+                    userId: editor.id,
+                    journalId: submission.journalId,
+                    role: {
+                        in: EDITORIAL_ROLES,
+                    },
                 },
-            },
+                select: {
+                    id: true,
+                },
+            });
 
-            select: {
-                id: true,
-            },
-        });
-
-    if (!editorJournalRole) {
-        throw new Error(
-            "You do not have editorial permission for this journal.",
-        );
+        if (!editorJournalRole) {
+            throw new Error(
+                "You do not have editorial permission for this journal.",
+            );
+        }
     }
 
     if (!editor.isActive) {

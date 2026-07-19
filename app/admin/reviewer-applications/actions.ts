@@ -7,7 +7,11 @@ import {
     reviewerApplicationApprovedEmail,
     reviewerApplicationRejectedEmail,
 } from "@/lib/email/templates";
-import { requireAnyActionRole } from "@/lib/auth/permissions";
+import {
+    isSuperAdmin,
+    requireAnyActionRole,
+} from "@/lib/auth/permissions";
+
 import { prisma } from "@/lib/prisma";
 
 const REVIEWER_APPLICATION_MANAGER_ROLES = [
@@ -69,28 +73,44 @@ async function getApplicationForManager(
         );
     }
 
-    const managerRole =
-        await prisma.userJournalRole.findFirst({
-            where: {
-                userId: managerId,
-                journalId: application.journalId,
+    const manager = await prisma.user.findUnique({
+        where: {
+            id: managerId,
+        },
+        select: {
+            id: true,
+            roles: true,
+        },
+    });
 
-                role: {
-                    in: [
-                        ...REVIEWER_APPLICATION_MANAGER_ROLES,
-                    ],
-                },
-            },
-
-            select: {
-                id: true,
-            },
-        });
-
-    if (!managerRole) {
+    if (!manager) {
         throw new Error(
-            "You do not have permission to manage reviewer applications for this journal.",
+            "Manager account not found.",
         );
+    }
+
+    if (!isSuperAdmin(manager)) {
+        const managerRole =
+            await prisma.userJournalRole.findFirst({
+                where: {
+                    userId: managerId,
+                    journalId: application.journalId,
+                    role: {
+                        in: [
+                            ...REVIEWER_APPLICATION_MANAGER_ROLES,
+                        ],
+                    },
+                },
+                select: {
+                    id: true,
+                },
+            });
+
+        if (!managerRole) {
+            throw new Error(
+                "You do not have permission to manage reviewer applications for this journal.",
+            );
+        }
     }
 
     return application;

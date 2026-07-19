@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAnyActionRole } from "@/lib/auth/permissions";
+import {
+    isSuperAdmin,
+    requireAnyActionRole,
+} from "@/lib/auth/permissions";
 import { sendEmail } from "@/lib/email/send-email";
 import {
     accountActivationEmail,
@@ -121,26 +124,41 @@ async function getApplicationForManager(
         );
     }
 
-    const managerRole =
-        await prisma.userJournalRole.findFirst({
+    const manager =
+        await prisma.user.findUnique({
             where: {
-                userId: managerId,
-                journalId: application.journalId,
-
-                role: {
-                    in: [...CAREER_MANAGER_ROLES],
-                },
+                id: managerId,
             },
-
             select: {
                 id: true,
+                roles: true,
             },
         });
 
-    if (!managerRole) {
-        throw new Error(
-            "You do not have permission to manage career applications for this journal.",
-        );
+    if (!manager) {
+        throw new Error("Manager account not found.");
+    }
+
+    if (!isSuperAdmin(manager)) {
+        const managerRole =
+            await prisma.userJournalRole.findFirst({
+                where: {
+                    userId: managerId,
+                    journalId: application.journalId,
+                    role: {
+                        in: [...CAREER_MANAGER_ROLES],
+                    },
+                },
+                select: {
+                    id: true,
+                },
+            });
+
+        if (!managerRole) {
+            throw new Error(
+                "You do not have permission to manage career applications for this journal.",
+            );
+        }
     }
 
     return application;

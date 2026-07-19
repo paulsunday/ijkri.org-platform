@@ -1,6 +1,10 @@
 ﻿import Link from "next/link";
 
-import { requireRole } from "@/lib/auth/permissions";
+import {
+    isSuperAdmin,
+    requireAnyRole,
+} from "@/lib/auth/permissions";
+import { TYPESETTER_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 
 function formatDate(
@@ -41,15 +45,19 @@ function statusBadge(status: string) {
 
 export default async function TypesetterDashboard() {
     const typesetter =
-        await requireRole("TYPESETTER");
+        await requireAnyRole(TYPESETTER_ROLES);
 
     const assignments =
         await prisma.productionAssignment.findMany({
             where: {
-                assigneeId: typesetter.id,
                 stage: "TYPESETTING",
-            },
 
+                ...(isSuperAdmin(typesetter)
+                    ? {}
+                    : {
+                        assigneeId: typesetter.id,
+                    }),
+            },
             include: {
                 submission: {
                     include: {

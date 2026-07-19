@@ -3,7 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireAnyActionRole } from "@/lib/auth/permissions";
+import {
+  isSuperAdmin,
+  requireAnyActionRole,
+} from "@/lib/auth/permissions";
 import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 
@@ -13,6 +16,24 @@ async function verifyEditorialPermission(
   userId: string,
   journalId: string,
 ) {
+  const user = await prisma.user.findUnique({
+    where: {
+      id: userId,
+    },
+    select: {
+      id: true,
+      roles: true,
+    },
+  });
+
+  if (!user) {
+    throw new Error("Editor account not found.");
+  }
+
+  if (isSuperAdmin(user)) {
+    return;
+  }
+
   const role = await prisma.userJournalRole.findFirst({
     where: {
       userId,

@@ -6,45 +6,66 @@ import {
     requireCurrentUser,
 } from "@/lib/auth/current-user";
 
-const ADMIN_ROLES: UserRole[] = [
-    "SUPER_ADMIN",
-    "ADMIN",
-];
+type UserRoleRecord = {
+    role: UserRole;
+};
 
-function hasAdministrativeAccess(
-    userRoles: Array<{
-        role: UserRole;
-    }>,
-) {
-    return userRoles.some((roleRecord) =>
-        ADMIN_ROLES.includes(roleRecord.role),
+export function hasUserRole(
+    userRoles: UserRoleRecord[],
+    role: UserRole,
+): boolean {
+    return userRoles.some(
+        (roleRecord) => roleRecord.role === role,
+    );
+}
+
+export function isSuperAdmin(
+    user: {
+        roles: UserRoleRecord[];
+    },
+): boolean {
+    return hasUserRole(
+        user.roles,
+        "SUPER_ADMIN",
     );
 }
 
 function hasRequiredRole(
-    userRoles: Array<{
-        role: UserRole;
-    }>,
+    userRoles: UserRoleRecord[],
     requiredRoles: UserRole[],
-) {
-    if (hasAdministrativeAccess(userRoles)) {
+): boolean {
+    /*
+     * SUPER_ADMIN inherits every platform role.
+     * Other roles must match one of the requested roles.
+     */
+    if (
+        hasUserRole(
+            userRoles,
+            "SUPER_ADMIN",
+        )
+    ) {
         return true;
     }
 
-    return userRoles.some((roleRecord) =>
-        requiredRoles.includes(roleRecord.role),
+    return userRoles.some(
+        (roleRecord) =>
+            requiredRoles.includes(
+                roleRecord.role,
+            ),
     );
 }
 
 export async function requireRole(
     role: UserRole,
 ) {
-    const user = await requireCurrentUser();
+    const user =
+        await requireCurrentUser();
 
-    const permitted = hasRequiredRole(
-        user.roles,
-        [role],
-    );
+    const permitted =
+        hasRequiredRole(
+            user.roles,
+            [role],
+        );
 
     if (!permitted) {
         redirect("/unauthorized");
@@ -56,12 +77,14 @@ export async function requireRole(
 export async function requireAnyRole(
     roles: UserRole[],
 ) {
-    const user = await requireCurrentUser();
+    const user =
+        await requireCurrentUser();
 
-    const permitted = hasRequiredRole(
-        user.roles,
-        roles,
-    );
+    const permitted =
+        hasRequiredRole(
+            user.roles,
+            roles,
+        );
 
     if (!permitted) {
         redirect("/unauthorized");
@@ -73,15 +96,19 @@ export async function requireAnyRole(
 export async function requireActionRole(
     role: UserRole,
 ) {
-    const user = await requireActionUser();
+    const user =
+        await requireActionUser();
 
-    const permitted = hasRequiredRole(
-        user.roles,
-        [role],
-    );
+    const permitted =
+        hasRequiredRole(
+            user.roles,
+            [role],
+        );
 
     if (!permitted) {
-        throw new Error("Permission denied.");
+        throw new Error(
+            "Permission denied.",
+        );
     }
 
     return user;
@@ -90,15 +117,19 @@ export async function requireActionRole(
 export async function requireAnyActionRole(
     roles: UserRole[],
 ) {
-    const user = await requireActionUser();
+    const user =
+        await requireActionUser();
 
-    const permitted = hasRequiredRole(
-        user.roles,
-        roles,
-    );
+    const permitted =
+        hasRequiredRole(
+            user.roles,
+            roles,
+        );
 
     if (!permitted) {
-        throw new Error("Permission denied.");
+        throw new Error(
+            "Permission denied.",
+        );
     }
 
     return user;

@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { requireRole } from "@/lib/auth/permissions";
+import {
+    isSuperAdmin,
+    requireAnyRole,
+} from "@/lib/auth/permissions";
+import { TYPESETTER_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 
 import {
@@ -42,7 +46,7 @@ export default async function TypesetterWorkspace({
     params,
 }: PageProps) {
     const typesetter =
-        await requireRole("TYPESETTER");
+        await requireAnyRole(TYPESETTER_ROLES);
 
     const { id } = await params;
 
@@ -50,8 +54,13 @@ export default async function TypesetterWorkspace({
         await prisma.productionAssignment.findFirst({
             where: {
                 id,
-                assigneeId: typesetter.id,
                 stage: "TYPESETTING",
+
+                ...(isSuperAdmin(typesetter)
+                    ? {}
+                    : {
+                        assigneeId: typesetter.id,
+                    }),
             },
 
             include: {

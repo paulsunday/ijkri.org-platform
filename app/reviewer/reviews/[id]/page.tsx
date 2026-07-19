@@ -73,7 +73,16 @@ export default async function ReviewerReviewPage({
           },
         },
 
-        review: true,
+        review: {
+          include: {
+            attachments: {
+              orderBy: {
+                uploadedAt: "asc",
+              },
+            },
+          },
+
+        },
       },
     });
 
@@ -91,7 +100,15 @@ export default async function ReviewerReviewPage({
         },
       },
       include: {
-        review: true,
+        review: {
+          include: {
+            attachments: {
+              orderBy: {
+                uploadedAt: "asc",
+              },
+            },
+          },
+        },
         submissionVersion: true,
       },
       orderBy: {
@@ -442,6 +459,33 @@ export default async function ReviewerReviewPage({
                               "No comments"}
                           </div>
                         </div>
+                        {previousAssignment.review.attachments.length > 0 && (
+                          <div>
+                            <p className="text-sm font-semibold">
+                              Previous review attachments
+                            </p>
+
+                            <div className="mt-2 space-y-2">
+                              {previousAssignment.review.attachments.map(
+                                (attachment) => (
+                                  <a
+                                    key={attachment.id}
+                                    href={attachment.fileUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex items-center justify-between rounded-lg border bg-white p-3 text-sm hover:bg-gray-50"
+                                  >
+                                    <span>{attachment.fileName}</span>
+
+                                    <span className="font-medium text-blue-700">
+                                      Download
+                                    </span>
+                                  </a>
+                                ),
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </article>
@@ -506,6 +550,7 @@ export default async function ReviewerReviewPage({
 
           <form
             action={submitReview}
+            encType="multipart/form-data"
             className="mt-8 space-y-8"
           >
             <input
@@ -602,6 +647,29 @@ export default async function ReviewerReviewPage({
               />
             </div>
 
+            <div>
+              <label
+                htmlFor="attachments"
+                className="mb-2 block font-semibold"
+              >
+                Reviewer Attachments (Optional)
+              </label>
+
+              <input
+                id="attachments"
+                name="attachments"
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.zip"
+                className="block w-full rounded-lg border p-3"
+              />
+
+              <p className="mt-2 text-sm text-gray-500">
+                Upload annotated manuscripts or any supporting review
+                documents. Maximum 5 files.
+              </p>
+            </div>
+
             <button
               type="submit"
               className="rounded-lg bg-blue-700 px-8 py-3 font-semibold text-white hover:bg-blue-800"
@@ -662,6 +730,46 @@ export default async function ReviewerReviewPage({
                     "No comments"}
                 </div>
               </div>
+              {assignment.review.attachments.length > 0 && (
+                <div>
+                  <p className="font-semibold">
+                    Review Attachments
+                  </p>
+
+                  <div className="mt-2 space-y-2">
+                    {assignment.review.attachments.map(
+                      (attachment) => (
+                        <a
+                          key={attachment.id}
+                          href={attachment.fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center justify-between rounded-lg border bg-white p-3"
+                        >
+                          <div>
+                            <p className="font-medium">
+                              {attachment.fileName}
+                            </p>
+
+                            <p className="mt-1 text-sm text-gray-500">
+                              {attachment.mimeType ||
+                                "Review attachment"}
+                              {attachment.fileSize
+                                ? ` · ${(attachment.fileSize / 1024 / 1024).toFixed(2)} MB`
+                                : ""}
+                            </p>
+                          </div>
+
+                          <span className="text-sm font-semibold text-blue-700">
+                            Download
+                          </span>
+                        </a>
+                      ),
+                    )}
+                  </div>
+                </div>
+              )}
+
             </div>
           </section>
         )}

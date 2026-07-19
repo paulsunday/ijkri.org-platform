@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAnyActionRole } from "@/lib/auth/permissions";
+import {
+    isSuperAdmin,
+    requireAnyActionRole,
+} from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
 
 const DOI_MANAGER_ROLES = [
@@ -17,6 +20,24 @@ async function verifyDoiManager(
     userId: string,
     journalId: string,
 ) {
+    const user = await prisma.user.findUnique({
+        where: {
+            id: userId,
+        },
+        select: {
+            id: true,
+            roles: true,
+        },
+    });
+
+    if (!user) {
+        throw new Error("User account not found.");
+    }
+
+    if (isSuperAdmin(user)) {
+        return;
+    }
+
     const role = await prisma.userJournalRole.findFirst({
         where: {
             userId,

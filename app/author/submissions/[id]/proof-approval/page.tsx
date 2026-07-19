@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { requireAnyRole } from "@/lib/auth/permissions";
+import {
+    isSuperAdmin,
+    requireAnyRole,
+} from "@/lib/auth/permissions";
 import { AUTHOR_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 
@@ -52,7 +55,12 @@ export default async function AuthorProofApprovalPage({
         await prisma.submission.findFirst({
             where: {
                 id,
-                authorId: author.id,
+
+                ...(isSuperAdmin(author)
+                    ? {}
+                    : {
+                        authorId: author.id,
+                    }),
             },
 
             include: {
@@ -103,6 +111,10 @@ export default async function AuthorProofApprovalPage({
                         },
 
                         notes: {
+                            where: {
+                                isInternal: false,
+                            },
+
                             include: {
                                 author: {
                                     select: {

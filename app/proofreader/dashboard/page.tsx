@@ -1,6 +1,11 @@
 ﻿import Link from "next/link";
 
-import { requireRole } from "@/lib/auth/permissions";
+import {
+    isSuperAdmin,
+    requireAnyRole,
+} from "@/lib/auth/permissions";
+import { PROOFREADER_ROLES } from "@/lib/auth/role-groups";
+
 import { prisma } from "@/lib/prisma";
 
 function formatDate(
@@ -53,13 +58,18 @@ function statusClass(status: string) {
 
 export default async function ProofreaderDashboardPage() {
     const proofreader =
-        await requireRole("PROOFREADER");
+        await requireAnyRole(PROOFREADER_ROLES);
 
     const assignments =
         await prisma.productionAssignment.findMany({
             where: {
-                assigneeId: proofreader.id,
                 stage: "PROOFREADING",
+
+                ...(isSuperAdmin(proofreader)
+                    ? {}
+                    : {
+                        assigneeId: proofreader.id,
+                    }),
             },
 
             include: {

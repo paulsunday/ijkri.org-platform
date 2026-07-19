@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAnyActionRole } from "@/lib/auth/permissions";
+import {
+    isSuperAdmin,
+    requireAnyActionRole,
+} from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 
@@ -18,6 +21,27 @@ async function verifyIssueAdminPermission(
     administratorId: string,
     journalId: string,
 ) {
+    const administrator =
+        await prisma.user.findUnique({
+            where: {
+                id: administratorId,
+            },
+            select: {
+                id: true,
+                roles: true,
+            },
+        });
+
+    if (!administrator) {
+        throw new Error(
+            "Administrator account not found.",
+        );
+    }
+
+    if (isSuperAdmin(administrator)) {
+        return;
+    }
+
     const permission =
         await prisma.userJournalRole.findFirst({
             where: {

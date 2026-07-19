@@ -1,6 +1,10 @@
 ﻿import Link from "next/link";
 
-import { requireRole } from "@/lib/auth/permissions";
+import {
+    isSuperAdmin,
+    requireAnyRole,
+} from "@/lib/auth/permissions";
+import { COPYEDITOR_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 
 function formatStatus(value: string) {
@@ -52,13 +56,18 @@ function statusClass(status: string) {
 export default async function CopyeditorDashboardPage() {
 
     const copyeditor =
-        await requireRole("COPYEDITOR");
+        await requireAnyRole(COPYEDITOR_ROLES);
     const assignments =
         await prisma.productionAssignment.findMany({
 
             where: {
                 stage: "COPYEDITING",
-                assigneeId: copyeditor.id,
+
+                ...(isSuperAdmin(copyeditor)
+                    ? {}
+                    : {
+                        assigneeId: copyeditor.id,
+                    }),
             },
 
             include: {

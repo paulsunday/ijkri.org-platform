@@ -3,9 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireAnyActionRole } from "@/lib/auth/permissions";
+import {
+    isSuperAdmin,
+    requireAnyActionRole,
+} from "@/lib/auth/permissions";
 import { COPYEDITOR_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
+import {
+    deleteJournalFile,
+    uploadJournalFile,
+} from "@/lib/storage/blob";
+import type { UploadResult } from "@/lib/storage/types";
 
 async function verifyCopyeditorAssignment(
     assignmentId: string,
@@ -91,8 +99,7 @@ export async function startCopyediting(
             data: {
                 status: "IN_PROGRESS",
                 startedAt:
-                    assignment.startedAt ||
-                    new Date(),
+                    assignment.startedAt || new Date(),
             },
         });
 
@@ -173,6 +180,7 @@ export async function addCopyeditingNote(
         assignment.submissionId,
     );
 }
+
 export async function submitCopyediting(
     formData: FormData,
 ) {
@@ -183,18 +191,6 @@ export async function submitCopyediting(
         formData.get("assignmentId") || "",
     ).trim();
 
-    const fileName = String(
-        formData.get("fileName") || "",
-    ).trim();
-
-    const fileUrl = String(
-        formData.get("fileUrl") || "",
-    ).trim();
-
-    const mimeType = String(
-        formData.get("mimeType") || "",
-    ).trim();
-
     const description = String(
         formData.get("description") || "",
     ).trim();
@@ -203,29 +199,22 @@ export async function submitCopyediting(
         formData.get("note") || "",
     ).trim();
 
+    const fileEntry =
+        formData.get("copyeditedFile");
+
     if (!assignmentId) {
         throw new Error(
             "Production assignment ID is missing.",
         );
     }
 
-    if (!fileName) {
+    if (
+        !(fileEntry instanceof File) ||
+        fileEntry.size === 0 ||
+        !fileEntry.name.trim()
+    ) {
         throw new Error(
-            "Copyedited manuscript file name is required.",
-        );
-    }
-
-    if (!fileUrl) {
-        throw new Error(
-            "Copyedited manuscript file URL is required.",
-        );
-    }
-
-    try {
-        new URL(fileUrl);
-    } catch {
-        throw new Error(
-            "Enter a valid manuscript file URL.",
+            "Select the completed copyedited manuscript.",
         );
     }
 
@@ -233,7 +222,11 @@ export async function submitCopyediting(
         await prisma.productionAssignment.findFirst({
             where: {
                 id: assignmentId,
-                assigneeId: copyeditor.id,
+                ...(isSuperAdmin(copyeditor)
+                    ? {}
+                    : {
+                        assigneeId: copyeditor.id,
+                    }),
                 stage: "COPYEDITING",
             },
 
@@ -242,12 +235,20 @@ export async function submitCopyediting(
                     select: {
                         id: true,
                         title: true,
+                        journalId: true,
+
+                        journal: {
+                            select: {
+                                tenantId: true,
+                            },
+                        },
                     },
                 },
 
                 files: {
                     where: {
-                        fileType: "COPYEDITED_MANUSCRIPT",
+                        fileType:
+                            "COPYEDITED_MANUSCRIPT",
                     },
 
                     orderBy: {
@@ -277,88 +278,194 @@ export async function submitCopyediting(
     const nextVersionNumber =
         (assignment.files[0]?.versionNumber || 0) + 1;
 
-    await prisma.$transaction(async (tx) => {
-        const productionFile =
-            await tx.productionFile.create({
-                data: {
-                    submissionId:
-                        assignment.submissionId,
-                    productionAssignmentId:
-                        assignmentId,
-                    uploadedById: copyeditor.id,
-                    fileType:
-                        "COPYEDITED_MANUSCRIPT",
-                    fileName,
-                    fileUrl,
-                    mimeType: mimeType || null,
-                    versionNumber:
-                        nextVersionNumber,
-                    description:
-                        description || null,
-                    isFinal: false,
-                },
-            });
+    let uploadedFile: UploadResult | null = null;
 
-        if (note) {
-            await tx.productionNote.create({
-                data: {
-                    submissionId:
-                        assignment.submissionId,
-                    productionAssignmentId:
-                        assignmentId,
-                    authorId: copyeditor.id,
-                    message: note,
-                    isInternal: true,
-                },
-            });
-        }
-
-        await tx.productionAssignment.update({
-            where: {
-                id: assignmentId,
-            },
-
-            data: {
-                status: "SUBMITTED",
-                submittedAt: new Date(),
-                completedAt: null,
-            },
-        });
-
-        await tx.notification.create({
-            data: {
-                userId: assignment.assignedById,
-                type: "PUBLICATION",
-                title: "Copyediting submitted",
-                message:
-                    `The copyedited manuscript for ` +
-                    `"${assignment.submission.title}" has been submitted for editorial review.`,
-                link:
-                    `/editor/submissions/${assignment.submissionId}/production`,
-            },
-        });
-
-        await tx.activityLog.create({
-            data: {
-                userId: copyeditor.id,
-                action: "UPDATE",
-                entity: "ProductionFile",
-                entityId: productionFile.id,
+    try {
+        uploadedFile =
+            await uploadJournalFile({
+                file: fileEntry,
+                category: "COPYEDITED",
+                visibility: "private",
 
                 metadata: {
-                    event: "COPYEDITING_SUBMITTED",
-                    assignmentId,
+                    category: "COPYEDITED",
+                    tenantId:
+                        assignment.submission.journal
+                            .tenantId,
+                    journalId:
+                        assignment.submission.journalId,
                     submissionId:
                         assignment.submissionId,
-                    productionRound:
-                        assignment.round,
+                    assignmentId,
                     versionNumber:
                         nextVersionNumber,
-                    fileName,
                 },
-            },
+            });
+
+        /*
+         * Assign the successful upload to a non-null constant.
+         *
+         * TypeScript can now safely use it inside the
+         * Prisma transaction callback.
+         */
+        const storedFile = uploadedFile;
+
+        await prisma.$transaction(async (tx) => {
+            const productionFile =
+                await tx.productionFile.create({
+                    data: {
+                        submissionId:
+                            assignment.submissionId,
+
+                        productionAssignmentId:
+                            assignmentId,
+
+                        uploadedById:
+                            copyeditor.id,
+
+                        fileType:
+                            "COPYEDITED_MANUSCRIPT",
+
+                        fileName:
+                            storedFile.originalFilename,
+
+                        fileUrl:
+                            storedFile.url,
+
+                        mimeType:
+                            storedFile.mimeType || null,
+
+                        fileSize:
+                            storedFile.size,
+
+                        versionNumber:
+                            nextVersionNumber,
+
+                        description:
+                            description || null,
+
+                        isFinal: false,
+                    },
+                });
+
+            if (note) {
+                await tx.productionNote.create({
+                    data: {
+                        submissionId:
+                            assignment.submissionId,
+
+                        productionAssignmentId:
+                            assignmentId,
+
+                        authorId:
+                            copyeditor.id,
+
+                        message: note,
+
+                        isInternal: true,
+                    },
+                });
+            }
+
+            await tx.productionAssignment.update({
+                where: {
+                    id: assignmentId,
+                },
+
+                data: {
+                    status: "SUBMITTED",
+                    submittedAt: new Date(),
+                    completedAt: null,
+                },
+            });
+
+            await tx.notification.create({
+                data: {
+                    userId:
+                        assignment.assignedById,
+
+                    type: "PUBLICATION",
+
+                    title:
+                        "Copyediting submitted",
+
+                    message:
+                        `The copyedited manuscript for ` +
+                        `"${assignment.submission.title}" has been submitted for editorial review.`,
+
+                    link:
+                        `/editor/submissions/${assignment.submissionId}/production`,
+                },
+            });
+
+            await tx.activityLog.create({
+                data: {
+                    userId:
+                        copyeditor.id,
+
+                    action: "UPDATE",
+
+                    entity:
+                        "ProductionFile",
+
+                    entityId:
+                        productionFile.id,
+
+                    metadata: {
+                        event:
+                            "COPYEDITING_SUBMITTED",
+
+                        assignmentId,
+
+                        submissionId:
+                            assignment.submissionId,
+
+                        productionRound:
+                            assignment.round,
+
+                        versionNumber:
+                            nextVersionNumber,
+
+                        fileName:
+                            storedFile.originalFilename,
+
+                        fileSize:
+                            storedFile.size,
+
+                        mimeType:
+                            storedFile.mimeType,
+
+                        storagePath:
+                            storedFile.pathname,
+                    },
+                },
+            });
         });
-    });
+    } catch (error) {
+        /*
+         * If the Blob upload succeeded but the database
+         * transaction failed, remove the orphaned file.
+         */
+        if (uploadedFile) {
+            try {
+                await deleteJournalFile(
+                    uploadedFile.url,
+                    "private",
+                );
+            } catch (cleanupError) {
+                console.error(
+                    "Failed to clean up copyedited Blob file:",
+                    {
+                        pathname:
+                            uploadedFile.pathname,
+                        cleanupError,
+                    },
+                );
+            }
+        }
+
+        throw error;
+    }
 
     revalidateProductionPages(
         assignmentId,

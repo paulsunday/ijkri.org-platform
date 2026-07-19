@@ -342,16 +342,31 @@ model ReviewAssignment {
 }
 
 model Review {
-  id               String               @id @default(cuid())
-  assignmentId     String               @unique
-  commentsToEditor String?
-  commentsToAuthor String?
-  recommendation   ReviewRecommendation
+  id           String           @id @default(cuid())
+  assignmentId String           @unique
+  assignment   ReviewAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
   score            Int?
+  recommendation   ReviewRecommendation
+  commentsToAuthor String?
+  commentsToEditor String?
   submittedAt      DateTime             @default(now())
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
-  assignment       ReviewAssignment     @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  attachments ReviewAttachment[]
+}
+
+model ReviewAttachment {
+  id          String   @id @default(cuid())
+  reviewId    String
+  review      Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  fileName    String
+  fileUrl     String
+  mimeType    String?
+  fileSize    Int?
+  description String?
+  uploadedAt  DateTime @default(now())
+
+  @@index([reviewId])
 }
 
 model EditorialDecision {

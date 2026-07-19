@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { requireRole } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
+import {
+    isSuperAdmin,
+    requireAnyRole,
+} from "@/lib/auth/permissions";
+import { PROOFREADER_ROLES } from "@/lib/auth/role-groups";
 
 import {
     addProofreadingNote,
@@ -73,15 +77,20 @@ export default async function ProofreaderAssignmentPage({
     params,
 }: PageProps) {
     const proofreader =
-        await requireRole("PROOFREADER");
+        await requireAnyRole(PROOFREADER_ROLES);
     const { id } = await params;
 
     const assignment =
         await prisma.productionAssignment.findFirst({
             where: {
                 id,
-                assigneeId: proofreader.id,
                 stage: "PROOFREADING",
+
+                ...(isSuperAdmin(proofreader)
+                    ? {}
+                    : {
+                        assigneeId: proofreader.id,
+                    }),
             },
 
             include: {

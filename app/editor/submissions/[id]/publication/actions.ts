@@ -3,7 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireAnyActionRole } from "@/lib/auth/permissions";
+import {
+    isSuperAdmin,
+    requireAnyActionRole,
+} from "@/lib/auth/permissions";
 import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 
@@ -125,32 +128,33 @@ export async function publishSubmission(
         );
     }
 
-    const publicationRole =
-        await prisma.userJournalRole.findFirst({
-            where: {
-                userId: editor.id,
-                journalId: submission.journalId,
-                role: {
-                    in: [
-                        "SUPER_ADMIN",
-                        "ADMIN",
-                        "EDITOR_IN_CHIEF",
-                        "MANAGING_EDITOR",
-                        "SECTION_EDITOR",
-                        "PUBLISHER",
-                    ],
+    if (!isSuperAdmin(editor)) {
+        const publicationRole =
+            await prisma.userJournalRole.findFirst({
+                where: {
+                    userId: editor.id,
+                    journalId: submission.journalId,
+                    role: {
+                        in: [
+                            "SUPER_ADMIN",
+                            "ADMIN",
+                            "EDITOR_IN_CHIEF",
+                            "MANAGING_EDITOR",
+                            "SECTION_EDITOR",
+                            "PUBLISHER",
+                        ],
+                    },
                 },
-            },
+                select: {
+                    id: true,
+                },
+            });
 
-            select: {
-                id: true,
-            },
-        });
-
-    if (!publicationRole) {
-        throw new Error(
-            "You do not have publication permission for this journal.",
-        );
+        if (!publicationRole) {
+            throw new Error(
+                "You do not have publication permission for this journal.",
+            );
+        }
     }
 
     const finalPdf =

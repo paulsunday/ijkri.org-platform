@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { requireAnyRole } from "@/lib/auth/permissions";
+import {
+    isSuperAdmin,
+    requireAnyRole,
+} from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
 
 import { publishSubmission } from "./actions";
@@ -54,22 +57,24 @@ export default async function PublicationPage({
         notFound();
     }
 
-    const publicationRole =
-        await prisma.userJournalRole.findFirst({
-            where: {
-                userId: editor.id,
-                journalId: submission.journalId,
-                role: {
-                    in: [...PUBLICATION_ROLES],
+    if (!isSuperAdmin(editor)) {
+        const publicationRole =
+            await prisma.userJournalRole.findFirst({
+                where: {
+                    userId: editor.id,
+                    journalId: submission.journalId,
+                    role: {
+                        in: [...PUBLICATION_ROLES],
+                    },
                 },
-            },
-            select: {
-                id: true,
-            },
-        });
+                select: {
+                    id: true,
+                },
+            });
 
-    if (!publicationRole) {
-        notFound();
+        if (!publicationRole) {
+            notFound();
+        }
     }
 
     const issues = await prisma.issue.findMany({

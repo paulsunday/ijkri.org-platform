@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAnyActionRole } from "@/lib/auth/permissions";
+import {
+  isSuperAdmin,
+  requireAnyActionRole,
+} from "@/lib/auth/permissions";
 import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
 import { sendEmail } from "@/lib/email/send-email";
 import { reviewerInvitationEmail } from "@/lib/email/templates";
@@ -15,7 +18,39 @@ function getAppUrl() {
   ).replace(/\/+$/, "");
 }
 
+async function verifyEditorialPermission(
+  editor: {
+    id: string;
+    roles: {
+      role: import("@/lib/generated/prisma").UserRole;
+    }[];
+  },
+  journalId: string,
+) {
+  if (isSuperAdmin(editor)) {
+    return;
+  }
 
+  const editorJournalRole =
+    await prisma.userJournalRole.findFirst({
+      where: {
+        userId: editor.id,
+        journalId,
+        role: {
+          in: EDITORIAL_ROLES,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+  if (!editorJournalRole) {
+    throw new Error(
+      "You do not have permission to assign reviewers for this journal.",
+    );
+  }
+}
 
 export async function assignReviewer(
   formData: FormData,
@@ -91,6 +126,10 @@ export async function assignReviewer(
     );
   }
 
+  await verifyEditorialPermission(
+    editor,
+    submission.journalId,
+  );
 
   const blockedStatuses = [
     "ACCEPTED",

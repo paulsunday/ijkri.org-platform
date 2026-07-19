@@ -1,93 +1,29 @@
 "use server";
 
-import { randomUUID } from "crypto";
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireAnyActionRole } from "@/lib/auth/permissions";
 import { AUTHOR_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
+import {
+  deleteJournalFile,
+  uploadJournalFile,
+} from "@/lib/storage/blob";
+import type { UploadResult } from "@/lib/storage/types";
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024;
-
-const ALLOWED_FILE_EXTENSIONS = [
-  ".pdf",
-  ".doc",
-  ".docx",
-];
-
-function sanitizeFileName(fileName: string) {
-  return fileName
-    .replace(/[^a-zA-Z0-9._-]/g, "-")
-    .replace(/-+/g, "-");
-}
-
-function validateUploadedFile(file: File, required: boolean) {
-  if (!file || file.size === 0) {
-    if (required) {
-      throw new Error("The revised manuscript file is required.");
-    }
-
-    return;
-  }
-
-  if (file.size > MAX_FILE_SIZE) {
-    throw new Error(
-      `${file.name} is larger than the permitted 20 MB file size.`,
-    );
-  }
-
-  const extension = path.extname(file.name).toLowerCase();
-
-  if (!ALLOWED_FILE_EXTENSIONS.includes(extension)) {
-    throw new Error(
-      `${file.name} is not supported. Upload a PDF, DOC, or DOCX file.`,
-    );
-  }
-}
-
-async function saveUploadedFile(
-  file: File,
-  submissionId: string,
-  fileCategory: "manuscript" | "response",
+async function safelyDeleteUploadedFiles(
+  uploads: Array<UploadResult | undefined>,
 ) {
-  validateUploadedFile(file, fileCategory === "manuscript");
-
-  const extension = path.extname(file.name).toLowerCase();
-  const originalName = sanitizeFileName(file.name);
-  const storedName = `${fileCategory}-${randomUUID()}${extension}`;
-
-  const relativeDirectory = path.join(
-    "uploads",
-    "revisions",
-    submissionId,
+  const completedUploads = uploads.filter(
+    (upload): upload is UploadResult => Boolean(upload),
   );
 
-  const absoluteDirectory = path.join(
-    process.cwd(),
-    "public",
-    relativeDirectory,
+  await Promise.allSettled(
+    completedUploads.map((upload) =>
+      deleteJournalFile(upload.url, upload.visibility),
+    ),
   );
-
-  await mkdir(absoluteDirectory, {
-    recursive: true,
-  });
-
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-
-  await writeFile(
-    path.join(absoluteDirectory, storedName),
-    buffer,
-  );
-
-  return {
-    originalName,
-    publicUrl: `/${relativeDirectory
-      .replaceAll("\\", "/")}/${storedName}`,
-  };
 }
 
 export async function submitRevision(formData: FormData) {
@@ -95,7 +31,7 @@ export async function submitRevision(formData: FormData) {
 
   const submissionId = String(
     formData.get("submissionId") || "",
-  );
+  ).trim();
 
   const authorNotes = String(
     formData.get("authorNotes") || "",
@@ -105,26 +41,26 @@ export async function submitRevision(formData: FormData) {
     formData.get("coverLetter") || "",
   ).trim();
 
-  const manuscriptFile = formData.get(
-    "manuscriptFile",
-  ) as File | null;
+  const manuscriptFileValue = formData.get("manuscriptFile");
+  const responseFileValue = formData.get("responseFile");
 
-  const responseFile = formData.get(
-    "responseFile",
-  ) as File | null;
+  const manuscriptFile =
+    manuscriptFileValue instanceof File
+      ? manuscriptFileValue
+      : null;
+
+  const responseFile =
+    responseFileValue instanceof File &&
+      responseFileValue.size > 0
+      ? responseFileValue
+      : null;
 
   if (!submissionId) {
     throw new Error("Submission ID is missing.");
   }
 
-  if (!manuscriptFile) {
+  if (!manuscriptFile || manuscriptFile.size === 0) {
     throw new Error("Revised manuscript file is required.");
-  }
-
-  validateUploadedFile(manuscriptFile, true);
-
-  if (responseFile && responseFile.size > 0) {
-    validateUploadedFile(responseFile, false);
   }
 
   const submission = await prisma.submission.findFirst({
@@ -171,83 +107,123 @@ export async function submitRevision(formData: FormData) {
     );
   }
 
-  const manuscriptUpload = await saveUploadedFile(
-    manuscriptFile,
-    submissionId,
-    "manuscript",
-  );
-
-  let responseUpload:
-    | {
-      originalName: string;
-      publicUrl: string;
-    }
-    | undefined;
-
-  if (responseFile && responseFile.size > 0) {
-    responseUpload = await saveUploadedFile(
-      responseFile,
-      submissionId,
-      "response",
-    );
-  }
-
   const latestVersionNumber =
     submission.versions[0]?.versionNumber || 1;
 
   const nextVersionNumber = latestVersionNumber + 1;
 
-  await prisma.$transaction(async (tx) => {
-    await tx.submissionVersion.create({
-      data: {
+  let manuscriptUpload: UploadResult | undefined;
+  let responseUpload: UploadResult | undefined;
+
+  try {
+    manuscriptUpload = await uploadJournalFile({
+      file: manuscriptFile,
+      category: "REVISION",
+      visibility: "private",
+      metadata: {
+        category: "REVISION",
+        journalId: submission.journalId,
         submissionId,
-        uploadedById: author.id,
         versionNumber: nextVersionNumber,
-        manuscriptFileUrl: manuscriptUpload.publicUrl,
-        manuscriptFileName: manuscriptUpload.originalName,
-        responseFileUrl: responseUpload?.publicUrl,
-        responseFileName: responseUpload?.originalName,
-        coverLetter: coverLetter || null,
-        authorNotes: authorNotes || null,
       },
     });
 
-    await tx.submission.update({
-      where: {
-        id: submissionId,
-      },
-      data: {
-        status: "UNDER_INITIAL_REVIEW",
-      },
-    });
-
-    if (latestDecision?.editorId) {
-      await tx.notification.create({
-        data: {
-          userId: latestDecision.editorId,
-          type: "SUBMISSION",
-          title: "Revised manuscript submitted",
-          message: `The author submitted Version ${nextVersionNumber} of: ${submission.title}`,
-          link: `/editor/submissions/${submissionId}`,
+    if (responseFile) {
+      responseUpload = await uploadJournalFile({
+        file: responseFile,
+        category: "RESPONSE_LETTER",
+        visibility: "private",
+        metadata: {
+          category: "RESPONSE_LETTER",
+          journalId: submission.journalId,
+          submissionId,
+          versionNumber: nextVersionNumber,
         },
       });
     }
+  } catch (error) {
+    await safelyDeleteUploadedFiles([
+      manuscriptUpload,
+      responseUpload,
+    ]);
 
-    await tx.activityLog.create({
-      data: {
-        userId: author.id,
-        action: "UPDATE",
-        entity: "SubmissionVersion",
-        entityId: submissionId,
-        metadata: {
+    throw error;
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.submissionVersion.create({
+        data: {
+          submissionId,
+          uploadedById: author.id,
           versionNumber: nextVersionNumber,
-          manuscriptFileName: manuscriptUpload.originalName,
+
+          manuscriptFileUrl: manuscriptUpload.url,
+          manuscriptFileName:
+            manuscriptUpload.originalFilename,
+
+          responseFileUrl: responseUpload?.url,
           responseFileName:
-            responseUpload?.originalName || null,
+            responseUpload?.originalFilename,
+
+          coverLetter: coverLetter || null,
+          authorNotes: authorNotes || null,
         },
-      },
+      });
+
+      await tx.submission.update({
+        where: {
+          id: submissionId,
+        },
+        data: {
+          status: "UNDER_INITIAL_REVIEW",
+        },
+      });
+
+      if (latestDecision?.editorId) {
+        await tx.notification.create({
+          data: {
+            userId: latestDecision.editorId,
+            type: "SUBMISSION",
+            title: "Revised manuscript submitted",
+            message: `The author submitted Version ${nextVersionNumber} of: ${submission.title}`,
+            link: `/editor/submissions/${submissionId}`,
+          },
+        });
+      }
+
+      await tx.activityLog.create({
+        data: {
+          userId: author.id,
+          action: "UPDATE",
+          entity: "SubmissionVersion",
+          entityId: submissionId,
+          metadata: {
+            versionNumber: nextVersionNumber,
+            manuscriptFileName:
+              manuscriptUpload.originalFilename,
+            manuscriptFileUrl: manuscriptUpload.url,
+            responseFileName:
+              responseUpload?.originalFilename || null,
+            responseFileUrl:
+              responseUpload?.url || null,
+            storageProvider: "VERCEL_BLOB",
+          },
+        },
+      });
     });
-  });
+  } catch (error) {
+    /*
+     * Uploads have already succeeded, but the database transaction failed.
+     * Remove the uploaded Blob objects so they do not become orphaned files.
+     */
+    await safelyDeleteUploadedFiles([
+      manuscriptUpload,
+      responseUpload,
+    ]);
+
+    throw error;
+  }
 
   revalidatePath(
     `/author/submissions/${submissionId}/revision`,

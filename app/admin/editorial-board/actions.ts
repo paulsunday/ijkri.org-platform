@@ -3,7 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { requireAnyActionRole } from "@/lib/auth/permissions";
+import {
+    isSuperAdmin,
+    requireAnyActionRole,
+} from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
 
 const MANAGER_ROLES = [
@@ -79,22 +82,23 @@ async function ensureJournalManager(
             ...MANAGER_ROLES,
         ]);
 
-    const access =
-        await prisma.userJournalRole.findFirst({
-            where: {
-                userId: user.id,
-                journalId,
-
-                role: {
-                    in: [...MANAGER_ROLES],
+    if (!isSuperAdmin(user)) {
+        const access =
+            await prisma.userJournalRole.findFirst({
+                where: {
+                    userId: user.id,
+                    journalId,
+                    role: {
+                        in: [...MANAGER_ROLES],
+                    },
                 },
-            },
-        });
+            });
 
-    if (!access) {
-        throw new Error(
-            "Permission denied.",
-        );
+        if (!access) {
+            throw new Error(
+                "Permission denied.",
+            );
+        }
     }
 
     return user;

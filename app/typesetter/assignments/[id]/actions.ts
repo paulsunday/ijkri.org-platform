@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAnyActionRole } from "@/lib/auth/permissions";
+import {
+    isSuperAdmin,
+    requireAnyActionRole,
+} from "@/lib/auth/permissions";
 import { TYPESETTER_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 
@@ -18,14 +21,24 @@ type TypesettingFileType =
 
 async function getTypesetterAssignment(
     assignmentId: string,
-    typesetterId: string,
+    typesetter: {
+        id: string;
+        roles: {
+            role: import("@/lib/generated/prisma").UserRole;
+        }[];
+    },
 ) {
     const assignment =
         await prisma.productionAssignment.findFirst({
             where: {
                 id: assignmentId,
-                assigneeId: typesetterId,
                 stage: "TYPESETTING",
+
+                ...(isSuperAdmin(typesetter)
+                    ? {}
+                    : {
+                        assigneeId: typesetter.id,
+                    }),
             },
         });
 
@@ -79,7 +92,7 @@ export async function startTypesetting(
 
     const assignment = await getTypesetterAssignment(
         assignmentId,
-        typesetter.id,
+        typesetter,
     );
 
     if (
@@ -153,7 +166,7 @@ export async function saveTypesettingNote(
 
     const assignment = await getTypesetterAssignment(
         assignmentId,
-        typesetter.id,
+        typesetter,
     );
 
     await prisma.productionNote.create({
@@ -253,10 +266,9 @@ export async function uploadProductionFile(
     ) {
         throw new Error("The file size is invalid.");
     }
-
     const assignment = await getTypesetterAssignment(
         assignmentId,
-        typesetter.id,
+        typesetter,
     );
 
     if (
@@ -354,9 +366,15 @@ export async function submitTypesetting(
         await prisma.productionAssignment.findFirst({
             where: {
                 id: assignmentId,
-                assigneeId: typesetter.id,
                 stage: "TYPESETTING",
+
+                ...(isSuperAdmin(typesetter)
+                    ? {}
+                    : {
+                        assigneeId: typesetter.id,
+                    }),
             },
+
             include: {
                 submission: {
                     select: {

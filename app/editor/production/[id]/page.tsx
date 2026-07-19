@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { requireAnyRole } from "@/lib/auth/permissions";
+import {
+    isSuperAdmin,
+    requireAnyRole,
+} from "@/lib/auth/permissions";
 import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 
@@ -150,23 +153,25 @@ export default async function EditorProductionReviewPage({
         notFound();
     }
 
-    const editorJournalRole =
-        await prisma.userJournalRole.findFirst({
-            where: {
-                userId: editor.id,
-                journalId:
-                    assignment.submission.journalId,
-                role: {
-                    in: EDITORIAL_ROLES,
+    if (!isSuperAdmin(editor)) {
+        const editorJournalRole =
+            await prisma.userJournalRole.findFirst({
+                where: {
+                    userId: editor.id,
+                    journalId:
+                        assignment.submission.journalId,
+                    role: {
+                        in: EDITORIAL_ROLES,
+                    },
                 },
-            },
-            select: {
-                id: true,
-            },
-        });
+                select: {
+                    id: true,
+                },
+            });
 
-    if (!editorJournalRole) {
-        notFound();
+        if (!editorJournalRole) {
+            notFound();
+        }
     }
 
     const copyeditedFiles = assignment.files.filter(

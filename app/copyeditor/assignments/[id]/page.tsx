@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { requireRole } from "@/lib/auth/permissions";
+import {
+    isSuperAdmin,
+    requireAnyRole,
+} from "@/lib/auth/permissions";
+import { COPYEDITOR_ROLES } from "@/lib/auth/role-groups";
+
 import { prisma } from "@/lib/prisma";
 
 import {
@@ -25,33 +30,61 @@ function formatStatus(value: string) {
         );
 }
 
-function formatDate(value: Date | null | undefined) {
+function formatDate(
+    value: Date | null | undefined,
+) {
     if (!value) {
         return "Not specified";
     }
 
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(value);
+    return new Intl.DateTimeFormat(
+        "en-GB",
+        {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+        },
+    ).format(value);
+}
+
+function formatFileSize(
+    value: number | null | undefined,
+) {
+    if (!value) {
+        return "Size not recorded";
+    }
+
+    const megabytes =
+        value / 1024 / 1024;
+
+    if (megabytes >= 1) {
+        return `${megabytes.toFixed(2)} MB`;
+    }
+
+    return `${(value / 1024).toFixed(2)} KB`;
 }
 
 export default async function CopyeditorAssignmentPage({
     params,
 }: PageProps) {
     const copyeditor =
-        await requireRole("COPYEDITOR");
+        await requireAnyRole(COPYEDITOR_ROLES);
+
     const { id } = await params;
 
     const assignment =
         await prisma.productionAssignment.findFirst({
             where: {
                 id,
-                assigneeId: copyeditor.id,
                 stage: "COPYEDITING",
+
+                ...(isSuperAdmin(copyeditor)
+                    ? {}
+                    : {
+                        assigneeId: copyeditor.id,
+                    }),
             },
 
             include: {
@@ -84,9 +117,14 @@ export default async function CopyeditorAssignmentPage({
                         uploadedBy: true,
                     },
 
-                    orderBy: {
-                        createdAt: "desc",
-                    },
+                    orderBy: [
+                        {
+                            versionNumber: "desc",
+                        },
+                        {
+                            createdAt: "desc",
+                        },
+                    ],
                 },
 
                 notes: {
@@ -105,17 +143,18 @@ export default async function CopyeditorAssignmentPage({
         notFound();
     }
 
-
     const latestSubmissionVersion =
         assignment.submission.versions[0];
 
     const canStart =
         assignment.status === "PENDING" ||
-        assignment.status === "CHANGES_REQUESTED";
+        assignment.status ===
+        "CHANGES_REQUESTED";
 
     const canSubmit =
         assignment.status === "IN_PROGRESS" ||
-        assignment.status === "CHANGES_REQUESTED";
+        assignment.status ===
+        "CHANGES_REQUESTED";
 
     const hasBeenSubmitted =
         assignment.status === "SUBMITTED";
@@ -140,12 +179,15 @@ export default async function CopyeditorAssignmentPage({
                         </h1>
 
                         <p className="mt-2 text-gray-600">
-                            Copyediting round {assignment.round}
+                            Copyediting round{" "}
+                            {assignment.round}
                         </p>
                     </div>
 
                     <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold">
-                        {formatStatus(assignment.status)}
+                        {formatStatus(
+                            assignment.status,
+                        )}
                     </span>
                 </div>
             </header>
@@ -162,7 +204,10 @@ export default async function CopyeditorAssignmentPage({
                         </p>
 
                         <p className="font-medium">
-                            {assignment.submission.journal.name}
+                            {
+                                assignment.submission
+                                    .journal.name
+                            }
                         </p>
                     </div>
 
@@ -172,7 +217,10 @@ export default async function CopyeditorAssignmentPage({
                         </p>
 
                         <p className="font-medium">
-                            {assignment.submission.author.name}
+                            {
+                                assignment.submission
+                                    .author.name
+                            }
                         </p>
                     </div>
 
@@ -182,7 +230,8 @@ export default async function CopyeditorAssignmentPage({
                         </p>
 
                         <p className="font-medium">
-                            {assignment.submission.manuscriptType ||
+                            {assignment.submission
+                                .manuscriptType ||
                                 "Not specified"}
                         </p>
                     </div>
@@ -213,7 +262,9 @@ export default async function CopyeditorAssignmentPage({
                         </p>
 
                         <p className="font-medium">
-                            {formatDate(assignment.dueDate)}
+                            {formatDate(
+                                assignment.dueDate,
+                            )}
                         </p>
                     </div>
 
@@ -223,7 +274,9 @@ export default async function CopyeditorAssignmentPage({
                         </p>
 
                         <p className="font-medium">
-                            {formatDate(assignment.startedAt)}
+                            {formatDate(
+                                assignment.startedAt,
+                            )}
                         </p>
                     </div>
 
@@ -233,7 +286,9 @@ export default async function CopyeditorAssignmentPage({
                         </p>
 
                         <p className="font-medium">
-                            {formatDate(assignment.submittedAt)}
+                            {formatDate(
+                                assignment.submittedAt,
+                            )}
                         </p>
                     </div>
                 </div>
@@ -270,18 +325,25 @@ export default async function CopyeditorAssignmentPage({
                     <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4">
                         <div>
                             <p className="font-semibold">
-                                Accepted manuscript — Version{" "}
-                                {latestSubmissionVersion.versionNumber}
+                                Accepted manuscript —
+                                Version{" "}
+                                {
+                                    latestSubmissionVersion.versionNumber
+                                }
                             </p>
 
                             <p className="mt-1 text-sm text-gray-600">
-                                {latestSubmissionVersion.manuscriptFileName ||
+                                {latestSubmissionVersion
+                                    .manuscriptFileName ||
                                     "Revised manuscript"}
                             </p>
                         </div>
 
                         <a
-                            href={latestSubmissionVersion.manuscriptFileUrl}
+                            href={
+                                latestSubmissionVersion
+                                    .manuscriptFileUrl
+                            }
                             target="_blank"
                             rel="noreferrer"
                             className="rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"
@@ -289,39 +351,42 @@ export default async function CopyeditorAssignmentPage({
                             Download Source Manuscript
                         </a>
                     </div>
-                ) : assignment.submission.files.length === 0 ? (
+                ) : assignment.submission.files
+                    .length === 0 ? (
                     <p className="mt-4 text-gray-600">
                         No manuscript file was found.
                     </p>
                 ) : (
                     <div className="mt-5 space-y-3">
-                        {assignment.submission.files.map((file) => (
-                            <div
-                                key={file.id}
-                                className="flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4"
-                            >
-                                <div>
-                                    <p className="font-semibold">
-                                        {file.fileName}
-                                    </p>
-
-                                    <p className="mt-1 text-sm text-gray-600">
-                                        {file.label ||
-                                            file.fileType ||
-                                            "Submission file"}
-                                    </p>
-                                </div>
-
-                                <a
-                                    href={file.fileUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"
+                        {assignment.submission.files.map(
+                            (file) => (
+                                <div
+                                    key={file.id}
+                                    className="flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4"
                                 >
-                                    Download
-                                </a>
-                            </div>
-                        ))}
+                                    <div>
+                                        <p className="font-semibold">
+                                            {file.fileName}
+                                        </p>
+
+                                        <p className="mt-1 text-sm text-gray-600">
+                                            {file.label ||
+                                                file.fileType ||
+                                                "Submission file"}
+                                        </p>
+                                    </div>
+
+                                    <a
+                                        href={file.fileUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"
+                                    >
+                                        Download
+                                    </a>
+                                </div>
+                            ),
+                        )}
                     </div>
                 )}
             </section>
@@ -333,8 +398,9 @@ export default async function CopyeditorAssignmentPage({
                     </h2>
 
                     <p className="mt-2 text-blue-800">
-                        Start the assignment before submitting a
-                        copyedited manuscript.
+                        Start the assignment before
+                        submitting a copyedited
+                        manuscript.
                     </p>
 
                     <form
@@ -351,7 +417,8 @@ export default async function CopyeditorAssignmentPage({
                             type="submit"
                             className="rounded-lg bg-blue-700 px-6 py-3 font-semibold text-white hover:bg-blue-800"
                         >
-                            {assignment.status === "CHANGES_REQUESTED"
+                            {assignment.status ===
+                                "CHANGES_REQUESTED"
                                 ? "Resume Copyediting"
                                 : "Start Copyediting"}
                         </button>
@@ -366,14 +433,15 @@ export default async function CopyeditorAssignmentPage({
                     </h2>
 
                     <p className="mt-2 text-sm text-gray-600">
-                        During development, paste the storage URL of the
-                        completed file. Direct file uploading will be
-                        connected when the permanent storage service is
-                        configured.
+                        Upload the completed copyedited
+                        manuscript for editorial review.
+                        The file will be stored securely
+                        in private cloud storage.
                     </p>
 
                     <form
                         action={submitCopyediting}
+                        encType="multipart/form-data"
                         className="mt-6 space-y-6"
                     >
                         <input
@@ -382,74 +450,28 @@ export default async function CopyeditorAssignmentPage({
                             value={assignment.id}
                         />
 
-
-
                         <div>
                             <label
-                                htmlFor="fileName"
+                                htmlFor="copyeditedFile"
                                 className="mb-2 block font-semibold"
                             >
-                                File Name
+                                Copyedited Manuscript
                             </label>
 
                             <input
-                                id="fileName"
-                                name="fileName"
-                                type="text"
+                                id="copyeditedFile"
+                                name="copyeditedFile"
+                                type="file"
                                 required
-                                placeholder="copyedited-manuscript.docx"
-                                className="w-full rounded-lg border p-3"
+                                accept=".doc,.docx,.pdf"
+                                className="block w-full rounded-lg border p-3"
                             />
-                        </div>
 
-                        <div>
-                            <label
-                                htmlFor="fileUrl"
-                                className="mb-2 block font-semibold"
-                            >
-                                File URL
-                            </label>
-
-                            <input
-                                id="fileUrl"
-                                name="fileUrl"
-                                type="url"
-                                required
-                                placeholder="https://storage.example.com/copyedited-manuscript.docx"
-                                className="w-full rounded-lg border p-3"
-                            />
-                        </div>
-
-                        <div>
-                            <label
-                                htmlFor="mimeType"
-                                className="mb-2 block font-semibold"
-                            >
-                                MIME Type
-                            </label>
-
-                            <select
-                                id="mimeType"
-                                name="mimeType"
-                                defaultValue="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                                className="w-full rounded-lg border p-3"
-                            >
-                                <option value="application/vnd.openxmlformats-officedocument.wordprocessingml.document">
-                                    Microsoft Word (.docx)
-                                </option>
-
-                                <option value="application/pdf">
-                                    PDF
-                                </option>
-
-                                <option value="application/msword">
-                                    Microsoft Word (.doc)
-                                </option>
-
-                                <option value="text/plain">
-                                    Plain text
-                                </option>
-                            </select>
+                            <p className="mt-2 text-sm text-gray-500">
+                                Upload a DOC, DOCX, or PDF
+                                file. The file remains private
+                                until publication.
+                            </p>
                         </div>
 
                         <div>
@@ -503,8 +525,9 @@ export default async function CopyeditorAssignmentPage({
                     </h2>
 
                     <p className="mt-2 text-purple-800">
-                        The copyedited manuscript has been sent to the
-                        editor for approval.
+                        The copyedited manuscript has
+                        been sent to the editor for
+                        approval.
                     </p>
                 </section>
             )}
@@ -516,8 +539,10 @@ export default async function CopyeditorAssignmentPage({
                     </h2>
 
                     <p className="mt-2 text-green-800">
-                        The editor approved this copyediting assignment.
-                        The manuscript may proceed to typesetting.
+                        The editor approved this
+                        copyediting assignment. The
+                        manuscript may proceed to
+                        typesetting.
                     </p>
                 </section>
             )}
@@ -529,48 +554,65 @@ export default async function CopyeditorAssignmentPage({
 
                 {assignment.files.length === 0 ? (
                     <p className="mt-4 text-gray-600">
-                        No copyedited files have been submitted.
+                        No copyedited files have been
+                        submitted.
                     </p>
                 ) : (
                     <div className="mt-5 space-y-4">
-                        {assignment.files.map((file) => (
-                            <article
-                                key={file.id}
-                                className="rounded-lg border p-4"
-                            >
-                                <div className="flex flex-wrap items-start justify-between gap-4">
-                                    <div>
-                                        <p className="font-semibold">
-                                            {file.fileName}
-                                        </p>
+                        {assignment.files.map(
+                            (file) => (
+                                <article
+                                    key={file.id}
+                                    className="rounded-lg border p-4"
+                                >
+                                    <div className="flex flex-wrap items-start justify-between gap-4">
+                                        <div>
+                                            <p className="font-semibold">
+                                                {file.fileName}
+                                            </p>
 
-                                        <p className="mt-1 text-sm text-gray-600">
-                                            Version {file.versionNumber}
-                                        </p>
+                                            <p className="mt-1 text-sm text-gray-600">
+                                                Version{" "}
+                                                {file.versionNumber}
+                                            </p>
 
-                                        <p className="mt-1 text-sm text-gray-600">
-                                            Uploaded by {file.uploadedBy.name} on{" "}
-                                            {formatDate(file.createdAt)}
-                                        </p>
+                                            <p className="mt-1 text-sm text-gray-600">
+                                                {formatFileSize(
+                                                    file.fileSize,
+                                                )}
+                                                {file.mimeType
+                                                    ? ` · ${file.mimeType}`
+                                                    : ""}
+                                            </p>
+
+                                            <p className="mt-1 text-sm text-gray-600">
+                                                Uploaded by{" "}
+                                                {file.uploadedBy.name}{" "}
+                                                on{" "}
+                                                {formatDate(
+                                                    file.createdAt,
+                                                )}
+                                            </p>
+                                        </div>
+
+                                        <a
+                                            href={file.fileUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
+                                        >
+                                            Download
+                                        </a>
                                     </div>
 
-                                    <a
-                                        href={file.fileUrl}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
-                                    >
-                                        Download
-                                    </a>
-                                </div>
-
-                                {file.description && (
-                                    <p className="mt-4 text-sm">
-                                        {file.description}
-                                    </p>
-                                )}
-                            </article>
-                        ))}
+                                    {file.description && (
+                                        <p className="mt-4 text-sm">
+                                            {file.description}
+                                        </p>
+                                    )}
+                                </article>
+                            ),
+                        )}
                     </div>
                 )}
             </section>
@@ -614,30 +656,35 @@ export default async function CopyeditorAssignmentPage({
 
                 {assignment.notes.length === 0 ? (
                     <p className="mt-6 text-gray-600">
-                        No production notes have been added.
+                        No production notes have been
+                        added.
                     </p>
                 ) : (
                     <div className="mt-6 space-y-4">
-                        {assignment.notes.map((note) => (
-                            <article
-                                key={note.id}
-                                className="rounded-lg bg-gray-50 p-4"
-                            >
-                                <div className="flex flex-wrap justify-between gap-3">
-                                    <p className="font-semibold">
-                                        {note.author.name}
-                                    </p>
+                        {assignment.notes.map(
+                            (note) => (
+                                <article
+                                    key={note.id}
+                                    className="rounded-lg bg-gray-50 p-4"
+                                >
+                                    <div className="flex flex-wrap justify-between gap-3">
+                                        <p className="font-semibold">
+                                            {note.author.name}
+                                        </p>
 
-                                    <p className="text-sm text-gray-500">
-                                        {formatDate(note.createdAt)}
-                                    </p>
-                                </div>
+                                        <p className="text-sm text-gray-500">
+                                            {formatDate(
+                                                note.createdAt,
+                                            )}
+                                        </p>
+                                    </div>
 
-                                <p className="mt-3 whitespace-pre-wrap text-sm">
-                                    {note.message}
-                                </p>
-                            </article>
-                        ))}
+                                    <p className="mt-3 whitespace-pre-wrap text-sm">
+                                        {note.message}
+                                    </p>
+                                </article>
+                            ),
+                        )}
                     </div>
                 )}
             </section>

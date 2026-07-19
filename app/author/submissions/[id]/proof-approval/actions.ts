@@ -3,7 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireAnyActionRole } from "@/lib/auth/permissions";
+import {
+    isSuperAdmin,
+    requireAnyActionRole,
+} from "@/lib/auth/permissions";
 import { AUTHOR_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 
@@ -50,7 +53,12 @@ export async function approveAuthorProof(
         await prisma.submission.findFirst({
             where: {
                 id: submissionId,
-                authorId: author.id,
+
+                ...(isSuperAdmin(author)
+                    ? {}
+                    : {
+                        authorId: author.id,
+                    }),
             },
 
             include: {
@@ -211,7 +219,12 @@ export async function requestAuthorProofCorrections(
         await prisma.submission.findFirst({
             where: {
                 id: submissionId,
-                authorId: author.id,
+
+                ...(isSuperAdmin(author)
+                    ? {}
+                    : {
+                        authorId: author.id,
+                    }),
             },
 
             include: {
