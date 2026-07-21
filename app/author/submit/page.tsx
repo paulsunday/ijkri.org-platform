@@ -13,7 +13,7 @@ export default async function SubmitManuscriptPage() {
       </h1>
 
       <p className="mb-8 text-gray-600">
-        Submit your manuscript to the International Journal of Advanced
+        Submit your manuscript to the International Journal of Knowledge,
         Research and Innovation (IJKRI).
       </p>
 
@@ -85,7 +85,27 @@ export default async function SubmitManuscriptPage() {
             </option>
           </select>
         </div>
+        <div className="space-y-2">
+          <label
+            htmlFor="manuscriptFile"
+            className="block text-sm font-semibold text-slate-900"
+          >
+            Manuscript File
+          </label>
 
+          <input
+            id="manuscriptFile"
+            name="manuscriptFile"
+            type="file"
+            accept=".pdf,.doc,.docx"
+            required
+            className="block w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 file:mr-4 file:rounded-md file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:font-semibold file:text-white hover:file:bg-slate-800"
+          />
+
+          <p className="text-sm text-slate-500">
+            Upload a PDF, DOC, or DOCX manuscript. Maximum file size: 20 MB.
+          </p>
+        </div>
         <button
           type="submit"
           className="rounded-lg bg-black px-6 py-3 font-semibold text-white hover:bg-gray-800"

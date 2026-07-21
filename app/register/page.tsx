@@ -26,9 +26,8 @@ export default async function RegisterPage({
                     </h1>
 
                     <p className="mt-4 max-w-3xl text-lg leading-8 text-slate-300">
-                        Register to submit manuscripts, track peer
-                        review, upload revisions and receive editorial
-                        decisions.
+                        Register to submit manuscripts, track peer review, upload
+                        revisions and receive editorial decisions.
                     </p>
                 </div>
             </section>
@@ -41,9 +40,8 @@ export default async function RegisterPage({
                         </h2>
 
                         <p className="mt-4 leading-7 text-slate-600">
-                            Your registration creates an author profile
-                            for the International Journal of Advanced
-                            Research and Innovation.
+                            Your registration creates an author profile for the
+                            International Journal of Knowledge, Research and Innovation.
                         </p>
 
                         <ul className="mt-6 space-y-4 text-sm leading-6 text-slate-700">
@@ -71,9 +69,9 @@ export default async function RegisterPage({
                         </h2>
 
                         <p className="mt-3 text-sm leading-6 text-amber-900">
-                            Register an account first, then submit a
-                            reviewer application with your academic
-                            qualifications and areas of expertise.
+                            Register an account first, then submit a reviewer
+                            application with your academic qualifications and areas of
+                            expertise.
                         </p>
 
                         <Link
@@ -160,8 +158,9 @@ export default async function RegisterPage({
                                     id="affiliation"
                                     name="affiliation"
                                     type="text"
+                                    autoComplete="organization"
                                     className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
-                                    placeholder="University or organisation"
+                                    placeholder="University, company or organisation"
                                 />
                             </div>
 
@@ -179,7 +178,7 @@ export default async function RegisterPage({
                                     type="text"
                                     autoComplete="country-name"
                                     className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
-                                    placeholder="Country"
+                                    placeholder="Enter your country"
                                 />
                             </div>
                         </div>
@@ -197,10 +196,19 @@ export default async function RegisterPage({
                                     id="phone"
                                     name="phone"
                                     type="tel"
+                                    inputMode="tel"
                                     autoComplete="tel"
                                     className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
-                                    placeholder="+234..."
+                                    placeholder="Include your international country code"
+                                    aria-describedby="phone-help"
                                 />
+
+                                <p
+                                    id="phone-help"
+                                    className="mt-2 text-sm text-slate-500"
+                                >
+                                    Example format: +1 202 555 0123
+                                </p>
                             </div>
 
                             <div>
@@ -215,6 +223,7 @@ export default async function RegisterPage({
                                     id="orcid"
                                     name="orcid"
                                     type="text"
+                                    inputMode="numeric"
                                     className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
                                     placeholder="0000-0000-0000-0000"
                                 />
@@ -262,9 +271,8 @@ export default async function RegisterPage({
                         </div>
 
                         <div className="rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-600">
-                            Your password must contain at least eight
-                            characters, one uppercase letter, one
-                            lowercase letter and one number.
+                            Your password must contain at least eight characters, one
+                            uppercase letter, one lowercase letter and one number.
                         </div>
 
                         <label className="flex items-start gap-3 rounded-lg border border-slate-200 p-4">
@@ -277,8 +285,8 @@ export default async function RegisterPage({
                             />
 
                             <span className="text-sm leading-6 text-slate-700">
-                                I confirm that the information provided is
-                                accurate and agree to comply with the{" "}
+                                I confirm that the information provided is accurate and
+                                agree to comply with the{" "}
                                 <Link
                                     href="/publication-ethics"
                                     className="font-semibold text-amber-700 hover:underline"
@@ -311,4 +319,3 @@ export default async function RegisterPage({
         </main>
     );
 }
-
