@@ -1,4 +1,6 @@
 ﻿import type { Metadata, Viewport } from "next";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import AuthProvider from "@/components/providers/session-provider";
 import Footer from "@/components/layout/Footer";
@@ -63,10 +65,6 @@ export const metadata: Metadata = {
     telephone: false,
   },
 
-  alternates: {
-    canonical: "/",
-  },
-
   openGraph: {
     type: "website",
     locale: "en_US",
@@ -115,8 +113,6 @@ export const metadata: Metadata = {
     apple: "/logo.png",
   },
 
-
-
   other: {
     "journal-title":
       "International Journal of Knowledge, Research and Innovation",
@@ -148,15 +144,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full" suppressHydrationWarning>
+    <html
+      lang="en"
+      className="h-full"
+      suppressHydrationWarning
+    >
       <body className="flex min-h-full flex-col antialiased">
         <AuthProvider>
           <Header />
 
-          <main className="flex-1">{children}</main>
+          <main className="flex-1">
+            {children}
+          </main>
 
           <Footer />
         </AuthProvider>
+
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
