@@ -2,6 +2,7 @@
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
+import OrganizationJsonLd from "@/components/seo/OrganizationJsonLd";
 import AuthProvider from "@/components/providers/session-provider";
 import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
@@ -150,6 +151,8 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col antialiased">
+        <OrganizationJsonLd />
+
         <AuthProvider>
           <Header />
 
