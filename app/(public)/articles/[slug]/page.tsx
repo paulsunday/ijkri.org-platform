@@ -1,10 +1,16 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+
 import { prisma } from "@/lib/prisma";
+
+const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
+    "https://ijkri.org";
 
 type PageProps = {
     params: Promise<{
-        id: string;
+        slug: string;
     }>;
 };
 
@@ -20,14 +26,21 @@ function formatDate(value: Date | null | undefined) {
     }).format(value);
 }
 
-export default async function PublicArticlePage({
-    params,
-}: PageProps) {
-    const { id } = await params;
+function createDescription(abstract: string) {
+    const cleaned = abstract.replace(/\s+/g, " ").trim();
 
-    const article = await prisma.article.findUnique({
+    if (cleaned.length <= 160) {
+        return cleaned;
+    }
+
+    return `${cleaned.slice(0, 157).trim()}...`;
+}
+
+async function getPublishedArticle(slug: string) {
+    return prisma.article.findFirst({
         where: {
-            id,
+            slug,
+            status: "PUBLISHED",
         },
 
         include: {
@@ -38,6 +51,8 @@ export default async function PublicArticlePage({
                     volume: true,
                 },
             },
+
+            category: true,
 
             authors: {
                 orderBy: {
@@ -74,8 +89,136 @@ export default async function PublicArticlePage({
             },
         },
     });
+}
 
-    if (!article || article.status !== "PUBLISHED") {
+export async function generateMetadata({
+    params,
+}: PageProps): Promise<Metadata> {
+    const { slug } = await params;
+
+    const article = await getPublishedArticle(slug);
+
+    if (!article) {
+        return {
+            title: "Article Not Found",
+            robots: {
+                index: false,
+                follow: false,
+            },
+        };
+    }
+
+    const canonicalUrl = `${siteUrl}/articles/${article.slug}`;
+
+    const description = createDescription(article.abstract);
+
+    const authorNames = article.authors.map(
+        (author) => author.fullName,
+    );
+
+    const keywordNames = article.keywords.map(
+        (item) => item.keyword.name,
+    );
+
+    return {
+        title: article.title,
+        description,
+
+        keywords: keywordNames,
+
+        authors: authorNames.map((name) => ({
+            name,
+        })),
+
+        alternates: {
+            canonical: canonicalUrl,
+        },
+
+        openGraph: {
+            type: "article",
+            url: canonicalUrl,
+            title: article.title,
+            description,
+            siteName:
+                "International Journal of Knowledge, Research and Innovation",
+            publishedTime:
+                article.publishedAt?.toISOString(),
+            modifiedTime:
+                article.updatedAt.toISOString(),
+            authors: authorNames,
+            images: [
+                {
+                    url: "/logo.png",
+                    width: 1200,
+                    height: 1200,
+                    alt: article.title,
+                },
+            ],
+        },
+
+        twitter: {
+            card: "summary_large_image",
+            title: article.title,
+            description,
+            images: ["/logo.png"],
+        },
+
+        robots: {
+            index: true,
+            follow: true,
+            googleBot: {
+                index: true,
+                follow: true,
+                "max-image-preview": "large",
+                "max-snippet": -1,
+                "max-video-preview": -1,
+            },
+        },
+
+        other: {
+            citation_title: article.title,
+
+            citation_journal_title: article.journal.name,
+
+            citation_publication_date:
+                article.publishedAt?.toISOString().split("T")[0] || "",
+
+            citation_volume:
+                article.issue?.volume.number.toString() || "",
+
+            citation_issue:
+                article.issue?.number.toString() || "",
+
+            citation_doi:
+                article.doi || "",
+
+            citation_pdf_url:
+                article.pdfUrl || "",
+
+            citation_abstract_html_url: canonicalUrl,
+
+            citation_language: "en",
+
+            citation_keywords: keywordNames.join("; "),
+
+            ...Object.fromEntries(
+                authorNames.map((author, index) => [
+                    `citation_author_${index + 1}`,
+                    author,
+                ]),
+            ),
+        },
+    };
+}
+
+export default async function PublicArticlePage({
+    params,
+}: PageProps) {
+    const { slug } = await params;
+
+    const article = await getPublishedArticle(slug);
+
+    if (!article) {
         notFound();
     }
 
@@ -93,6 +236,9 @@ export default async function PublicArticlePage({
         .map((author) => author.fullName)
         .join(", ");
 
+    const canonicalUrl =
+        `${siteUrl}/articles/${article.slug}`;
+
     const citation = [
         authorNames || "Unknown author",
         `(${article.publishedAt?.getFullYear() || "n.d."}).`,
@@ -101,13 +247,87 @@ export default async function PublicArticlePage({
         article.issue
             ? `Vol. ${article.issue.volume.number}, Issue ${article.issue.number}.`
             : "",
-        article.doi ? `https://doi.org/${article.doi}` : "",
+        article.doi
+            ? `https://doi.org/${article.doi}`
+            : canonicalUrl,
     ]
         .filter(Boolean)
         .join(" ");
 
+    const jsonLd = {
+        "@context": "https://schema.org",
+        "@type": "ScholarlyArticle",
+        headline: article.title,
+        description: article.abstract,
+        url: canonicalUrl,
+        mainEntityOfPage: canonicalUrl,
+        datePublished:
+            article.publishedAt?.toISOString(),
+        dateModified:
+            article.updatedAt.toISOString(),
+
+        author: article.authors.map((author) => ({
+            "@type": "Person",
+            name: author.fullName,
+            affiliation: author.affiliation
+                ? {
+                    "@type": "Organization",
+                    name: author.affiliation,
+                }
+                : undefined,
+            identifier: author.orcid || undefined,
+        })),
+
+        publisher: {
+            "@type": "Organization",
+            name: "Innovare Academic Publishing",
+            logo: {
+                "@type": "ImageObject",
+                url: `${siteUrl}/logo.png`,
+            },
+        },
+
+        isPartOf: {
+            "@type": "Periodical",
+            name: article.journal.name,
+            issn:
+                article.journal.issnOnline ||
+                article.journal.issnPrint ||
+                undefined,
+        },
+
+        volumeNumber:
+            article.issue?.volume.number.toString(),
+
+        issueNumber:
+            article.issue?.number.toString(),
+
+        identifier: article.doi
+            ? `https://doi.org/${article.doi}`
+            : canonicalUrl,
+
+        keywords: article.keywords
+            .map((item) => item.keyword.name)
+            .join(", "),
+
+        associatedMedia: finalPdf
+            ? {
+                "@type": "MediaObject",
+                contentUrl: finalPdf,
+                encodingFormat: "application/pdf",
+            }
+            : undefined,
+    };
+
     return (
         <main className="mx-auto max-w-6xl space-y-8 px-6 py-12">
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{
+                    __html: JSON.stringify(jsonLd),
+                }}
+            />
+
             <header>
                 <Link
                     href="/current-issue"
@@ -127,18 +347,20 @@ export default async function PublicArticlePage({
 
                     <div className="mt-5 space-y-2 text-gray-700">
                         <p className="text-lg font-medium">
-                            {authorNames || "Author information unavailable"}
+                            {authorNames ||
+                                "Author information unavailable"}
                         </p>
 
                         {article.issue && (
                             <p>
-                                Volume {article.issue.volume.number}, Issue{" "}
-                                {article.issue.number}
+                                Volume {article.issue.volume.number},
+                                Issue {article.issue.number}
                             </p>
                         )}
 
                         <p>
-                            Published: {formatDate(article.publishedAt)}
+                            Published:{" "}
+                            {formatDate(article.publishedAt)}
                         </p>
 
                         {article.doi && (
@@ -211,7 +433,18 @@ export default async function PublicArticlePage({
 
                                 {author.orcid && (
                                     <p className="mt-2 text-sm">
-                                        ORCID: {author.orcid}
+                                        ORCID:{" "}
+                                        <a
+                                            href={`https://orcid.org/${author.orcid.replace(
+                                                "https://orcid.org/",
+                                                "",
+                                            )}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-blue-700 hover:underline"
+                                        >
+                                            {author.orcid}
+                                        </a>
                                     </p>
                                 )}
                             </article>
@@ -227,14 +460,16 @@ export default async function PublicArticlePage({
                     </h2>
 
                     <div className="mt-4 flex flex-wrap gap-3">
-                        {article.keywords.map((articleKeyword) => (
-                            <span
-                                key={articleKeyword.keywordId}
-                                className="rounded-full bg-blue-50 px-4 py-2 text-sm font-medium text-blue-800"
-                            >
-                                {articleKeyword.keyword.name}
-                            </span>
-                        ))}
+                        {article.keywords.map(
+                            (articleKeyword) => (
+                                <span
+                                    key={articleKeyword.keywordId}
+                                    className="rounded-full bg-blue-50 px-4 py-2 text-sm font-medium text-blue-800"
+                                >
+                                    {articleKeyword.keyword.name}
+                                </span>
+                            ),
+                        )}
                     </div>
                 </section>
             )}
@@ -333,8 +568,16 @@ export default async function PublicArticlePage({
 
                     <p>
                         <strong>DOI status:</strong>{" "}
-                        {article.doiRecord?.status || "Not registered"}
+                        {article.doiRecord?.status ||
+                            "Not registered"}
                     </p>
+
+                    {article.category && (
+                        <p>
+                            <strong>Category:</strong>{" "}
+                            {article.category.name}
+                        </p>
+                    )}
                 </div>
             </section>
         </main>

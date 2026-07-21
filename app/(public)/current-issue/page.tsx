@@ -157,7 +157,7 @@ export default async function CurrentIssuePage() {
                 <div className="flex flex-wrap items-start justify-between gap-5">
                   <div className="max-w-4xl">
                     <Link
-                      href={`/articles/${article.id}`}
+                      href={`/articles/${article.slug}`}
                       className="text-2xl font-semibold text-gray-900 hover:text-blue-700"
                     >
                       {article.title}
@@ -188,7 +188,7 @@ export default async function CurrentIssuePage() {
 
                   <div className="flex flex-wrap gap-3">
                     <Link
-                      href={`/articles/${article.id}`}
+                      href={`/articles/${article.slug}`}
                       className="rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"
                     >
                       View Article

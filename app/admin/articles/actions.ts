@@ -24,14 +24,15 @@ function slugify(value: string) {
         .replace(/^-+|-+$/g, "");
 }
 
-function refreshArticlePages(articleId?: string) {
+function refreshArticlePages(articleSlug?: string) {
     revalidatePath("/admin/articles");
     revalidatePath("/current-issue");
     revalidatePath("/archives");
     revalidatePath("/search");
+    revalidatePath("/sitemap.xml");
 
-    if (articleId) {
-        revalidatePath(`/articles/${articleId}`);
+    if (articleSlug) {
+        revalidatePath(`/articles/${articleSlug}`);
     }
 }
 
@@ -57,23 +58,21 @@ async function verifyArticleAdminPermission(
         throw new Error("Administrator account not found.");
     }
 
-    // Global administrators can manage every journal
-    const isGlobalAdministrator = administrator.roles.some(
+    const isSuperAdmin = administrator.roles.some(
         (roleRecord) =>
-            roleRecord.role === "SUPER_ADMIN" ||
-            roleRecord.role === "ADMIN",
+            roleRecord.role === "SUPER_ADMIN",
     );
 
-    if (isGlobalAdministrator) {
+    if (isSuperAdmin) {
         return;
     }
 
-    // Future support for journal-specific administrators
-    const hasJournalPermission = administrator.roles.some(
-        (roleRecord) =>
-            roleRecord.journalId === journalId &&
-            ADMIN_ROLES.includes(roleRecord.role),
-    );
+    const hasJournalPermission =
+        administrator.roles.some(
+            (roleRecord) =>
+                roleRecord.journalId === journalId &&
+                ADMIN_ROLES.includes(roleRecord.role),
+        );
 
     if (!hasJournalPermission) {
         throw new Error(
@@ -193,16 +192,31 @@ export async function updateArticle(
 
     if (pdfUrl) {
         try {
-            new URL(pdfUrl);
+            const parsedUrl = new URL(pdfUrl);
+
+            if (
+                parsedUrl.protocol !== "https:" &&
+                parsedUrl.protocol !== "http:"
+            ) {
+                throw new Error();
+            }
         } catch {
             throw new Error("Enter a valid PDF URL.");
         }
     }
 
+    const baseSlug = slugify(title);
+
+    if (!baseSlug) {
+        throw new Error(
+            "The article title cannot produce a valid URL slug.",
+        );
+    }
+
     const newSlug =
         title === article.title
             ? article.slug
-            : `${slugify(title)}-${articleId.slice(-6)}`;
+            : `${baseSlug}-${articleId.slice(-6)}`;
 
     const existingSlugArticle =
         await prisma.article.findFirst({
@@ -244,84 +258,97 @@ export async function updateArticle(
         }
     }
 
-    await prisma.$transaction(async (tx) => {
-        await tx.article.update({
-            where: {
-                id: articleId,
-            },
-            data: {
-                title,
-                slug: newSlug,
-                abstract,
-                issueId,
-                doi: doi || null,
-                pdfUrl: pdfUrl || null,
-                publishedAt,
-            },
-        });
-
-        if (doi) {
-            await tx.doiRecord.upsert({
+    const updatedArticle =
+        await prisma.$transaction(async (tx) => {
+            const savedArticle = await tx.article.update({
                 where: {
-                    doi,
+                    id: articleId,
                 },
-                update: {
-                    articleId,
-                    metadata: {
-                        articleId,
-                        title,
-                        updatedAt: new Date().toISOString(),
-                    },
+                data: {
+                    title,
+                    slug: newSlug,
+                    abstract,
+                    issueId,
+                    doi: doi || null,
+                    pdfUrl: pdfUrl || null,
+                    publishedAt,
                 },
-                create: {
-                    articleId,
-                    doi,
-                    status: "PENDING",
-                    metadata: {
-                        articleId,
-                        title,
-                        createdAt: new Date().toISOString(),
-                    },
+                select: {
+                    id: true,
+                    slug: true,
                 },
             });
 
-            if (article.doi && article.doi !== doi) {
+            if (doi) {
+                await tx.doiRecord.upsert({
+                    where: {
+                        doi,
+                    },
+                    update: {
+                        articleId,
+                        metadata: {
+                            articleId,
+                            title,
+                            updatedAt: new Date().toISOString(),
+                        },
+                    },
+                    create: {
+                        articleId,
+                        doi,
+                        status: "PENDING",
+                        metadata: {
+                            articleId,
+                            title,
+                            createdAt: new Date().toISOString(),
+                        },
+                    },
+                });
+
+                if (article.doi && article.doi !== doi) {
+                    await tx.doiRecord.deleteMany({
+                        where: {
+                            articleId,
+                            doi: article.doi,
+                        },
+                    });
+                }
+            } else if (article.doi) {
                 await tx.doiRecord.deleteMany({
                     where: {
                         articleId,
-                        doi: article.doi,
                     },
                 });
             }
-        } else if (article.doi) {
-            await tx.doiRecord.deleteMany({
-                where: {
-                    articleId,
+
+            await tx.activityLog.create({
+                data: {
+                    userId: administrator.id,
+                    action: "UPDATE",
+                    entity: "Article",
+                    entityId: articleId,
+                    metadata: {
+                        event: "ARTICLE_UPDATED",
+                        previousTitle: article.title,
+                        title,
+                        previousSlug: article.slug,
+                        slug: newSlug,
+                        issueId,
+                        previousDoi: article.doi,
+                        doi: doi || null,
+                        publishedAt:
+                            publishedAt?.toISOString() || null,
+                    },
                 },
             });
-        }
 
-        await tx.activityLog.create({
-            data: {
-                userId: administrator.id,
-                action: "UPDATE",
-                entity: "Article",
-                entityId: articleId,
-                metadata: {
-                    event: "ARTICLE_UPDATED",
-                    previousTitle: article.title,
-                    title,
-                    issueId,
-                    previousDoi: article.doi,
-                    doi: doi || null,
-                    publishedAt:
-                        publishedAt?.toISOString() || null,
-                },
-            },
+            return savedArticle;
         });
-    });
 
-    refreshArticlePages(articleId);
+    refreshArticlePages(article.slug);
+
+    if (updatedArticle.slug !== article.slug) {
+        refreshArticlePages(updatedArticle.slug);
+    }
 }
 
 export async function changeArticleStatus(
@@ -357,12 +384,14 @@ export async function changeArticleStatus(
         where: {
             id: articleId,
         },
-        include: {
-            submission: {
-                select: {
-                    id: true,
-                },
-            },
+        select: {
+            id: true,
+            journalId: true,
+            issueId: true,
+            submissionId: true,
+            publishedAt: true,
+            status: true,
+            slug: true,
         },
     });
 
@@ -426,7 +455,7 @@ export async function changeArticleStatus(
         });
     });
 
-    refreshArticlePages(articleId);
+    refreshArticlePages(article.slug);
 }
 
 export async function deleteArticle(
@@ -450,6 +479,7 @@ export async function deleteArticle(
         select: {
             id: true,
             title: true,
+            slug: true,
             status: true,
             journalId: true,
             submissionId: true,
@@ -522,13 +552,13 @@ export async function deleteArticle(
                 metadata: {
                     event: "ARTICLE_DELETED",
                     title: article.title,
+                    slug: article.slug,
                     journalId: article.journalId,
-                    submissionId:
-                        article.submissionId,
+                    submissionId: article.submissionId,
                 },
             },
         });
     });
 
-    refreshArticlePages();
+    refreshArticlePages(article.slug);
 }

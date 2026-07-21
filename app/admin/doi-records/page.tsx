@@ -245,7 +245,7 @@ export default async function DoiRecordsPage() {
 
                     {article && (
                       <Link
-                        href={`/articles/${article.id}`}
+                        href={`/articles/${article.slug}`}
                         className="rounded-lg border border-blue-700 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"
                       >
                         View Article

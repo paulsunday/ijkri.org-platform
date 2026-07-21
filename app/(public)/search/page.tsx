@@ -210,7 +210,7 @@ export default async function SearchPage({
                 className="rounded-xl border bg-white p-6 shadow-sm"
               >
                 <Link
-                  href={`/articles/${article.id}`}
+                  href={`/articles/${article.slug}`}
                   className="text-2xl font-semibold text-gray-900 hover:text-blue-700"
                 >
                   {article.title}
@@ -271,7 +271,7 @@ export default async function SearchPage({
 
                 <div className="mt-6 flex flex-wrap gap-3">
                   <Link
-                    href={`/articles/${article.id}`}
+                    href={`/articles/${article.slug}`}
                     className="rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"
                   >
                     View Article

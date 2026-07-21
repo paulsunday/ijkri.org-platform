@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+
 import { prisma } from "@/lib/prisma";
 
 const siteUrl =
@@ -6,70 +7,84 @@ const siteUrl =
     "https://ijkri.org";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+    const generatedAt = new Date();
+
     const staticPages: MetadataRoute.Sitemap = [
         {
             url: siteUrl,
-            lastModified: new Date(),
+            lastModified: generatedAt,
             changeFrequency: "weekly",
             priority: 1,
         },
         {
             url: `${siteUrl}/about`,
-            lastModified: new Date(),
+            lastModified: generatedAt,
             changeFrequency: "monthly",
             priority: 0.8,
         },
         {
             url: `${siteUrl}/aims-scope`,
-            lastModified: new Date(),
+            lastModified: generatedAt,
             changeFrequency: "monthly",
             priority: 0.8,
         },
         {
             url: `${siteUrl}/editorial-board`,
-            lastModified: new Date(),
+            lastModified: generatedAt,
             changeFrequency: "monthly",
             priority: 0.8,
         },
         {
             url: `${siteUrl}/author-guidelines`,
-            lastModified: new Date(),
+            lastModified: generatedAt,
             changeFrequency: "monthly",
             priority: 0.8,
         },
         {
             url: `${siteUrl}/publication-ethics`,
-            lastModified: new Date(),
+            lastModified: generatedAt,
             changeFrequency: "monthly",
             priority: 0.8,
         },
         {
             url: `${siteUrl}/peer-review`,
-            lastModified: new Date(),
+            lastModified: generatedAt,
             changeFrequency: "monthly",
             priority: 0.8,
         },
         {
             url: `${siteUrl}/call-for-papers`,
-            lastModified: new Date(),
+            lastModified: generatedAt,
             changeFrequency: "weekly",
             priority: 0.9,
         },
         {
             url: `${siteUrl}/current-issue`,
-            lastModified: new Date(),
+            lastModified: generatedAt,
             changeFrequency: "daily",
             priority: 0.9,
         },
         {
             url: `${siteUrl}/archives`,
-            lastModified: new Date(),
+            lastModified: generatedAt,
             changeFrequency: "weekly",
             priority: 0.9,
         },
         {
+            url: `${siteUrl}/search`,
+            lastModified: generatedAt,
+            changeFrequency: "weekly",
+            priority: 0.7,
+        },
+        {
+            url: `${siteUrl}/careers`,
+            lastModified: generatedAt,
+            changeFrequency: "monthly",
+            priority: 0.6,
+        },
+        {
             url: `${siteUrl}/contact`,
-            lastModified: new Date(),
+            lastModified: generatedAt,
             changeFrequency: "yearly",
             priority: 0.6,
         },
@@ -79,35 +94,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         where: {
             status: "PUBLISHED",
         },
+
         select: {
             slug: true,
             updatedAt: true,
+            publishedAt: true,
+        },
+
+        orderBy: {
+            publishedAt: "desc",
         },
     });
 
-    const articlePages: MetadataRoute.Sitemap = articles.map((article) => ({
-        url: `${siteUrl}/articles/${article.slug}`,
-        lastModified: article.updatedAt,
-        changeFrequency: "monthly",
-        priority: 0.9,
-    }));
+    const articlePages: MetadataRoute.Sitemap =
+        articles.map((article) => ({
+            url: `${siteUrl}/articles/${article.slug}`,
+            lastModified:
+                article.updatedAt ||
+                article.publishedAt ||
+                generatedAt,
+            changeFrequency: "monthly",
+            priority: 0.9,
+        }));
 
-    const issues = await prisma.issue.findMany({
-        where: {
-            isPublished: true,
-        },
-        select: {
-            id: true,
-            updatedAt: true,
-        },
-    });
-
-    const issuePages: MetadataRoute.Sitemap = issues.map((issue) => ({
-        url: `${siteUrl}/issues/${issue.id}`,
-        lastModified: issue.updatedAt,
-        changeFrequency: "monthly",
-        priority: 0.8,
-    }));
-
-    return [...staticPages, ...issuePages, ...articlePages];
+    return [...staticPages, ...articlePages];
 }

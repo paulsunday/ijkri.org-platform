@@ -307,7 +307,7 @@ export async function publishSubmission(
                 type: "PUBLICATION",
                 title: "Article Published",
                 message: `Your article "${submission.title}" has been published.`,
-                link: `/articles/${article.id}`,
+                link: `/articles/${article.slug}`,
             },
         });
 

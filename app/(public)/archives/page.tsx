@@ -170,7 +170,7 @@ export default async function ArchivesPage() {
                                 className="py-5 first:pt-0 last:pb-0"
                               >
                                 <Link
-                                  href={`/articles/${article.id}`}
+                                  href={`/articles/${article.slug}`}
                                   className="text-lg font-semibold text-gray-900 hover:text-blue-700"
                                 >
                                   {article.title}
@@ -183,7 +183,7 @@ export default async function ArchivesPage() {
 
                                 <div className="mt-3 flex flex-wrap gap-4 text-sm">
                                   <Link
-                                    href={`/articles/${article.id}`}
+                                    href={`/articles/${article.slug}`}
                                     className="font-semibold text-blue-700 hover:underline"
                                   >
                                     View Article

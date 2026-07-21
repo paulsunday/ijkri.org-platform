@@ -544,7 +544,7 @@ export default async function AdminArticlesPage() {
 
                     {article.status === "PUBLISHED" && (
                       <Link
-                        href={`/articles/${article.id}`}
+                        href={`/articles/${article.slug}`}
                         className="rounded-lg border border-blue-700 px-5 py-3 font-semibold text-blue-700 hover:bg-blue-50"
                       >
                         View Public Article
