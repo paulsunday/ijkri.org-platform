@@ -166,8 +166,9 @@ export async function publishSubmission(
                 file.fileType === "PROOF_FILE",
         );
 
-    const articlePdfUrl =
-        pdfUrl || finalPdf?.fileUrl || null;
+    const articlePdfUrl = finalPdf
+        ? `/api/production-files/${finalPdf.id}/download`
+        : pdfUrl || null;
 
     const baseSlug = slugify(submission.title);
 
@@ -307,7 +308,7 @@ export async function publishSubmission(
                 type: "PUBLICATION",
                 title: "Article Published",
                 message: `Your article "${submission.title}" has been published.`,
-                link: `/articles/${article.slug}`,
+                link: `/author/submissions/${submissionId}`,
             },
         });
 
@@ -348,6 +349,6 @@ export async function publishSubmission(
     revalidatePath("/author/dashboard");
 
     redirect(
-        `/author/submissions/${submissionId}`,
+        `/editor/submissions/${submissionId}`,
     );
 }
