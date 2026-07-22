@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 
 import {
     assignCopyeditor,
+    assignTypesetter,
     assignProofreader,
 } from "./actions";
 
@@ -171,16 +172,23 @@ export default async function ProductionPage({
             },
         });
 
-    const proofreaders =
+    const typesetters =
         await prisma.user.findMany({
             where: {
                 isActive: true,
 
                 roles: {
                     some: {
-                        journalId:
-                            submission.journalId,
-                        role: "PROOFREADER",
+                        OR: [
+                            {
+                                role: "SUPER_ADMIN",
+                            },
+                            {
+                                journalId:
+                                    submission.journalId,
+                                role: "TYPESETTER",
+                            },
+                        ],
                     },
                 },
             },
@@ -189,6 +197,33 @@ export default async function ProductionPage({
                 name: "asc",
             },
         });
+
+    const proofreaders =
+        await prisma.user.findMany({
+            where: {
+                isActive: true,
+
+                roles: {
+                    some: {
+                        OR: [
+                            {
+                                role: "SUPER_ADMIN",
+                            },
+                            {
+                                journalId:
+                                    submission.journalId,
+                                role: "PROOFREADER",
+                            },
+                        ],
+                    },
+                },
+            },
+
+            orderBy: {
+                name: "asc",
+            },
+        });
+
 
     const copyeditingAssignment =
         submission.productionAssignments.find(
@@ -207,6 +242,11 @@ export default async function ProductionPage({
             (assignment) =>
                 assignment.stage === "PROOFREADING",
         );
+
+    const canAssignTypesetter =
+        submission.status === "TYPESETTING" &&
+        copyeditingAssignment?.status === "APPROVED" &&
+        !typesettingAssignment;
 
     const canAssignProofreader =
         submission.status === "PROOFREADING" &&
@@ -389,6 +429,116 @@ export default async function ProductionPage({
                                 className="rounded-lg bg-blue-700 px-6 py-3 font-semibold text-white hover:bg-blue-800"
                             >
                                 Send to Copyediting
+                            </button>
+                        </form>
+                    )}
+                </section>
+            )}
+            {canAssignTypesetter && (
+                <section className="rounded-xl border bg-white p-6 shadow-sm">
+                    <h2 className="text-xl font-semibold">
+                        Assign Typesetter
+                    </h2>
+
+                    <p className="mt-2 text-sm text-gray-600">
+                        Send the approved copyedited manuscript to an
+                        eligible typesetter.
+                    </p>
+
+                    {typesetters.length === 0 ? (
+                        <div className="mt-5 rounded-lg border border-yellow-300 bg-yellow-50 p-5">
+                            <p className="font-semibold text-yellow-900">
+                                No eligible typesetter found
+                            </p>
+
+                            <p className="mt-2 text-sm text-yellow-800">
+                                Add the TYPESETTER role to an active user
+                                for this journal.
+                            </p>
+                        </div>
+                    ) : (
+                        <form
+                            action={assignTypesetter}
+                            className="mt-6 space-y-6"
+                        >
+                            <input
+                                type="hidden"
+                                name="submissionId"
+                                value={submission.id}
+                            />
+
+                            <div>
+                                <label
+                                    htmlFor="typesetterId"
+                                    className="mb-2 block font-semibold"
+                                >
+                                    Select Typesetter
+                                </label>
+
+                                <select
+                                    id="typesetterId"
+                                    name="typesetterId"
+                                    required
+                                    defaultValue=""
+                                    className="w-full rounded-lg border p-3"
+                                >
+                                    <option value="" disabled>
+                                        Choose a typesetter
+                                    </option>
+
+                                    {typesetters.map(
+                                        (typesetter) => (
+                                            <option
+                                                key={typesetter.id}
+                                                value={typesetter.id}
+                                            >
+                                                {typesetter.name} —{" "}
+                                                {typesetter.email}
+                                            </option>
+                                        ),
+                                    )}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label
+                                    htmlFor="typesettingDueDate"
+                                    className="mb-2 block font-semibold"
+                                >
+                                    Typesetting Deadline
+                                </label>
+
+                                <input
+                                    id="typesettingDueDate"
+                                    name="dueDate"
+                                    type="date"
+                                    required
+                                    className="w-full rounded-lg border p-3"
+                                />
+                            </div>
+
+                            <div>
+                                <label
+                                    htmlFor="typesettingInstructions"
+                                    className="mb-2 block font-semibold"
+                                >
+                                    Instructions
+                                </label>
+
+                                <textarea
+                                    id="typesettingInstructions"
+                                    name="instructions"
+                                    rows={7}
+                                    className="w-full rounded-lg border p-3"
+                                    defaultValue="Format the approved copyedited manuscript according to the journal template. Prepare the publication-ready PDF galley, ensuring consistent typography, headings, tables, figures, references, pagination, headers and footers."
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                className="rounded-lg bg-purple-700 px-6 py-3 font-semibold text-white hover:bg-purple-800"
+                            >
+                                Send to Typesetting
                             </button>
                         </form>
                     )}

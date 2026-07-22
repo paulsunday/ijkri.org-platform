@@ -244,6 +244,227 @@ export async function assignCopyeditor(formData: FormData) {
     );
 }
 
+export async function assignTypesetter(
+    formData: FormData,
+) {
+    const editor =
+        await requireAnyActionRole(EDITORIAL_ROLES);
+
+    const submissionId = String(
+        formData.get("submissionId") || "",
+    ).trim();
+
+    const typesetterId = String(
+        formData.get("typesetterId") || "",
+    ).trim();
+
+    const dueDateValue = String(
+        formData.get("dueDate") || "",
+    ).trim();
+
+    const instructions = String(
+        formData.get("instructions") || "",
+    ).trim();
+
+    if (!submissionId) {
+        throw new Error("Submission ID is missing.");
+    }
+
+    if (!typesetterId) {
+        throw new Error("Select a typesetter.");
+    }
+
+    if (!dueDateValue) {
+        throw new Error(
+            "A typesetting deadline is required.",
+        );
+    }
+
+    const dueDate = new Date(
+        `${dueDateValue}T23:59:59`,
+    );
+
+    if (Number.isNaN(dueDate.getTime())) {
+        throw new Error(
+            "The typesetting deadline is invalid.",
+        );
+    }
+
+    if (dueDate <= new Date()) {
+        throw new Error(
+            "The typesetting deadline must be in the future.",
+        );
+    }
+
+    const submission =
+        await prisma.submission.findUnique({
+            where: {
+                id: submissionId,
+            },
+
+            select: {
+                id: true,
+                title: true,
+                status: true,
+                journalId: true,
+
+                productionAssignments: {
+                    where: {
+                        stage: "COPYEDITING",
+                    },
+
+                    orderBy: {
+                        round: "desc",
+                    },
+
+                    take: 1,
+
+                    select: {
+                        id: true,
+                        status: true,
+                    },
+                },
+            },
+        });
+
+    if (!submission) {
+        throw new Error("Submission not found.");
+    }
+
+    if (submission.status !== "TYPESETTING") {
+        throw new Error(
+            `The manuscript must be in typesetting before a typesetter can be assigned. Current status: ${submission.status}.`,
+        );
+    }
+
+    await verifyEditorialPermission(
+        editor,
+        submission.journalId,
+    );
+
+    const copyeditingAssignment =
+        submission.productionAssignments[0];
+
+    if (
+        !copyeditingAssignment ||
+        copyeditingAssignment.status !== "APPROVED"
+    ) {
+        throw new Error(
+            "Copyediting must be approved before assigning a typesetter.",
+        );
+    }
+
+    const typesetter = await prisma.user.findUnique({
+        where: {
+            id: typesetterId,
+        },
+
+        select: {
+            id: true,
+            name: true,
+            isActive: true,
+
+            roles: {
+                select: {
+                    journalId: true,
+                    role: true,
+                },
+            },
+        },
+    });
+
+    if (!typesetter || !typesetter.isActive) {
+        throw new Error(
+            "The selected typesetter account was not found or is inactive.",
+        );
+    }
+
+    const canTypeset = typesetter.roles.some(
+        (userRole) =>
+            userRole.role === "SUPER_ADMIN" ||
+            (
+                userRole.role === "TYPESETTER" &&
+                userRole.journalId ===
+                submission.journalId
+            ),
+    );
+
+    if (!canTypeset) {
+        throw new Error(
+            "The selected user is not eligible to perform typesetting.",
+        );
+    }
+
+    const existingAssignment =
+        await prisma.productionAssignment.findFirst({
+            where: {
+                submissionId,
+                stage: "TYPESETTING",
+            },
+
+            select: {
+                id: true,
+            },
+        });
+
+    if (existingAssignment) {
+        throw new Error(
+            "A typesetting assignment already exists for this manuscript.",
+        );
+    }
+
+    await prisma.$transaction(async (tx) => {
+        const assignment =
+            await tx.productionAssignment.create({
+                data: {
+                    submissionId,
+                    assigneeId: typesetterId,
+                    assignedById: editor.id,
+                    stage: "TYPESETTING",
+                    status: "PENDING",
+                    round: 1,
+                    instructions:
+                        instructions || null,
+                    dueDate,
+                },
+            });
+
+        await tx.notification.create({
+            data: {
+                userId: typesetterId,
+                type: "PUBLICATION",
+                title: "New Typesetting Assignment",
+                message: `You have been assigned to typeset "${submission.title}".`,
+                link: `/typesetter/assignments/${assignment.id}`,
+            },
+        });
+
+        await tx.activityLog.create({
+            data: {
+                userId: editor.id,
+                action: "CREATE",
+                entity: "ProductionAssignment",
+                entityId: assignment.id,
+
+                metadata: {
+                    event: "TYPESETTER_ASSIGNED",
+                    submissionId,
+                    typesetterId,
+                    stage: "TYPESETTING",
+                    round: 1,
+                    dueDate: dueDate.toISOString(),
+                },
+            },
+        });
+    });
+
+    refreshProductionPages(submissionId);
+
+    redirect(
+        `/editor/submissions/${submissionId}/production`,
+    );
+}
+
 export async function assignProofreader(
     formData: FormData,
 ) {
