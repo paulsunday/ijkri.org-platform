@@ -80,7 +80,6 @@ export default async function PublicationPage({
     const issues = await prisma.issue.findMany({
         where: {
             journalId: submission.journalId,
-            isPublished: true,
         },
         include: {
             volume: true,
@@ -160,12 +159,12 @@ export default async function PublicationPage({
             ) : issues.length === 0 ? (
                 <section className="rounded-xl border border-yellow-300 bg-yellow-50 p-6">
                     <h2 className="font-semibold text-yellow-900">
-                        No published issue available
+                        No issue available
                     </h2>
 
                     <p className="mt-2 text-sm text-yellow-800">
-                        Create and publish an issue for this journal
-                        before publishing the article.
+                        Create an issue for this journal before
+                        publishing the article.
                     </p>
                 </section>
             ) : (
