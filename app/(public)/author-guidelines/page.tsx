@@ -825,10 +825,10 @@ export default function AuthorGuidelinesPage() {
                     One author
                   </p>
                   <p className="mt-1">
-                    Parenthetical: (Okafor, 2024)
+                    Parenthetical: (Author, 2024)
                   </p>
                   <p>
-                    Narrative: Okafor (2024)
+                    Narrative: Author (2024)
                   </p>
                 </div>
 
@@ -837,10 +837,10 @@ export default function AuthorGuidelinesPage() {
                     Two authors
                   </p>
                   <p className="mt-1">
-                    Parenthetical: (Okafor & Silva, 2024)
+                    Parenthetical: (Author & Author, 2024)
                   </p>
                   <p>
-                    Narrative: Okafor and Silva (2024)
+                    Narrative: Author1 and Author2(2024)
                   </p>
                 </div>
 
@@ -849,10 +849,10 @@ export default function AuthorGuidelinesPage() {
                     Three or more authors
                   </p>
                   <p className="mt-1">
-                    Parenthetical: (Okafor et al., 2024)
+                    Parenthetical: (Author et al., 2024)
                   </p>
                   <p>
-                    Narrative: Okafor et al. (2024)
+                    Narrative: Author et al. (2024)
                   </p>
                 </div>
 
@@ -862,7 +862,7 @@ export default function AuthorGuidelinesPage() {
                   </p>
                   <p className="mt-1">
                     Include the author, year and page number:
-                    (Okafor, 2024, p. 18).
+                    (Author, 2024, p. 18).
                   </p>
                 </div>
               </div>
