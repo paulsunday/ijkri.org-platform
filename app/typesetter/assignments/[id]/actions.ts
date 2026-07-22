@@ -8,6 +8,7 @@ import {
 } from "@/lib/auth/permissions";
 import { TYPESETTER_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
+import { uploadJournalFile } from "@/lib/storage/blob";
 
 const ALLOWED_TYPESETTING_FILE_TYPES = [
     "TYPESET_DOCUMENT",
@@ -201,28 +202,11 @@ export async function uploadProductionFile(
         formData.get("fileType") || "",
     ).trim();
 
-    const fileUrl = String(
-        formData.get("fileUrl") || "",
-    ).trim();
-
-    const fileName = String(
-        formData.get("filename") ||
-        formData.get("fileName") ||
-        "",
-    ).trim();
-
-    const mimeType = String(
-        formData.get("mimeType") ||
-        "application/octet-stream",
-    ).trim();
-
-    const fileSizeValue = String(
-        formData.get("fileSize") || "0",
-    ).trim();
-
     const description = String(
         formData.get("description") || "",
     ).trim();
+
+    const file = formData.get("file");
 
     if (!assignmentId) {
         throw new Error("Assignment ID is missing.");
@@ -242,34 +226,40 @@ export async function uploadProductionFile(
         );
     }
 
-    if (!fileUrl) {
-        throw new Error("Production file URL is required.");
-    }
-
-    if (!fileName) {
-        throw new Error("Production file name is required.");
-    }
-
-    try {
-        new URL(fileUrl);
-    } catch {
+    if (!(file instanceof File) || file.size === 0) {
         throw new Error(
-            "Enter a valid production file URL.",
+            "Select a production file to upload.",
         );
     }
 
-    const fileSize = Number(fileSizeValue);
+    const assignment =
+        await prisma.productionAssignment.findFirst({
+            where: {
+                id: assignmentId,
+                stage: "TYPESETTING",
 
-    if (
-        !Number.isFinite(fileSize) ||
-        fileSize < 0
-    ) {
-        throw new Error("The file size is invalid.");
+                ...(isSuperAdmin(typesetter)
+                    ? {}
+                    : {
+                        assigneeId: typesetter.id,
+                    }),
+            },
+
+            include: {
+                submission: {
+                    select: {
+                        id: true,
+                        journalId: true,
+                    },
+                },
+            },
+        });
+
+    if (!assignment) {
+        throw new Error(
+            "Typesetting assignment not found or you do not have permission to access it.",
+        );
     }
-    const assignment = await getTypesetterAssignment(
-        assignmentId,
-        typesetter,
-    );
 
     if (
         assignment.status !== "IN_PROGRESS" &&
@@ -301,6 +291,24 @@ export async function uploadProductionFile(
     const nextVersionNumber =
         (latestFile?.versionNumber || 0) + 1;
 
+    const upload = await uploadJournalFile({
+        file,
+        category: "TYPESET",
+        visibility: "private",
+
+        metadata: {
+            category: "TYPESET",
+            journalId:
+                assignment.submission.journalId,
+            submissionId:
+                assignment.submissionId,
+            assignmentId:
+                assignment.id,
+            versionNumber:
+                nextVersionNumber,
+        },
+    });
+
     const productionFile =
         await prisma.productionFile.create({
             data: {
@@ -308,12 +316,17 @@ export async function uploadProductionFile(
                     assignment.submissionId,
                 productionAssignmentId:
                     assignment.id,
-                uploadedById: typesetter.id,
+                uploadedById:
+                    typesetter.id,
                 fileType,
-                fileName,
-                fileUrl,
-                mimeType: mimeType || null,
-                fileSize,
+                fileName:
+                    upload.originalFilename,
+                fileUrl:
+                    upload.url,
+                mimeType:
+                    upload.mimeType || null,
+                fileSize:
+                    upload.size,
                 versionNumber:
                     nextVersionNumber,
                 description:
@@ -329,15 +342,19 @@ export async function uploadProductionFile(
             entity: "ProductionFile",
             entityId: productionFile.id,
             metadata: {
-                event: "TYPESETTING_FILE_UPLOADED",
+                event:
+                    "TYPESETTING_FILE_UPLOADED",
                 assignmentId:
                     assignment.id,
                 submissionId:
                     assignment.submissionId,
                 fileType,
-                fileName,
+                fileName:
+                    upload.originalFilename,
                 versionNumber:
                     nextVersionNumber,
+                pathname:
+                    upload.pathname,
             },
         },
     });

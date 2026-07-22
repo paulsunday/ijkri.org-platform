@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 import {
     startTypesetting,
     submitTypesetting,
+    uploadProductionFile,
 } from "./actions";
 
 type PageProps = {
@@ -316,6 +317,109 @@ export default async function TypesetterWorkspace({
                     </div>
                 )}
             </section>
+
+            {canSubmit && (
+                <section className="rounded-xl border bg-white p-6">
+                    <h2 className="text-xl font-semibold">
+                        Upload Typesetting Files
+                    </h2>
+
+                    <p className="mt-2 text-sm text-gray-600">
+                        Upload both the formatted typeset document and
+                        the PDF galley before submitting the assignment.
+                    </p>
+
+                    <form
+                        action={uploadProductionFile}
+                        className="mt-6 space-y-5"
+                    >
+                        <input
+                            type="hidden"
+                            name="assignmentId"
+                            value={assignment.id}
+                        />
+
+                        <div>
+                            <label
+                                htmlFor="fileType"
+                                className="mb-2 block font-semibold"
+                            >
+                                File Type
+                            </label>
+
+                            <select
+                                id="fileType"
+                                name="fileType"
+                                required
+                                defaultValue=""
+                                className="w-full rounded-lg border p-3"
+                            >
+                                <option value="" disabled>
+                                    Select file type
+                                </option>
+
+                                <option value="TYPESET_DOCUMENT">
+                                    Formatted Typeset Document
+                                </option>
+
+                                <option value="PDF_GALLEY">
+                                    PDF Galley
+                                </option>
+
+                                <option value="HTML_GALLEY">
+                                    HTML Galley
+                                </option>
+
+                                <option value="XML_GALLEY">
+                                    XML Galley
+                                </option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label
+                                htmlFor="productionFile"
+                                className="mb-2 block font-semibold"
+                            >
+                                Select File
+                            </label>
+
+                            <input
+                                id="productionFile"
+                                name="file"
+                                type="file"
+                                required
+                                accept=".doc,.docx,.pdf,.html,.htm,.xml"
+                                className="w-full rounded-lg border p-3"
+                            />
+                        </div>
+
+                        <div>
+                            <label
+                                htmlFor="description"
+                                className="mb-2 block font-semibold"
+                            >
+                                Description
+                            </label>
+
+                            <textarea
+                                id="description"
+                                name="description"
+                                rows={4}
+                                className="w-full rounded-lg border p-3"
+                                placeholder="Optional description of this production file."
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            className="rounded-lg bg-purple-700 px-6 py-3 font-semibold text-white hover:bg-purple-800"
+                        >
+                            Upload Production File
+                        </button>
+                    </form>
+                </section>
+            )}
 
             <section className="rounded-xl border bg-white p-6">
                 <h2 className="mb-5 text-xl font-semibold">
