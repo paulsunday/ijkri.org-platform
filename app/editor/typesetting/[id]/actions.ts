@@ -26,14 +26,10 @@ async function verifyEditor(
             id: true,
             isActive: true,
             roles: {
-                where: {
-                    journalId,
-                    role: {
-                        in: [...EDITOR_ROLES],
-                    },
-                },
                 select: {
                     id: true,
+                    role: true,
+                    journalId: true,
                 },
             },
         },
@@ -45,13 +41,23 @@ async function verifyEditor(
         );
     }
 
-    if (editor.roles.length === 0) {
+    const hasPermission = editor.roles.some(
+        (userRole) =>
+            userRole.role === "SUPER_ADMIN" ||
+            (
+                EDITOR_ROLES.includes(
+                    userRole.role as (typeof EDITOR_ROLES)[number],
+                ) &&
+                userRole.journalId === journalId
+            ),
+    );
+
+    if (!hasPermission) {
         throw new Error(
             "This user does not have editorial permission for this journal.",
         );
     }
 }
-
 function refreshPages(
     assignmentId: string,
     submissionId: string,
