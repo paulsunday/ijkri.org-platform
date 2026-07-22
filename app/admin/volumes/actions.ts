@@ -116,7 +116,9 @@ export async function createVolume(
     });
 
     if (!journal) {
-        throw new Error("Journal not found.");
+        throw new Error(
+            "The selected journal no longer exists. Please refresh the page and select an active journal."
+        );
     }
 
     await verifyVolumeAdminPermission(
