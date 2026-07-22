@@ -610,14 +610,17 @@ export default async function EditorialDecisionPage({
               action={sendEditorialDecision}
               className="mt-6 space-y-6"
             >
-
+              <input
+                type="hidden"
+                name="submissionId"
+                value={submission.id}
+              />
 
               <input
                 type="hidden"
                 name="editorId"
                 value={editor.id}
               />
-
               <div>
                 <label
                   htmlFor="decision"
