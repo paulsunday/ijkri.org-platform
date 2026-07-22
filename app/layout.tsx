@@ -3,21 +3,28 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import OrganizationJsonLd from "@/components/seo/OrganizationJsonLd";
-import AuthProvider from "@/components/providers/session-provider";
 import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
+import AuthProvider from "@/components/providers/session-provider";
 
 import "./globals.css";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
-  "https://ijkri.org";
+  "https://www.ijkri.org";
+
+const journalName =
+  "International Journal of Knowledge, Research and Innovation";
+
+const publisherName = "Innovare Academic Publishing";
+
+const siteDescription =
+  "The International Journal of Knowledge, Research and Innovation is a multidisciplinary, peer-reviewed and open-access journal published by Innovare Academic Publishing.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
 
-  applicationName:
-    "International Journal of Knowledge, Research and Innovation",
+  applicationName: journalName,
 
   title: {
     default:
@@ -25,12 +32,12 @@ export const metadata: Metadata = {
     template: "%s | IJKRI",
   },
 
-  description:
-    "The International Journal of Knowledge, Research and Innovation is a multidisciplinary, peer-reviewed, open-access journal published by Innovare Academic Publishing.",
+  description: siteDescription,
 
   keywords: [
     "IJKRI",
     "International Journal of Knowledge Research and Innovation",
+    "International Journal of Knowledge, Research and Innovation",
     "Innovare Academic Publishing",
     "academic journal",
     "peer-reviewed journal",
@@ -48,14 +55,17 @@ export const metadata: Metadata = {
 
   authors: [
     {
-      name: "International Journal of Knowledge, Research and Innovation",
+      name: journalName,
+      url: siteUrl,
+    },
+    {
+      name: publisherName,
       url: siteUrl,
     },
   ],
 
-  creator: "Innovare Academic Publishing",
-  publisher: "Innovare Academic Publishing",
-
+  creator: publisherName,
+  publisher: publisherName,
   category: "Academic Publishing",
 
   referrer: "origin-when-cross-origin",
@@ -66,39 +76,73 @@ export const metadata: Metadata = {
     telephone: false,
   },
 
+  alternates: {
+    canonical: siteUrl,
+  },
+
+  icons: {
+    icon: [
+      {
+        url: "/favicon.ico",
+        sizes: "any",
+      },
+      {
+        url: "/icon.png",
+        type: "image/png",
+        sizes: "512x512",
+      },
+    ],
+
+    shortcut: "/favicon.ico",
+
+    apple: [
+      {
+        url: "/apple-icon.png",
+        type: "image/png",
+        sizes: "180x180",
+      },
+    ],
+  },
+
   openGraph: {
     type: "website",
     locale: "en_US",
     url: siteUrl,
-    siteName:
-      "International Journal of Knowledge, Research and Innovation",
+    siteName: journalName,
+
     title:
       "IJKRI | International Journal of Knowledge, Research and Innovation",
+
     description:
       "A multidisciplinary, peer-reviewed and open-access journal publishing rigorous research, practical insights and innovative scholarly contributions.",
+
     images: [
       {
-        url: "/logo.png",
+        url: "/opengraph-image.png",
         width: 1200,
-        height: 1200,
-        alt: "International Journal of Knowledge, Research and Innovation logo",
+        height: 630,
+        alt: `${journalName} logo`,
       },
     ],
   },
 
   twitter: {
     card: "summary_large_image",
+
     title:
       "IJKRI | International Journal of Knowledge, Research and Innovation",
+
     description:
       "A multidisciplinary, peer-reviewed and open-access scholarly journal published by Innovare Academic Publishing.",
-    images: ["/logo.png"],
+
+    images: ["/opengraph-image.png"],
   },
 
   robots: {
     index: true,
     follow: true,
     nocache: false,
+
     googleBot: {
       index: true,
       follow: true,
@@ -109,16 +153,19 @@ export const metadata: Metadata = {
     },
   },
 
-  icons: {
-    icon: "/logo.png",
-    apple: "/logo.png",
+  verification: {
+    /*
+     * Add your Google Search Console verification value here
+     * when available:
+     *
+     * google: "YOUR_GOOGLE_VERIFICATION_CODE",
+     */
   },
 
   other: {
-    "journal-title":
-      "International Journal of Knowledge, Research and Innovation",
+    "journal-title": journalName,
     "journal-abbreviation": "IJKRI",
-    publisher: "Innovare Academic Publishing",
+    publisher: publisherName,
     "content-language": "en",
   },
 };
@@ -126,6 +173,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+
   themeColor: [
     {
       media: "(prefers-color-scheme: light)",
@@ -136,6 +184,7 @@ export const viewport: Viewport = {
       color: "#020617",
     },
   ],
+
   colorScheme: "light dark",
 };
 
