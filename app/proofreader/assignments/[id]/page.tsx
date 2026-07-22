@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { prisma } from "@/lib/prisma";
 import {
     isSuperAdmin,
     requireAnyRole,
 } from "@/lib/auth/permissions";
 import { PROOFREADER_ROLES } from "@/lib/auth/role-groups";
+import { prisma } from "@/lib/prisma";
 
 import {
     addProofreadingNote,
@@ -49,16 +49,22 @@ function statusClass(status: string) {
     switch (status) {
         case "PENDING":
             return "bg-yellow-100 text-yellow-800";
+
         case "IN_PROGRESS":
             return "bg-blue-100 text-blue-800";
+
         case "SUBMITTED":
             return "bg-purple-100 text-purple-800";
+
         case "CHANGES_REQUESTED":
             return "bg-orange-100 text-orange-800";
+
         case "APPROVED":
             return "bg-green-100 text-green-800";
+
         case "CANCELLED":
             return "bg-red-100 text-red-800";
+
         default:
             return "bg-gray-100 text-gray-700";
     }
@@ -78,6 +84,7 @@ export default async function ProofreaderAssignmentPage({
 }: PageProps) {
     const proofreader =
         await requireAnyRole(PROOFREADER_ROLES);
+
     const { id } = await params;
 
     const assignment =
@@ -98,6 +105,7 @@ export default async function ProofreaderAssignmentPage({
                     include: {
                         author: true,
                         journal: true,
+
                         productionFiles: {
                             include: {
                                 uploadedBy: {
@@ -108,6 +116,7 @@ export default async function ProofreaderAssignmentPage({
                                     },
                                 },
                             },
+
                             orderBy: [
                                 {
                                     versionNumber: "desc",
@@ -146,6 +155,7 @@ export default async function ProofreaderAssignmentPage({
                             },
                         },
                     },
+
                     orderBy: {
                         createdAt: "desc",
                     },
@@ -161,6 +171,7 @@ export default async function ProofreaderAssignmentPage({
                             },
                         },
                     },
+
                     orderBy: [
                         {
                             versionNumber: "desc",
@@ -187,16 +198,19 @@ export default async function ProofreaderAssignmentPage({
         );
 
     const proofFiles = assignment.files.filter(
-        (file) => file.fileType === "PROOF_FILE",
+        (file) =>
+            file.fileType === "PROOF_FILE",
     );
 
     const canStart =
         assignment.status === "PENDING" ||
-        assignment.status === "CHANGES_REQUESTED";
+        assignment.status ===
+        "CHANGES_REQUESTED";
 
     const canSubmit =
         assignment.status === "IN_PROGRESS" ||
-        assignment.status === "CHANGES_REQUESTED";
+        assignment.status ===
+        "CHANGES_REQUESTED";
 
     return (
         <main className="mx-auto max-w-7xl space-y-8 px-6 py-12">
@@ -215,7 +229,9 @@ export default async function ProofreaderAssignmentPage({
                         </h1>
 
                         <p className="mt-2 text-gray-600">
-                            Review the final galley, report errors and submit the proof.
+                            Review the final galley, report
+                            errors and submit the corrected
+                            proof.
                         </p>
                     </div>
 
@@ -224,7 +240,9 @@ export default async function ProofreaderAssignmentPage({
                             assignment.status,
                         )}`}
                     >
-                        {formatStatus(assignment.status)}
+                        {formatStatus(
+                            assignment.status,
+                        )}
                     </span>
                 </div>
             </header>
@@ -239,8 +257,12 @@ export default async function ProofreaderAssignmentPage({
                         <p className="text-sm text-gray-500">
                             Manuscript
                         </p>
+
                         <p className="font-medium">
-                            {assignment.submission.title}
+                            {
+                                assignment.submission
+                                    .title
+                            }
                         </p>
                     </div>
 
@@ -248,8 +270,12 @@ export default async function ProofreaderAssignmentPage({
                         <p className="text-sm text-gray-500">
                             Author
                         </p>
+
                         <p className="font-medium">
-                            {assignment.submission.author.name}
+                            {
+                                assignment.submission
+                                    .author.name
+                            }
                         </p>
                     </div>
 
@@ -257,8 +283,12 @@ export default async function ProofreaderAssignmentPage({
                         <p className="text-sm text-gray-500">
                             Journal
                         </p>
+
                         <p className="font-medium">
-                            {assignment.submission.journal.name}
+                            {
+                                assignment.submission
+                                    .journal.name
+                            }
                         </p>
                     </div>
 
@@ -266,8 +296,13 @@ export default async function ProofreaderAssignmentPage({
                         <p className="text-sm text-gray-500">
                             Proofreader
                         </p>
+
                         <p className="font-medium">
                             {assignment.assignee.name}
+                        </p>
+
+                        <p className="text-sm text-gray-500">
+                            {assignment.assignee.email}
                         </p>
                     </div>
 
@@ -275,8 +310,12 @@ export default async function ProofreaderAssignmentPage({
                         <p className="text-sm text-gray-500">
                             Assigned by
                         </p>
+
                         <p className="font-medium">
-                            {assignment.assignedBy.name}
+                            {
+                                assignment.assignedBy
+                                    .name
+                            }
                         </p>
                     </div>
 
@@ -284,6 +323,7 @@ export default async function ProofreaderAssignmentPage({
                         <p className="text-sm text-gray-500">
                             Round
                         </p>
+
                         <p className="font-medium">
                             {assignment.round}
                         </p>
@@ -293,8 +333,11 @@ export default async function ProofreaderAssignmentPage({
                         <p className="text-sm text-gray-500">
                             Assigned
                         </p>
+
                         <p className="font-medium">
-                            {formatDate(assignment.createdAt)}
+                            {formatDate(
+                                assignment.createdAt,
+                            )}
                         </p>
                     </div>
 
@@ -302,8 +345,11 @@ export default async function ProofreaderAssignmentPage({
                         <p className="text-sm text-gray-500">
                             Deadline
                         </p>
+
                         <p className="font-medium">
-                            {formatDate(assignment.dueDate)}
+                            {formatDate(
+                                assignment.dueDate,
+                            )}
                         </p>
                     </div>
 
@@ -311,8 +357,11 @@ export default async function ProofreaderAssignmentPage({
                         <p className="text-sm text-gray-500">
                             Submitted
                         </p>
+
                         <p className="font-medium">
-                            {formatDate(assignment.submittedAt)}
+                            {formatDate(
+                                assignment.submittedAt,
+                            )}
                         </p>
                     </div>
                 </div>
@@ -324,7 +373,9 @@ export default async function ProofreaderAssignmentPage({
                         </h3>
 
                         <div className="mt-2 whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm">
-                            {assignment.instructions}
+                            {
+                                assignment.instructions
+                            }
                         </div>
                     </div>
                 )}
@@ -337,7 +388,8 @@ export default async function ProofreaderAssignmentPage({
 
                 {sourceFiles.length === 0 ? (
                     <p className="mt-4 text-gray-600">
-                        No approved typesetting files are available.
+                        No approved typesetting files
+                        are available.
                     </p>
                 ) : (
                     <div className="mt-6 space-y-4">
@@ -349,33 +401,46 @@ export default async function ProofreaderAssignmentPage({
                                 <div className="flex flex-wrap items-start justify-between gap-4">
                                     <div>
                                         <h3 className="font-semibold">
-                                            {file.fileName}
+                                            {
+                                                file.fileName
+                                            }
                                         </h3>
 
                                         <p className="mt-1 text-sm text-gray-600">
-                                            {fileTypeLabel(file.fileType)}
+                                            {fileTypeLabel(
+                                                file.fileType,
+                                            )}
                                         </p>
 
                                         <p className="mt-1 text-sm text-gray-600">
-                                            Version {file.versionNumber}
+                                            Version{" "}
+                                            {
+                                                file.versionNumber
+                                            }
                                         </p>
 
                                         <p className="mt-1 text-sm text-gray-600">
-                                            Uploaded by {file.uploadedBy.name}
+                                            Uploaded by{" "}
+                                            {
+                                                file
+                                                    .uploadedBy
+                                                    .name
+                                            }
                                         </p>
 
                                         <p className="mt-1 text-sm text-gray-600">
-                                            {formatDate(file.createdAt)}
+                                            {formatDate(
+                                                file.createdAt,
+                                            )}
                                         </p>
                                     </div>
 
                                     <a
                                         href={`/api/production-files/${file.id}/download`}
-                                        className="rounded bg-blue-700 px-4 py-2 text-white hover:bg-blue-800"
+                                        className="rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"
                                     >
-                                        Download
+                                        Download File
                                     </a>
-
                                 </div>
                             </article>
                         ))}
@@ -385,12 +450,13 @@ export default async function ProofreaderAssignmentPage({
 
             <section className="rounded-xl border bg-white p-6 shadow-sm">
                 <h2 className="text-xl font-semibold">
-                    Proof Files
+                    Submitted Proof Files
                 </h2>
 
                 {proofFiles.length === 0 ? (
                     <p className="mt-4 text-gray-600">
-                        No proof file has been submitted.
+                        No corrected proof file has
+                        been submitted.
                     </p>
                 ) : (
                     <div className="mt-6 space-y-4">
@@ -402,28 +468,44 @@ export default async function ProofreaderAssignmentPage({
                                 <div className="flex flex-wrap items-start justify-between gap-4">
                                     <div>
                                         <h3 className="font-semibold">
-                                            {file.fileName}
+                                            {
+                                                file.fileName
+                                            }
                                         </h3>
 
                                         <p className="mt-1 text-sm text-gray-600">
-                                            Version {file.versionNumber}
+                                            Version{" "}
+                                            {
+                                                file.versionNumber
+                                            }
                                         </p>
 
                                         <p className="mt-1 text-sm text-gray-600">
-                                            {formatDate(file.createdAt)}
+                                            Uploaded by{" "}
+                                            {
+                                                file
+                                                    .uploadedBy
+                                                    .name
+                                            }
+                                        </p>
+
+                                        <p className="mt-1 text-sm text-gray-600">
+                                            {formatDate(
+                                                file.createdAt,
+                                            )}
                                         </p>
 
                                         {file.description && (
                                             <p className="mt-3 whitespace-pre-wrap text-sm">
-                                                {file.description}
+                                                {
+                                                    file.description
+                                                }
                                             </p>
                                         )}
                                     </div>
 
                                     <a
-                                        href={file.fileUrl}
-                                        target="_blank"
-                                        rel="noreferrer"
+                                        href={`/api/production-files/${file.id}/download`}
                                         className="rounded-lg bg-indigo-700 px-5 py-3 font-semibold text-white hover:bg-indigo-800"
                                     >
                                         Download Proof
@@ -446,26 +528,44 @@ export default async function ProofreaderAssignmentPage({
                     </p>
                 ) : (
                     <div className="mt-6 space-y-4">
-                        {assignment.notes.map((note) => (
-                            <article
-                                key={note.id}
-                                className="rounded-lg bg-gray-50 p-5"
-                            >
-                                <div className="flex flex-wrap justify-between gap-3">
-                                    <p className="font-semibold">
-                                        {note.author.name}
-                                    </p>
+                        {assignment.notes.map(
+                            (note) => (
+                                <article
+                                    key={note.id}
+                                    className="rounded-lg bg-gray-50 p-5"
+                                >
+                                    <div className="flex flex-wrap justify-between gap-3">
+                                        <div>
+                                            <p className="font-semibold">
+                                                {
+                                                    note
+                                                        .author
+                                                        .name
+                                                }
+                                            </p>
 
-                                    <p className="text-sm text-gray-500">
-                                        {formatDate(note.createdAt)}
-                                    </p>
-                                </div>
+                                            <p className="text-sm text-gray-500">
+                                                {note.isInternal
+                                                    ? "Internal production note"
+                                                    : "Shared note"}
+                                            </p>
+                                        </div>
 
-                                <p className="mt-3 whitespace-pre-wrap text-sm">
-                                    {note.message}
-                                </p>
-                            </article>
-                        ))}
+                                        <p className="text-sm text-gray-500">
+                                            {formatDate(
+                                                note.createdAt,
+                                            )}
+                                        </p>
+                                    </div>
+
+                                    <p className="mt-3 whitespace-pre-wrap text-sm">
+                                        {
+                                            note.message
+                                        }
+                                    </p>
+                                </article>
+                            ),
+                        )}
                     </div>
                 )}
 
@@ -499,7 +599,7 @@ export default async function ProofreaderAssignmentPage({
                             rows={5}
                             required
                             className="w-full rounded-lg border p-3"
-                            placeholder="Record typographical, layout or publication issues."
+                            placeholder="Record typographical, layout, reference or publication issues."
                         />
                     </div>
 
@@ -518,6 +618,12 @@ export default async function ProofreaderAssignmentPage({
                         Start Proofreading
                     </h2>
 
+                    <p className="mt-2 text-sm text-blue-800">
+                        Start the assignment before
+                        uploading or submitting the
+                        corrected proof.
+                    </p>
+
                     <form
                         action={startProofreading}
                         className="mt-5"
@@ -532,7 +638,10 @@ export default async function ProofreaderAssignmentPage({
                             type="submit"
                             className="rounded-lg bg-blue-700 px-6 py-3 font-semibold text-white hover:bg-blue-800"
                         >
-                            Start Proofreading
+                            {assignment.status ===
+                                "CHANGES_REQUESTED"
+                                ? "Resume Proofreading"
+                                : "Start Proofreading"}
                         </button>
                     </form>
                 </section>
@@ -543,6 +652,13 @@ export default async function ProofreaderAssignmentPage({
                     <h2 className="text-xl font-semibold">
                         Submit Proofreading
                     </h2>
+
+                    <p className="mt-2 text-sm text-gray-600">
+                        Upload a corrected PDF proof,
+                        or select the no-corrections
+                        option when the existing galley
+                        is satisfactory.
+                    </p>
 
                     <form
                         action={submitProofreading}
@@ -556,53 +672,25 @@ export default async function ProofreaderAssignmentPage({
 
                         <div>
                             <label
-                                htmlFor="fileName"
+                                htmlFor="proofFile"
                                 className="mb-2 block font-semibold"
                             >
-                                Proof File Name
+                                Corrected PDF Proof
                             </label>
 
                             <input
-                                id="fileName"
-                                name="fileName"
-                                type="text"
-                                className="w-full rounded-lg border p-3"
-                                placeholder="proof-v1.pdf"
-                            />
-                        </div>
-
-                        <div>
-                            <label
-                                htmlFor="fileUrl"
-                                className="mb-2 block font-semibold"
-                            >
-                                Proof File URL
-                            </label>
-
-                            <input
-                                id="fileUrl"
-                                name="fileUrl"
-                                type="url"
-                                className="w-full rounded-lg border p-3"
-                                placeholder="https://..."
-                            />
-                        </div>
-
-                        <div>
-                            <label
-                                htmlFor="mimeType"
-                                className="mb-2 block font-semibold"
-                            >
-                                MIME Type
-                            </label>
-
-                            <input
-                                id="mimeType"
-                                name="mimeType"
-                                type="text"
-                                defaultValue="application/pdf"
+                                id="proofFile"
+                                name="proofFile"
+                                type="file"
+                                accept=".pdf,application/pdf"
                                 className="w-full rounded-lg border p-3"
                             />
+
+                            <p className="mt-2 text-sm text-gray-500">
+                                Upload a PDF only. Leave
+                                this empty when no
+                                corrections were required.
+                            </p>
                         </div>
 
                         <div>
@@ -618,6 +706,7 @@ export default async function ProofreaderAssignmentPage({
                                 name="description"
                                 rows={4}
                                 className="w-full rounded-lg border p-3"
+                                placeholder="Describe the corrected proof file, for example: Final proof after typographical and layout corrections."
                             />
                         </div>
 
@@ -634,7 +723,7 @@ export default async function ProofreaderAssignmentPage({
                                 name="note"
                                 rows={6}
                                 className="w-full rounded-lg border p-3"
-                                placeholder="Summarise the corrections made or remaining issues."
+                                placeholder="Summarise the corrections made or confirm that the galley is ready for editorial review."
                             />
                         </div>
 
@@ -647,9 +736,17 @@ export default async function ProofreaderAssignmentPage({
                             />
 
                             <span>
-                                No corrections were required, and no proof file needs to be uploaded.
+                                No corrections were
+                                required, and no new proof
+                                file needs to be uploaded.
                             </span>
                         </label>
+
+                        <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-900">
+                            Upload a corrected PDF unless
+                            you select the no-corrections
+                            option.
+                        </div>
 
                         <button
                             type="submit"
@@ -668,7 +765,8 @@ export default async function ProofreaderAssignmentPage({
                     </h2>
 
                     <p className="mt-2 text-sm text-purple-800">
-                        The editor has been notified and will review the proof.
+                        The editor has been notified and
+                        will review the submitted proof.
                     </p>
                 </section>
             )}
@@ -678,6 +776,11 @@ export default async function ProofreaderAssignmentPage({
                     <h2 className="font-semibold text-green-900">
                         Proofreading Approved
                     </h2>
+
+                    <p className="mt-2 text-sm text-green-800">
+                        The editor has approved the
+                        proofreading assignment.
+                    </p>
                 </section>
             )}
         </main>

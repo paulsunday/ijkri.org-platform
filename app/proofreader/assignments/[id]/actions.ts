@@ -9,6 +9,7 @@ import {
 } from "@/lib/auth/permissions";
 import { PROOFREADER_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
+import { uploadJournalFile } from "@/lib/storage/blob";
 
 async function getProofreaderAssignment(
     assignmentId: string,
@@ -64,7 +65,13 @@ function refreshProofreadingPages(
         `/editor/submissions/${submissionId}`,
     );
 
+    revalidatePath(
+        `/admin/submissions/${submissionId}`,
+    );
+
+    revalidatePath("/admin/submissions");
     revalidatePath("/editor/dashboard");
+    revalidatePath("/admin/dashboard");
 }
 
 export async function startProofreading(
@@ -80,10 +87,12 @@ export async function startProofreading(
     if (!assignmentId) {
         throw new Error("Assignment ID is missing.");
     }
+
     const assignment = await getProofreaderAssignment(
         assignmentId,
         proofreader,
     );
+
     if (
         assignment.status !== "PENDING" &&
         assignment.status !== "CHANGES_REQUESTED"
@@ -191,18 +200,6 @@ export async function submitProofreading(
         formData.get("assignmentId") || "",
     ).trim();
 
-    const fileName = String(
-        formData.get("fileName") || "",
-    ).trim();
-
-    const fileUrl = String(
-        formData.get("fileUrl") || "",
-    ).trim();
-
-    const mimeType = String(
-        formData.get("mimeType") || "",
-    ).trim();
-
     const description = String(
         formData.get("description") || "",
     ).trim();
@@ -216,30 +213,37 @@ export async function submitProofreading(
             formData.get("noCorrectionsRequired") || "",
         ) === "true";
 
+    const proofFileValue =
+        formData.get("proofFile");
+
+    const proofFile =
+        proofFileValue instanceof File
+            ? proofFileValue
+            : null;
+
     if (!assignmentId) {
         throw new Error("Assignment ID is missing.");
     }
 
-    if (!noCorrectionsRequired) {
-        if (!fileName) {
-            throw new Error(
-                "Proof file name is required.",
-            );
-        }
+    if (
+        !noCorrectionsRequired &&
+        (!proofFile || proofFile.size === 0)
+    ) {
+        throw new Error(
+            "Upload the corrected PDF proof or select the no-corrections option.",
+        );
+    }
 
-        if (!fileUrl) {
-            throw new Error(
-                "Proof file URL is required.",
-            );
-        }
-
-        try {
-            new URL(fileUrl);
-        } catch {
-            throw new Error(
-                "Enter a valid proof file URL.",
-            );
-        }
+    if (
+        !noCorrectionsRequired &&
+        proofFile &&
+        !proofFile.name
+            .toLowerCase()
+            .endsWith(".pdf")
+    ) {
+        throw new Error(
+            "The corrected proof must be uploaded as a PDF file.",
+        );
     }
 
     const assignment =
@@ -254,13 +258,16 @@ export async function submitProofreading(
                         assigneeId: proofreader.id,
                     }),
             },
+
             include: {
                 submission: {
                     select: {
                         id: true,
                         title: true,
+                        journalId: true,
                     },
                 },
+
                 files: {
                     where: {
                         fileType: "PROOF_FILE",
@@ -289,49 +296,108 @@ export async function submitProofreading(
     }
 
     const nextVersionNumber =
-        (assignment.files[0]?.versionNumber ?? 0) + 1;
+        (assignment.files[0]?.versionNumber ?? 0) +
+        1;
+
+    let uploadedProof:
+        | Awaited<
+            ReturnType<typeof uploadJournalFile>
+        >
+        | null = null;
+
+    /*
+     * Upload the file before opening the database transaction.
+     * External storage operations should not be performed inside
+     * a Prisma transaction.
+     */
+    if (
+        !noCorrectionsRequired &&
+        proofFile
+    ) {
+        uploadedProof =
+            await uploadJournalFile({
+                file: proofFile,
+                category: "PROOF",
+                visibility: "private",
+
+                metadata: {
+                    category: "PROOF",
+                    journalId:
+                        assignment.submission.journalId,
+                    submissionId:
+                        assignment.submissionId,
+                    assignmentId:
+                        assignment.id,
+                    versionNumber:
+                        nextVersionNumber,
+                },
+            });
+    }
 
     await prisma.$transaction(async (tx) => {
-        let productionFileId: string | null = null;
+        let productionFileId: string | null =
+            null;
 
-        if (!noCorrectionsRequired) {
+        if (uploadedProof) {
             const productionFile =
                 await tx.productionFile.create({
                     data: {
                         submissionId:
                             assignment.submissionId,
+
                         productionAssignmentId:
                             assignment.id,
-                        uploadedById: proofreader.id,
+
+                        uploadedById:
+                            proofreader.id,
+
                         fileType: "PROOF_FILE",
-                        fileName,
-                        fileUrl,
-                        mimeType: mimeType || null,
+
+                        fileName:
+                            uploadedProof.originalFilename,
+
+                        fileUrl:
+                            uploadedProof.url,
+
+                        mimeType:
+                            uploadedProof.mimeType ||
+                            "application/pdf",
+
+                        fileSize:
+                            uploadedProof.size,
+
                         versionNumber:
                             nextVersionNumber,
+
                         description:
                             description || null,
+
                         isFinal: false,
                     },
                 });
 
-            productionFileId = productionFile.id;
+            productionFileId =
+                productionFile.id;
         }
 
         const finalNote =
             note ||
             (noCorrectionsRequired
                 ? "Proofreading completed. No corrections were required."
-                : "Proofreading completed and a corrected proof file was submitted.");
+                : "Proofreading completed and a corrected PDF proof was submitted.");
 
         await tx.productionNote.create({
             data: {
                 submissionId:
                     assignment.submissionId,
+
                 productionAssignmentId:
                     assignment.id,
+
                 authorId: proofreader.id,
+
                 message: finalNote,
+
                 isInternal: true,
             },
         });
@@ -349,10 +415,18 @@ export async function submitProofreading(
 
         await tx.notification.create({
             data: {
-                userId: assignment.assignedById,
+                userId:
+                    assignment.assignedById,
+
                 type: "PUBLICATION",
-                title: "Proofreading Submitted",
-                message: `Proofreading has been submitted for "${assignment.submission.title}".`,
+
+                title:
+                    "Proofreading Submitted",
+
+                message:
+                    `Proofreading has been submitted for ` +
+                    `"${assignment.submission.title}".`,
+
                 link:
                     `/editor/proofreading/${assignment.id}`,
             },
@@ -361,20 +435,37 @@ export async function submitProofreading(
         await tx.activityLog.create({
             data: {
                 userId: proofreader.id,
+
                 action: "UPDATE",
-                entity: "ProductionAssignment",
+
+                entity:
+                    "ProductionAssignment",
+
                 entityId: assignment.id,
+
                 metadata: {
-                    event: "PROOFREADING_SUBMITTED",
+                    event:
+                        "PROOFREADING_SUBMITTED",
+
                     submissionId:
                         assignment.submissionId,
-                    round: assignment.round,
+
+                    round:
+                        assignment.round,
+
                     noCorrectionsRequired,
-                    proofFileId: productionFileId,
+
+                    proofFileId:
+                        productionFileId,
+
                     versionNumber:
                         noCorrectionsRequired
                             ? null
                             : nextVersionNumber,
+
+                    storagePathname:
+                        uploadedProof?.pathname ||
+                        null,
                 },
             },
         });
