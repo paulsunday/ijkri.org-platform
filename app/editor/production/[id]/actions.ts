@@ -42,15 +42,10 @@ async function verifyEditor(
             id: true,
             isActive: true,
             roles: {
-                where: {
-                    journalId,
-                    role: {
-                        in: [...EDITOR_ROLES],
-                    },
-                },
                 select: {
                     id: true,
                     role: true,
+                    journalId: true,
                 },
             },
         },
@@ -62,7 +57,19 @@ async function verifyEditor(
         );
     }
 
-    if (editor.roles.length === 0) {
+    const hasEditorialPermission = editor.roles.some(
+        (userRole) =>
+            userRole.role === "SUPER_ADMIN" ||
+            (
+                EDITOR_ROLES.some(
+                    (editorRole) =>
+                        editorRole === userRole.role,
+                ) &&
+                userRole.journalId === journalId
+            ),
+    );
+
+    if (!hasEditorialPermission) {
         throw new Error(
             "This user does not have editorial permission for the journal.",
         );
