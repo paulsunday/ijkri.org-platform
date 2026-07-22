@@ -118,12 +118,9 @@ export async function assignCopyeditor(formData: FormData) {
             name: true,
             isActive: true,
             roles: {
-                where: {
-                    journalId: submission.journalId,
-                    role: "COPYEDITOR",
-                },
                 select: {
-                    id: true,
+                    journalId: true,
+                    role: true,
                 },
             },
         },
@@ -135,9 +132,18 @@ export async function assignCopyeditor(formData: FormData) {
         );
     }
 
-    if (copyeditor.roles.length === 0) {
+    const canCopyedit = copyeditor.roles.some(
+        (userRole) =>
+            userRole.role === "SUPER_ADMIN" ||
+            (
+                userRole.role === "COPYEDITOR" &&
+                userRole.journalId === submission.journalId
+            ),
+    );
+
+    if (!canCopyedit) {
         throw new Error(
-            "The selected user does not have the COPYEDITOR role for this journal.",
+            "The selected user is not eligible to perform copyediting.",
         );
     }
 
