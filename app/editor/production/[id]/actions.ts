@@ -19,15 +19,28 @@ function revalidateCopyeditingPages(
     submissionId: string,
 ) {
     revalidatePath(`/editor/production/${assignmentId}`);
+
     revalidatePath(
         `/editor/submissions/${submissionId}/production`,
     );
-    revalidatePath(`/editor/submissions/${submissionId}`);
+
+    revalidatePath(
+        `/editor/submissions/${submissionId}`,
+    );
+
+    revalidatePath(
+        `/admin/submissions/${submissionId}`,
+    );
+
+    revalidatePath("/admin/submissions");
+
     revalidatePath(
         `/copyeditor/assignments/${assignmentId}`,
     );
+
     revalidatePath("/copyeditor/dashboard");
     revalidatePath("/editor/dashboard");
+    revalidatePath("/admin/dashboard");
 }
 
 async function verifyEditor(
