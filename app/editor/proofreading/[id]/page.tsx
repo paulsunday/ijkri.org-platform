@@ -362,14 +362,11 @@ export default async function EditorProofreadingReviewPage({
                                             </div>
                                         )}
                                     </div>
-
                                     <a
-                                        href={file.fileUrl}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"
+                                        href={`/api/production-files/${file.id}/download`}
+                                        className="rounded bg-blue-700 px-4 py-2 text-white hover:bg-blue-800"
                                     >
-                                        Download Proof
+                                        Download
                                     </a>
                                 </div>
                             </article>
