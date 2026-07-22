@@ -28,6 +28,8 @@ function formatDate(
 }
 
 export default async function AdminIssuesPage() {
+  await requireAnyRole([...ADMIN_ROLES]);
+
   const [volumes, issues] = await Promise.all([
     prisma.volume.findMany({
       include: {

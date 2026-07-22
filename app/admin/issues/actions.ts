@@ -281,14 +281,19 @@ export async function publishIssue(
         where: {
             id: issueId,
         },
-        include: {
-            volume: true,
-            articles: {
-                where: {
-                    status: "PUBLISHED",
-                },
+        select: {
+            id: true,
+            journalId: true,
+            volumeId: true,
+            number: true,
+            isPublished: true,
+            publishedAt: true,
+
+            volume: {
                 select: {
                     id: true,
+                    number: true,
+                    isPublished: true,
                 },
             },
         },
@@ -309,23 +314,71 @@ export async function publishIssue(
         );
     }
 
-    if (issue.articles.length === 0) {
+    /*
+     * Count published Article records directly.
+     * This avoids relying on a nested relation loaded
+     * together with the Issue record.
+     */
+    const publishedArticleCount =
+        await prisma.article.count({
+            where: {
+                issueId: issue.id,
+                status: "PUBLISHED",
+            },
+        });
+
+    if (publishedArticleCount < 1) {
+        /*
+         * Additional diagnostic check:
+         * determine whether the issue contains an article
+         * whose status is not PUBLISHED.
+         */
+        const assignedArticleCount =
+            await prisma.article.count({
+                where: {
+                    issueId: issue.id,
+                },
+            });
+
+        if (assignedArticleCount > 0) {
+            throw new Error(
+                `This issue contains ${assignedArticleCount} article(s), but none currently has PUBLISHED status.`,
+            );
+        }
+
         throw new Error(
-            "At least one published article must be assigned before publishing this issue.",
+            "No article record is assigned to this issue. Open Admin → Articles and assign the published article to this exact issue.",
         );
     }
 
-    const publishedAt = new Date();
+    const publishedAt =
+        issue.publishedAt || new Date();
 
     await prisma.$transaction(async (tx) => {
+        /*
+         * Only one issue should be current for a journal.
+         */
+        await tx.issue.updateMany({
+            where: {
+                journalId: issue.journalId,
+                isCurrent: true,
+                id: {
+                    not: issue.id,
+                },
+            },
+            data: {
+                isCurrent: false,
+            },
+        });
+
         await tx.issue.update({
             where: {
-                id: issueId,
+                id: issue.id,
             },
             data: {
                 isPublished: true,
-                publishedAt:
-                    issue.publishedAt || publishedAt,
+                isCurrent: true,
+                publishedAt,
             },
         });
 
@@ -345,15 +398,18 @@ export async function publishIssue(
                 userId: administrator.id,
                 action: "UPDATE",
                 entity: "Issue",
-                entityId: issueId,
+                entityId: issue.id,
                 metadata: {
                     event: "ISSUE_PUBLISHED",
                     journalId: issue.journalId,
                     volumeId: issue.volumeId,
+                    volumeNumber:
+                        issue.volume.number,
                     issueNumber: issue.number,
-                    articleCount: issue.articles.length,
+                    articleCount:
+                        publishedArticleCount,
+                    markedCurrent: true,
                     publishedAt:
-                        issue.publishedAt?.toISOString() ||
                         publishedAt.toISOString(),
                 },
             },
