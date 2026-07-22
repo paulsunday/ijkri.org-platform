@@ -577,12 +577,9 @@ export async function assignProofreader(
             name: true,
             isActive: true,
             roles: {
-                where: {
-                    journalId: submission.journalId,
-                    role: "PROOFREADER",
-                },
                 select: {
-                    id: true,
+                    journalId: true,
+                    role: true,
                 },
             },
         },
@@ -594,9 +591,18 @@ export async function assignProofreader(
         );
     }
 
-    if (proofreader.roles.length === 0) {
+    const canProofread = proofreader.roles.some(
+        (userRole) =>
+            userRole.role === "SUPER_ADMIN" ||
+            (
+                userRole.role === "PROOFREADER" &&
+                userRole.journalId === submission.journalId
+            ),
+    );
+
+    if (!canProofread) {
         throw new Error(
-            "The selected user is not a proofreader for this journal.",
+            "The selected user is not eligible to perform proofreading.",
         );
     }
 
