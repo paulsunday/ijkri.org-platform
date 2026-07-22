@@ -152,8 +152,16 @@ export default async function ProductionPage({
 
                 roles: {
                     some: {
-                        journalId: submission.journalId,
-                        role: "COPYEDITOR",
+                        OR: [
+                            {
+                                role: "SUPER_ADMIN",
+                            },
+                            {
+                                journalId:
+                                    submission.journalId,
+                                role: "COPYEDITOR",
+                            },
+                        ],
                     },
                 },
             },
@@ -170,7 +178,8 @@ export default async function ProductionPage({
 
                 roles: {
                     some: {
-                        journalId: submission.journalId,
+                        journalId:
+                            submission.journalId,
                         role: "PROOFREADER",
                     },
                 },
