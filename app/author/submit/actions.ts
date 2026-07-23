@@ -444,8 +444,7 @@ export async function submitManuscript(
             completedUpload.url,
           manuscriptFileName:
             completedUpload.originalFilename,
-          coverLetter:
-            cleanOptionalValue(coverLetter),
+          coverLetter: coverLetter || null,
         },
       });
 
