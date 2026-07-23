@@ -237,6 +237,7 @@ model Submission {
   productionFiles       ProductionFile[]
   productionNotes       ProductionNote[]
   reviewAssignments     ReviewAssignment[]
+  submissionAuthors     SubmissionAuthor[]
   author                User                   @relation("AuthorSubmissions", fields: [authorId], references: [id], onDelete: Cascade)
   journal               Journal                @relation(fields: [journalId], references: [id], onDelete: Cascade)
   files                 SubmissionFile[]
@@ -246,6 +247,26 @@ model Submission {
   @@index([journalId])
   @@index([authorId])
   @@index([status])
+}
+
+model SubmissionAuthor {
+  id              String   @id @default(cuid())
+  submissionId    String
+  fullName        String
+  email           String?
+  affiliation     String?
+  department      String?
+  country         String?
+  orcid           String?
+  isCorresponding Boolean  @default(false)
+  sortOrder       Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId])
+  @@index([submissionId, sortOrder])
 }
 
 model SubmissionFile {

@@ -14,7 +14,13 @@ type PageProps = {
     }>;
 };
 
-function formatDate(value: Date | null | undefined) {
+type CitationAuthor = {
+    fullName: string;
+};
+
+function formatDate(
+    value: Date | null | undefined,
+) {
     if (!value) {
         return "Not available";
     }
@@ -27,16 +33,129 @@ function formatDate(value: Date | null | undefined) {
 }
 
 function createDescription(abstract: string) {
-    const cleaned = abstract.replace(/\s+/g, " ").trim();
+    const cleaned = abstract
+        .replace(/\s+/g, " ")
+        .trim();
 
     if (cleaned.length <= 160) {
         return cleaned;
     }
 
-    return `${cleaned.slice(0, 157).trim()}...`;
+    return `${cleaned
+        .slice(0, 157)
+        .trim()}...`;
 }
 
-async function getPublishedArticle(slug: string) {
+/*
+ * Converts a stored full name into an APA-style name.
+ *
+ * This journal currently stores names in surname-first order:
+ * Kala-Dokubo Esther Boma
+ * becomes:
+ * Kala-Dokubo, E. B.
+ */
+function formatApaAuthorName(
+    fullName: string,
+) {
+    const nameParts = fullName
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+
+    if (nameParts.length === 0) {
+        return "";
+    }
+
+    if (nameParts.length === 1) {
+        return nameParts[0];
+    }
+
+    const surname = nameParts[0];
+
+    const initials = nameParts
+        .slice(1)
+        .map((namePart) => {
+            const firstCharacter =
+                namePart.charAt(0).toUpperCase();
+
+            return firstCharacter
+                ? `${firstCharacter}.`
+                : "";
+        })
+        .filter(Boolean)
+        .join(" ");
+
+    return initials
+        ? `${surname}, ${initials}`
+        : surname;
+}
+
+/*
+ * Produces an APA-style author list.
+ *
+ * One author:
+ * Kala-Dokubo, E. B.
+ *
+ * Two authors:
+ * Kala-Dokubo, E. B., & Agbaeze, E. K.
+ *
+ * Three or more authors:
+ * Author, A. A., Author, B. B., & Author, C. C.
+ */
+function formatCitationAuthors(
+    authors: CitationAuthor[],
+) {
+    const formattedAuthors = authors
+        .map((author) =>
+            formatApaAuthorName(
+                author.fullName,
+            ),
+        )
+        .filter(Boolean);
+
+    if (formattedAuthors.length === 0) {
+        return "Author information unavailable";
+    }
+
+    if (formattedAuthors.length === 1) {
+        return formattedAuthors[0];
+    }
+
+    if (formattedAuthors.length === 2) {
+        return `${formattedAuthors[0]}, & ${formattedAuthors[1]}`;
+    }
+
+    const authorsBeforeLast =
+        formattedAuthors
+            .slice(0, -1)
+            .join(", ");
+
+    const finalAuthor =
+        formattedAuthors[
+        formattedAuthors.length - 1
+        ];
+
+    return `${authorsBeforeLast}, & ${finalAuthor}`;
+}
+
+function sentenceCaseTitle(
+    value: string,
+) {
+    const cleaned = value.trim();
+
+    if (!cleaned) {
+        return "";
+    }
+
+    return (
+        cleaned.charAt(0).toUpperCase() +
+        cleaned.slice(1)
+    );
+}
+
+async function getPublishedArticle(
+    slug: string,
+) {
     return prisma.article.findFirst({
         where: {
             slug,
@@ -54,6 +173,10 @@ async function getPublishedArticle(slug: string) {
 
             category: true,
 
+            /*
+             * Step 6.3:
+             * Always load article authors in publication order.
+             */
             authors: {
                 orderBy: {
                     sortOrder: "asc",
@@ -96,11 +219,13 @@ export async function generateMetadata({
 }: PageProps): Promise<Metadata> {
     const { slug } = await params;
 
-    const article = await getPublishedArticle(slug);
+    const article =
+        await getPublishedArticle(slug);
 
     if (!article) {
         return {
             title: "Article Not Found",
+
             robots: {
                 index: false,
                 follow: false,
@@ -108,17 +233,21 @@ export async function generateMetadata({
         };
     }
 
-    const canonicalUrl = `${siteUrl}/articles/${article.slug}`;
+    const canonicalUrl =
+        `${siteUrl}/articles/${article.slug}`;
 
-    const description = createDescription(article.abstract);
+    const description =
+        createDescription(article.abstract);
 
-    const authorNames = article.authors.map(
-        (author) => author.fullName,
-    );
+    const authorNames =
+        article.authors.map(
+            (author) => author.fullName,
+        );
 
-    const keywordNames = article.keywords.map(
-        (item) => item.keyword.name,
-    );
+    const keywordNames =
+        article.keywords.map(
+            (item) => item.keyword.name,
+        );
 
     return {
         title: article.title,
@@ -126,9 +255,11 @@ export async function generateMetadata({
 
         keywords: keywordNames,
 
-        authors: authorNames.map((name) => ({
-            name,
-        })),
+        authors: authorNames.map(
+            (name) => ({
+                name,
+            }),
+        ),
 
         alternates: {
             canonical: canonicalUrl,
@@ -139,18 +270,23 @@ export async function generateMetadata({
             url: canonicalUrl,
             title: article.title,
             description,
+
             siteName:
                 "International Journal of Knowledge, Research and Innovation",
+
             publishedTime:
                 article.publishedAt?.toISOString(),
+
             modifiedTime:
                 article.updatedAt.toISOString(),
+
             authors: authorNames,
+
             images: [
                 {
-                    url: "/logo.png",
+                    url: "/opengraph-image.png",
                     width: 1200,
-                    height: 1200,
+                    height: 630,
                     alt: article.title,
                 },
             ],
@@ -160,12 +296,15 @@ export async function generateMetadata({
             card: "summary_large_image",
             title: article.title,
             description,
-            images: ["/logo.png"],
+            images: [
+                "/opengraph-image.png",
+            ],
         },
 
         robots: {
             index: true,
             follow: true,
+
             googleBot: {
                 index: true,
                 follow: true,
@@ -175,37 +314,64 @@ export async function generateMetadata({
             },
         },
 
+        /*
+         * Academic metadata used by Google Scholar
+         * and related scholarly discovery services.
+         */
         other: {
-            citation_title: article.title,
+            citation_title:
+                article.title,
 
-            citation_journal_title: article.journal.name,
+            citation_journal_title:
+                article.journal.name,
 
             citation_publication_date:
-                article.publishedAt?.toISOString().split("T")[0] || "",
+                article.publishedAt
+                    ?.toISOString()
+                    .split("T")[0] || "",
 
             citation_volume:
-                article.issue?.volume.number.toString() || "",
+                article.issue?.volume.number
+                    .toString() || "",
 
             citation_issue:
-                article.issue?.number.toString() || "",
+                article.issue?.number
+                    .toString() || "",
 
             citation_doi:
                 article.doi || "",
 
             citation_pdf_url:
-                article.pdfUrl || "",
+                article.pdfUrl
+                    ? article.pdfUrl.startsWith(
+                        "http",
+                    )
+                        ? article.pdfUrl
+                        : `${siteUrl}${article.pdfUrl}`
+                    : "",
 
-            citation_abstract_html_url: canonicalUrl,
+            citation_abstract_html_url:
+                canonicalUrl,
 
-            citation_language: "en",
+            citation_language:
+                "en",
 
-            citation_keywords: keywordNames.join("; "),
+            citation_keywords:
+                keywordNames.join("; "),
 
+            /*
+             * Next.js metadata objects cannot contain
+             * repeated object keys, so each author gets
+             * a numbered metadata key.
+             */
             ...Object.fromEntries(
-                authorNames.map((author, index) => [
-                    `citation_author_${index + 1}`,
-                    author,
-                ]),
+                authorNames.map(
+                    (authorName, index) => [
+                        `citation_author_${index + 1
+                        }`,
+                        authorName,
+                    ],
+                ),
             ),
         },
     };
@@ -216,107 +382,207 @@ export default async function PublicArticlePage({
 }: PageProps) {
     const { slug } = await params;
 
-    const article = await getPublishedArticle(slug);
+    const article =
+        await getPublishedArticle(slug);
 
     if (!article) {
         notFound();
     }
 
+    const productionFile =
+        article.submission
+            ?.productionFiles.find(
+                (file) =>
+                    file.fileType ===
+                    "FINAL_PUBLICATION_FILE" ||
+                    file.fileType ===
+                    "PDF_GALLEY" ||
+                    file.fileType ===
+                    "PROOF_FILE",
+            );
+
     const finalPdf =
         article.pdfUrl ||
-        article.submission?.productionFiles.find(
-            (file) =>
-                file.fileType === "FINAL_PUBLICATION_FILE" ||
-                file.fileType === "PDF_GALLEY" ||
-                file.fileType === "PROOF_FILE",
-        )?.fileUrl ||
-        null;
+        (productionFile
+            ? `/api/production-files/${productionFile.id}/download`
+            : null);
 
-    const authorNames = article.authors
-        .map((author) => author.fullName)
-        .join(", ");
+    const authorNames =
+        article.authors
+            .map(
+                (author) =>
+                    author.fullName,
+            )
+            .join(", ");
 
     const canonicalUrl =
         `${siteUrl}/articles/${article.slug}`;
 
-    const citation = [
-        authorNames || "Unknown author",
-        `(${article.publishedAt?.getFullYear() || "n.d."}).`,
-        article.title + ".",
-        article.journal.name + ".",
-        article.issue
-            ? `Vol. ${article.issue.volume.number}, Issue ${article.issue.number}.`
-            : "",
+    /*
+     * Step 6.4:
+     * Generate a complete citation using every
+     * ArticleAuthor record in sort order.
+     */
+    const publicationYear =
+        article.publishedAt
+            ?.getFullYear() ||
+        new Date().getFullYear();
+
+    const citationAuthors =
+        formatCitationAuthors(
+            article.authors,
+        );
+
+    const citationDestination =
         article.doi
             ? `https://doi.org/${article.doi}`
-            : canonicalUrl,
+            : canonicalUrl;
+
+    const volumeIssue =
+        article.issue
+            ? `${article.issue.volume.number}(${article.issue.number})`
+            : "";
+
+    const citation = [
+        `${citationAuthors} (${publicationYear}).`,
+        `${sentenceCaseTitle(
+            article.title,
+        )}.`,
+        article.journal.name,
+        volumeIssue
+            ? `${volumeIssue}.`
+            : "",
+        citationDestination,
     ]
         .filter(Boolean)
         .join(" ");
 
+    const publicPdfUrl = finalPdf
+        ? finalPdf.startsWith("http")
+            ? finalPdf
+            : `${siteUrl}${finalPdf}`
+        : null;
+
     const jsonLd = {
-        "@context": "https://schema.org",
-        "@type": "ScholarlyArticle",
-        headline: article.title,
-        description: article.abstract,
-        url: canonicalUrl,
-        mainEntityOfPage: canonicalUrl,
+        "@context":
+            "https://schema.org",
+
+        "@type":
+            "ScholarlyArticle",
+
+        headline:
+            article.title,
+
+        description:
+            article.abstract,
+
+        url:
+            canonicalUrl,
+
+        mainEntityOfPage:
+            canonicalUrl,
+
         datePublished:
             article.publishedAt?.toISOString(),
+
         dateModified:
             article.updatedAt.toISOString(),
 
-        author: article.authors.map((author) => ({
-            "@type": "Person",
-            name: author.fullName,
-            affiliation: author.affiliation
-                ? {
-                    "@type": "Organization",
-                    name: author.affiliation,
-                }
-                : undefined,
-            identifier: author.orcid || undefined,
-        })),
+        author:
+            article.authors.map(
+                (author) => ({
+                    "@type": "Person",
+                    name: author.fullName,
+
+                    affiliation:
+                        author.affiliation
+                            ? {
+                                "@type":
+                                    "Organization",
+                                name:
+                                    author.affiliation,
+                            }
+                            : undefined,
+
+                    identifier:
+                        author.orcid ||
+                        undefined,
+
+                    sameAs:
+                        author.orcid
+                            ? `https://orcid.org/${author.orcid.replace(
+                                "https://orcid.org/",
+                                "",
+                            )}`
+                            : undefined,
+                }),
+            ),
 
         publisher: {
-            "@type": "Organization",
-            name: "Innovare Academic Publishing",
+            "@type":
+                "Organization",
+
+            name:
+                "Innovare Academic Publishing",
+
             logo: {
-                "@type": "ImageObject",
-                url: `${siteUrl}/logo.png`,
+                "@type":
+                    "ImageObject",
+
+                url:
+                    `${siteUrl}/icon.png`,
             },
         },
 
         isPartOf: {
-            "@type": "Periodical",
-            name: article.journal.name,
+            "@type":
+                "Periodical",
+
+            name:
+                article.journal.name,
+
             issn:
-                article.journal.issnOnline ||
-                article.journal.issnPrint ||
+                article.journal
+                    .issnOnline ||
+                article.journal
+                    .issnPrint ||
                 undefined,
         },
 
         volumeNumber:
-            article.issue?.volume.number.toString(),
+            article.issue?.volume.number
+                .toString(),
 
         issueNumber:
-            article.issue?.number.toString(),
+            article.issue?.number
+                .toString(),
 
-        identifier: article.doi
-            ? `https://doi.org/${article.doi}`
-            : canonicalUrl,
+        identifier:
+            article.doi
+                ? `https://doi.org/${article.doi}`
+                : canonicalUrl,
 
-        keywords: article.keywords
-            .map((item) => item.keyword.name)
-            .join(", "),
+        keywords:
+            article.keywords
+                .map(
+                    (item) =>
+                        item.keyword.name,
+                )
+                .join(", "),
 
-        associatedMedia: finalPdf
-            ? {
-                "@type": "MediaObject",
-                contentUrl: finalPdf,
-                encodingFormat: "application/pdf",
-            }
-            : undefined,
+        associatedMedia:
+            publicPdfUrl
+                ? {
+                    "@type":
+                        "MediaObject",
+
+                    contentUrl:
+                        publicPdfUrl,
+
+                    encodingFormat:
+                        "application/pdf",
+                }
+                : undefined,
     };
 
     return (
@@ -324,7 +590,10 @@ export default async function PublicArticlePage({
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{
-                    __html: JSON.stringify(jsonLd),
+                    __html:
+                        JSON.stringify(
+                            jsonLd,
+                        ),
                 }}
             />
 
@@ -353,14 +622,24 @@ export default async function PublicArticlePage({
 
                         {article.issue && (
                             <p>
-                                Volume {article.issue.volume.number},
-                                Issue {article.issue.number}
+                                Volume{" "}
+                                {
+                                    article.issue
+                                        .volume.number
+                                }
+                                , Issue{" "}
+                                {
+                                    article.issue
+                                        .number
+                                }
                             </p>
                         )}
 
                         <p>
                             Published:{" "}
-                            {formatDate(article.publishedAt)}
+                            {formatDate(
+                                article.publishedAt,
+                            )}
                         </p>
 
                         {article.doi && (
@@ -369,7 +648,7 @@ export default async function PublicArticlePage({
                                 <a
                                     href={`https://doi.org/${article.doi}`}
                                     target="_blank"
-                                    rel="noreferrer"
+                                    rel="noopener noreferrer"
                                     className="font-medium text-blue-700 hover:underline"
                                 >
                                     {article.doi}
@@ -383,10 +662,10 @@ export default async function PublicArticlePage({
                             <a
                                 href={finalPdf}
                                 target="_blank"
-                                rel="noreferrer"
+                                rel="noopener noreferrer"
                                 className="inline-flex rounded-lg bg-blue-700 px-6 py-3 font-semibold text-white hover:bg-blue-800"
                             >
-                                Download Full Article PDF
+                                View Full Article PDF
                             </a>
                         </div>
                     )}
@@ -403,76 +682,95 @@ export default async function PublicArticlePage({
                 </div>
             </section>
 
-            {article.authors.length > 0 && (
-                <section className="rounded-xl border bg-white p-6 shadow-sm">
-                    <h2 className="text-2xl font-semibold">
-                        Authors
-                    </h2>
+            {article.authors.length >
+                0 && (
+                    <section className="rounded-xl border bg-white p-6 shadow-sm">
+                        <h2 className="text-2xl font-semibold">
+                            Authors
+                        </h2>
 
-                    <div className="mt-5 space-y-5">
-                        {article.authors.map((author) => (
-                            <article
-                                key={author.id}
-                                className="rounded-lg border p-5"
-                            >
-                                <h3 className="font-semibold">
-                                    {author.fullName}
-                                </h3>
+                        <div className="mt-5 space-y-5">
+                            {article.authors.map(
+                                (author) => (
+                                    <article
+                                        key={author.id}
+                                        className="rounded-lg border p-5"
+                                    >
+                                        <h3 className="font-semibold">
+                                            {
+                                                author.fullName
+                                            }
+                                        </h3>
 
-                                {author.affiliation && (
-                                    <p className="mt-1 text-sm text-gray-600">
-                                        {author.affiliation}
-                                    </p>
-                                )}
+                                        {author.affiliation && (
+                                            <p className="mt-1 text-sm text-gray-600">
+                                                {
+                                                    author.affiliation
+                                                }
+                                            </p>
+                                        )}
 
-                                {author.country && (
-                                    <p className="mt-1 text-sm text-gray-600">
-                                        {author.country}
-                                    </p>
-                                )}
+                                        {author.country && (
+                                            <p className="mt-1 text-sm text-gray-600">
+                                                {
+                                                    author.country
+                                                }
+                                            </p>
+                                        )}
 
-                                {author.orcid && (
-                                    <p className="mt-2 text-sm">
-                                        ORCID:{" "}
-                                        <a
-                                            href={`https://orcid.org/${author.orcid.replace(
-                                                "https://orcid.org/",
-                                                "",
-                                            )}`}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="text-blue-700 hover:underline"
-                                        >
-                                            {author.orcid}
-                                        </a>
-                                    </p>
-                                )}
-                            </article>
-                        ))}
-                    </div>
-                </section>
-            )}
+                                        {author.orcid && (
+                                            <p className="mt-2 text-sm">
+                                                ORCID:{" "}
+                                                <a
+                                                    href={`https://orcid.org/${author.orcid.replace(
+                                                        "https://orcid.org/",
+                                                        "",
+                                                    )}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-blue-700 hover:underline"
+                                                >
+                                                    {
+                                                        author.orcid
+                                                    }
+                                                </a>
+                                            </p>
+                                        )}
+                                    </article>
+                                ),
+                            )}
+                        </div>
+                    </section>
+                )}
 
-            {article.keywords.length > 0 && (
-                <section className="rounded-xl border bg-white p-6 shadow-sm">
-                    <h2 className="text-2xl font-semibold">
-                        Keywords
-                    </h2>
+            {article.keywords.length >
+                0 && (
+                    <section className="rounded-xl border bg-white p-6 shadow-sm">
+                        <h2 className="text-2xl font-semibold">
+                            Keywords
+                        </h2>
 
-                    <div className="mt-4 flex flex-wrap gap-3">
-                        {article.keywords.map(
-                            (articleKeyword) => (
-                                <span
-                                    key={articleKeyword.keywordId}
-                                    className="rounded-full bg-blue-50 px-4 py-2 text-sm font-medium text-blue-800"
-                                >
-                                    {articleKeyword.keyword.name}
-                                </span>
-                            ),
-                        )}
-                    </div>
-                </section>
-            )}
+                        <div className="mt-4 flex flex-wrap gap-3">
+                            {article.keywords.map(
+                                (
+                                    articleKeyword,
+                                ) => (
+                                    <span
+                                        key={
+                                            articleKeyword.keywordId
+                                        }
+                                        className="rounded-full bg-blue-50 px-4 py-2 text-sm font-medium text-blue-800"
+                                    >
+                                        {
+                                            articleKeyword
+                                                .keyword.name
+                                        }
+                                    </span>
+                                ),
+                            )}
+                        </div>
+                    </section>
+                )}
 
             {article.body && (
                 <section className="rounded-xl border bg-white p-6 shadow-sm">
@@ -486,48 +784,71 @@ export default async function PublicArticlePage({
                 </section>
             )}
 
+            {/* Step 6.5: Corrected citation output */}
             <section className="rounded-xl border bg-white p-6 shadow-sm">
                 <h2 className="text-2xl font-semibold">
                     How to Cite
                 </h2>
 
-                <div className="mt-4 rounded-lg bg-gray-50 p-5 text-sm leading-6">
-                    {citation}
+                <p className="mt-2 text-sm text-gray-600">
+                    APA 7th edition
+                </p>
+
+                <div className="mt-5 rounded-lg bg-gray-50 p-5">
+                    <p className="leading-7 text-gray-800">
+                        {citation}
+                    </p>
                 </div>
             </section>
 
-            {article.references.length > 0 && (
-                <section className="rounded-xl border bg-white p-6 shadow-sm">
-                    <h2 className="text-2xl font-semibold">
-                        References
-                    </h2>
+            {article.references.length >
+                0 && (
+                    <section className="rounded-xl border bg-white p-6 shadow-sm">
+                        <h2 className="text-2xl font-semibold">
+                            References
+                        </h2>
 
-                    <ol className="mt-5 list-decimal space-y-4 pl-6 text-sm leading-6">
-                        {article.references.map((reference) => (
-                            <li key={reference.id}>
-                                <p>{reference.citation}</p>
-
-                                {reference.doi && (
-                                    <p className="mt-1 text-blue-700">
-                                        DOI: {reference.doi}
-                                    </p>
-                                )}
-
-                                {reference.url && (
-                                    <a
-                                        href={reference.url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="mt-1 block text-blue-700 hover:underline"
+                        <ol className="mt-5 list-decimal space-y-4 pl-6 text-sm leading-6">
+                            {article.references.map(
+                                (reference) => (
+                                    <li
+                                        key={
+                                            reference.id
+                                        }
                                     >
-                                        View source
-                                    </a>
-                                )}
-                            </li>
-                        ))}
-                    </ol>
-                </section>
-            )}
+                                        <p>
+                                            {
+                                                reference.citation
+                                            }
+                                        </p>
+
+                                        {reference.doi && (
+                                            <p className="mt-1 text-blue-700">
+                                                DOI:{" "}
+                                                {
+                                                    reference.doi
+                                                }
+                                            </p>
+                                        )}
+
+                                        {reference.url && (
+                                            <a
+                                                href={
+                                                    reference.url
+                                                }
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="mt-1 block text-blue-700 hover:underline"
+                                            >
+                                                View source
+                                            </a>
+                                        )}
+                                    </li>
+                                ),
+                            )}
+                        </ol>
+                    </section>
+                )}
 
             <section className="rounded-xl border bg-gray-50 p-6">
                 <h2 className="text-xl font-semibold">
@@ -536,46 +857,74 @@ export default async function PublicArticlePage({
 
                 <div className="mt-4 grid gap-4 md:grid-cols-2">
                     <p>
-                        <strong>Journal:</strong>{" "}
+                        <strong>
+                            Journal:
+                        </strong>{" "}
                         {article.journal.name}
                     </p>
 
                     <p>
-                        <strong>ISSN:</strong>{" "}
-                        {article.journal.issnOnline ||
-                            article.journal.issnPrint ||
+                        <strong>
+                            ISSN:
+                        </strong>{" "}
+                        {article.journal
+                            .issnOnline ||
+                            article.journal
+                                .issnPrint ||
                             "Not available"}
                     </p>
 
                     {article.issue && (
                         <>
                             <p>
-                                <strong>Volume:</strong>{" "}
-                                {article.issue.volume.number}
+                                <strong>
+                                    Volume:
+                                </strong>{" "}
+                                {
+                                    article.issue
+                                        .volume.number
+                                }
                             </p>
 
                             <p>
-                                <strong>Issue:</strong>{" "}
-                                {article.issue.number}
+                                <strong>
+                                    Issue:
+                                </strong>{" "}
+                                {
+                                    article.issue
+                                        .number
+                                }
                             </p>
                         </>
                     )}
 
                     <p>
-                        <strong>Published:</strong>{" "}
-                        {formatDate(article.publishedAt)}
+                        <strong>
+                            Published:
+                        </strong>{" "}
+                        {formatDate(
+                            article.publishedAt,
+                        )}
                     </p>
 
                     <p>
-                        <strong>DOI status:</strong>{" "}
-                        {article.doiRecord?.status ||
+                        <strong>
+                            DOI status:
+                        </strong>{" "}
+                        {article.doiRecord
+                            ?.status ||
                             "Not registered"}
                     </p>
 
                     {article.category && (
                         <p>
-                            <strong>Category:</strong>{" "}
-                            {article.category.name}
+                            <strong>
+                                Category:
+                            </strong>{" "}
+                            {
+                                article.category
+                                    .name
+                            }
                         </p>
                     )}
                 </div>
