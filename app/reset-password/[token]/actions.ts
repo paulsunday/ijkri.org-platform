@@ -1,8 +1,10 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { createHash } from "crypto";
+import { createHash } from "node:crypto";
 import { redirect } from "next/navigation";
+import { logger } from "@/lib/logger";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 import { prisma } from "@/lib/prisma";
 
@@ -53,6 +55,25 @@ export async function resetPassword(
     }
 
     const tokenHash = hashToken(token);
+
+    const rateLimitIdentifier = tokenHash;
+
+    try {
+        await enforceRateLimit(
+            "reset-password",
+            rateLimitIdentifier,
+        );
+    } catch (error) {
+        logger.warn("Password reset blocked by rate limiter", {
+            event: "PASSWORD_RESET_RATE_LIMITED",
+            identifier: rateLimitIdentifier,
+            error: error instanceof Error ? error.message : String(error),
+        });
+
+        redirect(
+            "/forgot-password?error=Too+many+password-reset+attempts.+Please+try+again+later.",
+        );
+    }
 
     const resetRecord =
         await prisma.passwordResetToken.findUnique({

@@ -1,11 +1,13 @@
 ﻿"use server";
 
-import { createHash, randomBytes } from "crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { redirect } from "next/navigation";
 
 import { sendEmail } from "@/lib/email/send-email";
 import { passwordResetEmail } from "@/lib/email/templates";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 const RESET_TOKEN_LIFETIME_MINUTES = 30;
 
@@ -17,25 +19,30 @@ function isValidEmail(value: string) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-function hashToken(token: string) {
-    return createHash("sha256")
-        .update(token)
-        .digest("hex");
+function hashValue(value: string) {
+    return createHash("sha256").update(value).digest("hex");
 }
 
-export async function requestPasswordReset(
-    formData: FormData,
-) {
-    const emailAddress = normalizeEmail(
-        String(formData.get("email") || ""),
-    );
+export async function requestPasswordReset(formData: FormData) {
+    const emailAddress = normalizeEmail(String(formData.get("email") || ""));
 
-    if (
-        !emailAddress ||
-        !isValidEmail(emailAddress)
-    ) {
+    if (!emailAddress || !isValidEmail(emailAddress)) {
+        redirect("/forgot-password?error=Enter+a+valid+email+address.");
+    }
+
+    const rateLimitIdentifier = hashValue(emailAddress);
+
+    try {
+        await enforceRateLimit("forgot-password", rateLimitIdentifier);
+    } catch (error) {
+        logger.warn("Password-reset request blocked by rate limiter", {
+            event: "PASSWORD_RESET_RATE_LIMITED",
+            identifier: rateLimitIdentifier,
+            error: error instanceof Error ? error.message : String(error),
+        });
+
         redirect(
-            "/forgot-password?error=Enter+a+valid+email+address.",
+            "/forgot-password?error=Too+many+password-reset+requests.+Please+try+again+later.",
         );
     }
 
@@ -57,22 +64,14 @@ export async function requestPasswordReset(
      * exists. This prevents account-email enumeration.
      */
     if (!user || !user.isActive) {
-        redirect(
-            "/forgot-password?submitted=true",
-        );
+        redirect("/forgot-password?submitted=true");
     }
 
-    const rawToken = randomBytes(32).toString(
-        "hex",
-    );
-
-    const tokenHash = hashToken(rawToken);
+    const rawToken = randomBytes(32).toString("hex");
+    const tokenHash = hashValue(rawToken);
 
     const expiresAt = new Date(
-        Date.now() +
-        RESET_TOKEN_LIFETIME_MINUTES *
-        60 *
-        1000,
+        Date.now() + RESET_TOKEN_LIFETIME_MINUTES * 60 * 1000,
     );
 
     await prisma.$transaction(async (tx) => {
@@ -107,17 +106,14 @@ export async function requestPasswordReset(
     });
 
     const appUrl =
-        process.env.NEXT_PUBLIC_APP_URL ||
-        "http://localhost:3000";
+        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-    const resetUrl =
-        `${appUrl}/reset-password/${rawToken}`;
+    const resetUrl = `${appUrl}/reset-password/${rawToken}`;
 
     const emailContent = passwordResetEmail({
         name: user.name,
         resetUrl,
-        expiresInMinutes:
-            RESET_TOKEN_LIFETIME_MINUTES,
+        expiresInMinutes: RESET_TOKEN_LIFETIME_MINUTES,
     });
 
     try {
@@ -128,10 +124,10 @@ export async function requestPasswordReset(
             text: emailContent.text,
         });
     } catch (error) {
-        console.error(
-            "Password-reset email failed:",
-            error,
-        );
+        logger.error("Password-reset email failed", error, {
+            event: "PASSWORD_RESET_EMAIL_FAILED",
+            userId: user.id,
+        });
 
         /*
          * Do not expose delivery failure or account existence
@@ -139,7 +135,5 @@ export async function requestPasswordReset(
          */
     }
 
-    redirect(
-        "/forgot-password?submitted=true",
-    );
+    redirect("/forgot-password?submitted=true");
 }

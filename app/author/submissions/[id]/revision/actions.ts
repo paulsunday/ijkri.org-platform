@@ -5,9 +5,27 @@ import { redirect } from "next/navigation";
 
 import { requireAnyActionRole } from "@/lib/auth/permissions";
 import { AUTHOR_ROLES } from "@/lib/auth/role-groups";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { validateFileSignature } from "@/lib/storage/file-signature";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { deleteJournalFile, uploadJournalFile } from "@/lib/storage/blob";
 import type { UploadResult } from "@/lib/storage/types";
+
+const MAX_MANUSCRIPT_SIZE = 20 * 1024 * 1024;
+const MAX_RESPONSE_FILE_SIZE = 20 * 1024 * 1024;
+
+const MAX_AUTHOR_NOTES_LENGTH = 20_000;
+const MAX_COVER_LETTER_LENGTH = 50_000;
+
+const ALLOWED_FILE_EXTENSIONS = [".pdf", ".doc", ".docx"];
+
+const ALLOWED_FILE_MIME_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/octet-stream",
+];
 
 async function safelyDeleteUploadedFiles(
   uploads: Array<UploadResult | undefined>,
@@ -16,11 +34,87 @@ async function safelyDeleteUploadedFiles(
     Boolean(upload),
   );
 
-  await Promise.allSettled(
+  const results = await Promise.allSettled(
     completedUploads.map((upload) =>
       deleteJournalFile(upload.url, upload.visibility),
     ),
   );
+
+  results.forEach((result, index) => {
+    if (result.status === "rejected") {
+      const upload = completedUploads[index];
+
+      logger.error("Failed to clean up revision upload", {
+        event: "REVISION_UPLOAD_CLEANUP_FAILED",
+        pathname: upload?.pathname,
+        visibility: upload?.visibility,
+        error:
+          result.reason instanceof Error
+            ? result.reason.message
+            : String(result.reason),
+      });
+    }
+  });
+}
+
+function getFileExtension(fileName: string): string {
+  const normalizedName = fileName.toLowerCase();
+
+  const lastDotIndex = normalizedName.lastIndexOf(".");
+
+  if (lastDotIndex < 0) {
+    return "";
+  }
+
+  return normalizedName.slice(lastDotIndex);
+}
+
+function assertMaximumLength(
+  value: string,
+  maximumLength: number,
+  fieldLabel: string,
+) {
+  if (value.length > maximumLength) {
+    throw new Error(
+      `${fieldLabel} must not exceed ${maximumLength.toLocaleString()} characters.`,
+    );
+  }
+}
+
+async function validateUploadedFile({
+  file,
+  fieldLabel,
+  maximumSize,
+}: {
+  file: File;
+  fieldLabel: string;
+  maximumSize: number;
+}): Promise<void> {
+  if (file.size === 0) {
+    throw new Error(`${fieldLabel} is empty.`);
+  }
+
+  if (file.size > maximumSize) {
+    throw new Error(
+      `${fieldLabel} must not exceed ${Math.floor(
+        maximumSize / (1024 * 1024),
+      )} MB.`,
+    );
+  }
+
+  const extensionWithDot = getFileExtension(file.name);
+
+  if (!ALLOWED_FILE_EXTENSIONS.includes(extensionWithDot)) {
+    throw new Error(`${fieldLabel} must be a PDF, DOC, or DOCX file.`);
+  }
+
+  if (file.type && !ALLOWED_FILE_MIME_TYPES.includes(file.type)) {
+    throw new Error(`${fieldLabel} has an unsupported file type.`);
+  }
+
+  const extension = extensionWithDot.slice(1);
+
+  await validateFileSignature(file, extension);
 }
 
 export async function submitRevision(formData: FormData) {
@@ -32,7 +126,31 @@ export async function submitRevision(formData: FormData) {
 
   const coverLetter = String(formData.get("coverLetter") || "").trim();
 
+  if (!submissionId) {
+    throw new Error("Submission ID is missing.");
+  }
+
+  try {
+    await enforceRateLimit("revision", `${author.id}:${submissionId}`);
+  } catch (error) {
+    logger.warn("Revision submission blocked by rate limiter", {
+      event: "REVISION_SUBMISSION_RATE_LIMITED",
+      userId: author.id,
+      submissionId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    throw new Error(
+      "Too many revision attempts. Please wait a few minutes and try again.",
+    );
+  }
+
+  assertMaximumLength(authorNotes, MAX_AUTHOR_NOTES_LENGTH, "Author notes");
+
+  assertMaximumLength(coverLetter, MAX_COVER_LETTER_LENGTH, "Cover letter");
+
   const manuscriptFileValue = formData.get("manuscriptFile");
+
   const responseFileValue = formData.get("responseFile");
 
   const manuscriptFile =
@@ -43,31 +161,54 @@ export async function submitRevision(formData: FormData) {
       ? responseFileValue
       : null;
 
-  if (!submissionId) {
-    throw new Error("Submission ID is missing.");
-  }
-
-  if (!manuscriptFile || manuscriptFile.size === 0) {
+  if (!manuscriptFile) {
     throw new Error("Revised manuscript file is required.");
   }
 
+  await validateUploadedFile({
+    file: manuscriptFile,
+    fieldLabel: "The revised manuscript file",
+    maximumSize: MAX_MANUSCRIPT_SIZE,
+  });
+
+  if (responseFile) {
+    await validateUploadedFile({
+      file: responseFile,
+      fieldLabel: "The response-to-reviewers file",
+      maximumSize: MAX_RESPONSE_FILE_SIZE,
+    });
+  }
   const submission = await prisma.submission.findFirst({
     where: {
       id: submissionId,
       authorId: author.id,
     },
-    include: {
+    select: {
+      id: true,
+      journalId: true,
+      authorId: true,
+      title: true,
+      status: true,
+
       versions: {
         orderBy: {
           versionNumber: "desc",
         },
         take: 1,
+        select: {
+          versionNumber: true,
+        },
       },
+
       decisions: {
         orderBy: {
           createdAt: "desc",
         },
         take: 1,
+        select: {
+          editorId: true,
+          revisionDeadline: true,
+        },
       },
     },
   });
@@ -100,6 +241,7 @@ export async function submitRevision(formData: FormData) {
   const nextVersionNumber = latestVersionNumber + 1;
 
   let manuscriptUpload: UploadResult | undefined;
+
   let responseUpload: UploadResult | undefined;
 
   try {
@@ -131,34 +273,69 @@ export async function submitRevision(formData: FormData) {
   } catch (error) {
     await safelyDeleteUploadedFiles([manuscriptUpload, responseUpload]);
 
-    throw error;
+    logger.error("Revision file upload failed", {
+      event: "REVISION_UPLOAD_FAILED",
+      userId: author.id,
+      submissionId,
+      versionNumber: nextVersionNumber,
+      manuscriptFileName: manuscriptFile.name,
+      responseFileName: responseFile?.name || null,
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    throw new Error(
+      "The revision files could not be uploaded. Please try again.",
+    );
   }
 
+  if (!manuscriptUpload) {
+    await safelyDeleteUploadedFiles([responseUpload]);
+
+    throw new Error("The revised manuscript file could not be uploaded.");
+  }
+
+  const completedManuscriptUpload = manuscriptUpload;
+
   try {
-    await prisma.$transaction(async (tx) => {
+    const revisionSaved = await prisma.$transaction(async (tx) => {
+      /*
+       * Atomically claim the submission for this
+       * revision. Only one concurrent request can
+       * change REVISION_REQUIRED to
+       * UNDER_INITIAL_REVIEW.
+       */
+      const claimedSubmission = await tx.submission.updateMany({
+        where: {
+          id: submissionId,
+          authorId: author.id,
+          status: "REVISION_REQUIRED",
+        },
+        data: {
+          status: "UNDER_INITIAL_REVIEW",
+        },
+      });
+
+      if (claimedSubmission.count !== 1) {
+        return false;
+      }
+
       await tx.submissionVersion.create({
         data: {
           submissionId,
           uploadedById: author.id,
           versionNumber: nextVersionNumber,
 
-          manuscriptFileUrl: manuscriptUpload.url,
-          manuscriptFileName: manuscriptUpload.originalFilename,
+          manuscriptFileUrl: completedManuscriptUpload.url,
 
-          responseFileUrl: responseUpload?.url,
-          responseFileName: responseUpload?.originalFilename,
+          manuscriptFileName: completedManuscriptUpload.originalFilename,
+
+          responseFileUrl: responseUpload?.url || null,
+
+          responseFileName: responseUpload?.originalFilename || null,
 
           coverLetter: coverLetter || null,
-          authorNotes: authorNotes || null,
-        },
-      });
 
-      await tx.submission.update({
-        where: {
-          id: submissionId,
-        },
-        data: {
-          status: "UNDER_INITIAL_REVIEW",
+          authorNotes: authorNotes || null,
         },
       });
 
@@ -185,23 +362,50 @@ export async function submitRevision(formData: FormData) {
             submissionId,
             submissionTitle: submission.title,
             versionNumber: nextVersionNumber,
-            manuscriptFileName: manuscriptUpload.originalFilename,
-            manuscriptFileUrl: manuscriptUpload.url,
+            manuscriptFileName: completedManuscriptUpload.originalFilename,
+            manuscriptFileUrl: completedManuscriptUpload.url,
             responseFileName: responseUpload?.originalFilename ?? null,
             responseFileUrl: responseUpload?.url ?? null,
             storageProvider: "VERCEL_BLOB",
           },
         },
       });
-    });
-  } catch (error) {
-    /*
-     * Uploads have already succeeded, but the database transaction failed.
-     * Remove the uploaded Blob objects so they do not become orphaned files.
-     */
-    await safelyDeleteUploadedFiles([manuscriptUpload, responseUpload]);
 
-    throw error;
+      return true;
+    });
+
+    if (!revisionSaved) {
+      await safelyDeleteUploadedFiles([
+        completedManuscriptUpload,
+        responseUpload,
+      ]);
+
+      throw new Error(
+        "This revision has already been submitted or the submission is no longer awaiting revision.",
+      );
+    }
+  } catch (error) {
+    await safelyDeleteUploadedFiles([
+      completedManuscriptUpload,
+      responseUpload,
+    ]);
+
+    logger.error("Revision database transaction failed", {
+      event: "REVISION_TRANSACTION_FAILED",
+      userId: author.id,
+      submissionId,
+      versionNumber: nextVersionNumber,
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    if (
+      error instanceof Error &&
+      error.message.includes("already been submitted")
+    ) {
+      throw error;
+    }
+
+    throw new Error("The revision could not be submitted. Please try again.");
   }
 
   revalidatePath(`/author/submissions/${submissionId}/revision`);
@@ -209,7 +413,9 @@ export async function submitRevision(formData: FormData) {
   revalidatePath(`/author/submissions/${submissionId}`);
 
   revalidatePath("/author/dashboard");
+
   revalidatePath(`/editor/submissions/${submissionId}`);
+
   revalidatePath("/editor/dashboard");
 
   redirect(`/author/submissions/${submissionId}`);

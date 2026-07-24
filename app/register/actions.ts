@@ -8,9 +8,15 @@ import { sendEmail } from "@/lib/email/send-email";
 import { prisma } from "@/lib/prisma";
 import { createAccountActivationLink } from "@/lib/auth/account-activation";
 import { accountActivationEmail } from "@/lib/email/templates";
+import { createHash } from "node:crypto";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
+}
+
+function createRegistrationIdentifier(email: string) {
+  return createHash("sha256").update(email).digest("hex");
 }
 
 function validateEmail(value: string) {
@@ -51,6 +57,19 @@ export async function registerUser(formData: FormData) {
 
   if (!email || !validateEmail(email)) {
     redirect("/register?error=Enter+a+valid+email+address.");
+  }
+
+  const registrationIdentifier = createRegistrationIdentifier(email);
+
+  try {
+    await enforceRateLimit(
+      "registration",
+      registrationIdentifier,
+    );
+  } catch {
+    redirect(
+      "/register?error=Too+many+registration+attempts.+Please+try+again+later.",
+    );
   }
 
   if (!validatePassword(password)) {

@@ -7,7 +7,7 @@ import { z } from "zod";
 
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 const ACCOUNT_LOCK_MINUTES = 15;
@@ -91,35 +91,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const loginIdentifier = createLoginIdentifier(email, request);
 
         try {
-          const rateLimitResult = await checkRateLimit(
+          await enforceRateLimit(
             "login",
             loginIdentifier,
           );
-
-          if (!rateLimitResult.success) {
-            logger.warn("Login request blocked by rate limiter", {
-              event: "LOGIN_RATE_LIMITED",
-              identifier: loginIdentifier,
-              resetAt: new Date(rateLimitResult.reset).toISOString(),
-            });
-
-            /*
-             * Keep the response generic. Do not reveal whether
-             * the email exists, the password is incorrect, or
-             * the request has been rate limited.
-             */
-            return null;
-          }
         } catch (error) {
-          logger.error("Login rate-limit check failed", error, {
-            event: "LOGIN_RATE_LIMIT_CHECK_FAILED",
+          logger.warn("Login request blocked by rate limiter", {
+            event: "LOGIN_RATE_LIMITED",
+            identifier: loginIdentifier,
           });
 
-          /*
-           * Fail closed when rate limiting cannot be verified.
-           */
           return null;
         }
+        /*
+         * Keep the response generic. Do not reveal whether
+         * the email exists, the password is incorrect, or
+         * the request has been rate limited.
+         */
 
         const user = await prisma.user.findUnique({
           where: {
