@@ -3,10 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import {
-  isSuperAdmin,
-  requireAnyActionRole,
-} from "@/lib/auth/permissions";
+import { isSuperAdmin, requireAnyActionRole } from "@/lib/auth/permissions";
 import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
 import { sendEmail } from "@/lib/email/send-email";
 import {
@@ -15,15 +12,11 @@ import {
   revisionRequestedEmail,
 } from "@/lib/email/templates";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
-const VALID_DECISIONS = [
-  "REVISION_REQUIRED",
-  "ACCEPTED",
-  "REJECTED",
-] as const;
+const VALID_DECISIONS = ["REVISION_REQUIRED", "ACCEPTED", "REJECTED"] as const;
 
-type EditorialDecisionValue =
-  (typeof VALID_DECISIONS)[number];
+type EditorialDecisionValue = (typeof VALID_DECISIONS)[number];
 
 const EDITOR_ROLES = [
   "SUPER_ADMIN",
@@ -34,10 +27,10 @@ const EDITOR_ROLES = [
 ] as const;
 
 function getAppUrl() {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL ||
-    "http://localhost:3000"
-  ).replace(/\/+$/, "");
+  return (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(
+    /\/+$/,
+    "",
+  );
 }
 
 async function deliverDecisionEmail({
@@ -63,52 +56,36 @@ async function deliverDecisionEmail({
       text: emailContent.text,
     });
   } catch (error) {
-    console.error(
-      "Editorial decision email delivery failed:",
-      {
-        submissionId,
-        decision,
-        recipient: to,
-        error,
-      },
-    );
+    logger.error("Editorial decision email delivery failed", error, {
+      event: "EDITORIAL_DECISION_EMAIL_FAILED",
+      submissionId,
+      decision,
+      recipient: to,
+    });
   }
 }
 
-export async function sendEditorialDecision(
-  formData: FormData,
-) {
-  const editor =
-    await requireAnyActionRole(
-      EDITORIAL_ROLES,
-    );
+export async function sendEditorialDecision(formData: FormData) {
+  const editor = await requireAnyActionRole(EDITORIAL_ROLES);
 
-  const submissionId = String(
-    formData.get("submissionId") || "",
-  ).trim();
+  const submissionId = String(formData.get("submissionId") || "").trim();
 
   const decision = String(
     formData.get("decision") || "",
   ).trim() as EditorialDecisionValue;
 
-  const comments = String(
-    formData.get("comments") || "",
-  ).trim();
+  const comments = String(formData.get("comments") || "").trim();
 
   const revisionDeadlineValue = String(
     formData.get("revisionDeadline") || "",
   ).trim();
 
   if (!submissionId) {
-    throw new Error(
-      "Submission ID is missing.",
-    );
+    throw new Error("Submission ID is missing.");
   }
 
   if (!VALID_DECISIONS.includes(decision)) {
-    throw new Error(
-      "Please select a valid editorial decision.",
-    );
+    throw new Error("Please select a valid editorial decision.");
   }
 
   if (!comments) {
@@ -126,56 +103,43 @@ export async function sendEditorialDecision(
       );
     }
 
-    revisionDeadline = new Date(
-      `${revisionDeadlineValue}T23:59:59`,
-    );
+    revisionDeadline = new Date(`${revisionDeadlineValue}T23:59:59`);
 
-    if (
-      Number.isNaN(
-        revisionDeadline.getTime(),
-      )
-    ) {
-      throw new Error(
-        "The revision deadline is invalid.",
-      );
+    if (Number.isNaN(revisionDeadline.getTime())) {
+      throw new Error("The revision deadline is invalid.");
     }
 
     if (revisionDeadline <= new Date()) {
-      throw new Error(
-        "The revision deadline must be in the future.",
-      );
+      throw new Error("The revision deadline must be in the future.");
     }
   }
 
-  const submission =
-    await prisma.submission.findUnique({
-      where: {
-        id: submissionId,
-      },
+  const submission = await prisma.submission.findUnique({
+    where: {
+      id: submissionId,
+    },
 
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-
-        journal: {
-          select: {
-            id: true,
-            name: true,
-            shortName: true,
-          },
+    include: {
+      author: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
         },
       },
-    });
+
+      journal: {
+        select: {
+          id: true,
+          name: true,
+          shortName: true,
+        },
+      },
+    },
+  });
 
   if (!submission) {
-    throw new Error(
-      "Submission not found.",
-    );
+    throw new Error("Submission not found.");
   }
 
   const terminalStatuses = [
@@ -187,8 +151,7 @@ export async function sendEditorialDecision(
 
   if (
     terminalStatuses.includes(
-      submission.status as
-      (typeof terminalStatuses)[number],
+      submission.status as (typeof terminalStatuses)[number],
     )
   ) {
     throw new Error(
@@ -199,40 +162,31 @@ export async function sendEditorialDecision(
   }
 
   if (!isSuperAdmin(editor)) {
-    const editorJournalRole =
-      await prisma.userJournalRole.findFirst({
-        where: {
-          userId: editor.id,
-          journalId: submission.journalId,
-          role: {
-            in: [...EDITOR_ROLES],
-          },
+    const editorJournalRole = await prisma.userJournalRole.findFirst({
+      where: {
+        userId: editor.id,
+        journalId: submission.journalId,
+        role: {
+          in: [...EDITOR_ROLES],
         },
-        select: {
-          id: true,
-        },
-      });
+      },
+      select: {
+        id: true,
+      },
+    });
 
     if (!editorJournalRole) {
-      throw new Error(
-        "You do not have editorial permission for this journal.",
-      );
+      throw new Error("You do not have editorial permission for this journal.");
     }
   }
 
   if (!editor.isActive) {
-    throw new Error(
-      "This editor account is inactive.",
-    );
+    throw new Error("This editor account is inactive.");
   }
 
-  const editorHasPermission =
-    editor.roles.some((roleRecord) =>
-      EDITOR_ROLES.includes(
-        roleRecord.role as
-        (typeof EDITOR_ROLES)[number],
-      ),
-    );
+  const editorHasPermission = editor.roles.some((roleRecord) =>
+    EDITOR_ROLES.includes(roleRecord.role as (typeof EDITOR_ROLES)[number]),
+  );
 
   if (!editorHasPermission) {
     throw new Error(
@@ -240,20 +194,18 @@ export async function sendEditorialDecision(
     );
   }
 
-  const currentRound =
-    submission.currentReviewRound || 1;
+  const currentRound = submission.currentReviewRound || 1;
 
-  const currentRoundAssignments =
-    await prisma.reviewAssignment.findMany({
-      where: {
-        submissionId,
-        reviewRound: currentRound,
-      },
+  const currentRoundAssignments = await prisma.reviewAssignment.findMany({
+    where: {
+      submissionId,
+      reviewRound: currentRound,
+    },
 
-      include: {
-        review: true,
-      },
-    });
+    include: {
+      review: true,
+    },
+  });
 
   if (currentRoundAssignments.length === 0) {
     throw new Error(
@@ -261,29 +213,24 @@ export async function sendEditorialDecision(
     );
   }
 
-  const pendingAssignments =
-    currentRoundAssignments.filter(
-      (assignment) =>
-        assignment.status === "INVITED" ||
-        assignment.status === "ACCEPTED",
-    );
+  const pendingAssignments = currentRoundAssignments.filter(
+    (assignment) =>
+      assignment.status === "INVITED" || assignment.status === "ACCEPTED",
+  );
 
   if (pendingAssignments.length > 0) {
     throw new Error(
-      `An editorial decision cannot yet be made. ${pendingAssignments.length
-      } review assignment${pendingAssignments.length === 1
-        ? " is"
-        : "s are"
+      `An editorial decision cannot yet be made. ${
+        pendingAssignments.length
+      } review assignment${
+        pendingAssignments.length === 1 ? " is" : "s are"
       } still outstanding in review round ${currentRound}.`,
     );
   }
 
-  const submittedReviews =
-    currentRoundAssignments.filter(
-      (assignment) =>
-        assignment.status === "SUBMITTED" &&
-        assignment.review,
-    );
+  const submittedReviews = currentRoundAssignments.filter(
+    (assignment) => assignment.status === "SUBMITTED" && assignment.review,
+  );
 
   if (submittedReviews.length === 0) {
     throw new Error(
@@ -305,127 +252,94 @@ export async function sendEditorialDecision(
         ? `A rejection decision has been made on your manuscript "${submission.title}".`
         : `A revision has been requested for your manuscript "${submission.title}".`;
 
-  const authorNotificationLink =
-    `/author/submissions/${submissionId}`;
+  const authorNotificationLink = `/author/submissions/${submissionId}`;
 
-  const editorialDecision =
-    await prisma.$transaction(
-      async (tx) => {
-        const createdDecision =
-          await tx.editorialDecision.create({
-            data: {
-              submissionId,
-              editorId: editor.id,
-              decision,
-              comments,
-              revisionDeadline,
-            },
-
-            select: {
-              id: true,
-              decision: true,
-              revisionDeadline: true,
-              createdAt: true,
-            },
-          });
-
-        await tx.submission.update({
-          where: {
-            id: submissionId,
-          },
-
-          data: {
-            status: decision,
-          },
-        });
-
-        await tx.notification.create({
-          data: {
-            userId: submission.authorId,
-            type: "DECISION",
-            title: decisionTitle,
-            message: decisionMessage,
-            link: authorNotificationLink,
-          },
-        });
-
-        await tx.activityLog.create({
-          data: {
-            userId: editor.id,
-            action: "MAKE_DECISION",
-            entity: "EditorialDecision",
-            entityId: createdDecision.id,
-
-            metadata: {
-              event:
-                "EDITORIAL_DECISION_ISSUED",
-              submissionId,
-              submissionTitle:
-                submission.title,
-              authorId:
-                submission.authorId,
-              authorEmail:
-                submission.author.email,
-              journalId:
-                submission.journalId,
-              journalName:
-                submission.journal.name,
-              reviewRound:
-                currentRound,
-              decision,
-              revisionDeadline:
-                revisionDeadline?.toISOString() ||
-                null,
-              submittedReviewCount:
-                submittedReviews.length,
-
-              reviewerRecommendations:
-                submittedReviews.map(
-                  (assignment) => ({
-                    assignmentId:
-                      assignment.id,
-                    reviewerId:
-                      assignment.reviewerId,
-                    recommendation:
-                      assignment.review
-                        ?.recommendation,
-                    score:
-                      assignment.review
-                        ?.score,
-                  }),
-                ),
-            },
-          },
-        });
-
-        return createdDecision;
+  const editorialDecision = await prisma.$transaction(async (tx) => {
+    const createdDecision = await tx.editorialDecision.create({
+      data: {
+        submissionId,
+        editorId: editor.id,
+        decision,
+        comments,
+        revisionDeadline,
       },
-    );
+
+      select: {
+        id: true,
+        decision: true,
+        revisionDeadline: true,
+        createdAt: true,
+      },
+    });
+
+    await tx.submission.update({
+      where: {
+        id: submissionId,
+      },
+
+      data: {
+        status: decision,
+      },
+    });
+
+    await tx.notification.create({
+      data: {
+        userId: submission.authorId,
+        type: "DECISION",
+        title: decisionTitle,
+        message: decisionMessage,
+        link: authorNotificationLink,
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        userId: editor.id,
+        action: "MAKE_DECISION",
+        entity: "EditorialDecision",
+        entityId: createdDecision.id,
+
+        metadata: {
+          event: "EDITORIAL_DECISION_ISSUED",
+          submissionId,
+          submissionTitle: submission.title,
+          authorId: submission.authorId,
+          authorEmail: submission.author.email,
+          journalId: submission.journalId,
+          journalName: submission.journal.name,
+          reviewRound: currentRound,
+          decision,
+          revisionDeadline: revisionDeadline?.toISOString() || null,
+          submittedReviewCount: submittedReviews.length,
+
+          reviewerRecommendations: submittedReviews.map((assignment) => ({
+            assignmentId: assignment.id,
+            reviewerId: assignment.reviewerId,
+            recommendation: assignment.review?.recommendation,
+            score: assignment.review?.score,
+          })),
+        },
+      },
+    });
+
+    return createdDecision;
+  });
 
   const appUrl = getAppUrl();
 
-  const submissionUrl =
-    `${appUrl}/author/submissions/${submissionId}`;
+  const submissionUrl = `${appUrl}/author/submissions/${submissionId}`;
 
-  const contactUrl =
-    `${appUrl}/contact`;
+  const contactUrl = `${appUrl}/contact`;
 
-  if (
-    decision === "REVISION_REQUIRED" &&
-    revisionDeadline
-  ) {
-    const emailContent =
-      revisionRequestedEmail({
-        authorName:
-          submission.author.name,
-        journalName:
-          submission.journal.name,
-        manuscriptTitle:
-          submission.title,
-        decisionComments: comments,
-        revisionDeadline,
-        submissionUrl,
-      });
+  if (decision === "REVISION_REQUIRED" && revisionDeadline) {
+    const emailContent = revisionRequestedEmail({
+      authorName: submission.author.name,
+      journalName: submission.journal.name,
+      manuscriptTitle: submission.title,
+      decisionComments: comments,
+      revisionDeadline,
+      submissionUrl,
+    });
 
     await deliverDecisionEmail({
       to: submission.author.email,
@@ -436,17 +350,13 @@ export async function sendEditorialDecision(
   }
 
   if (decision === "ACCEPTED") {
-    const emailContent =
-      manuscriptAcceptedEmail({
-        authorName:
-          submission.author.name,
-        journalName:
-          submission.journal.name,
-        manuscriptTitle:
-          submission.title,
-        decisionComments: comments,
-        submissionUrl,
-      });
+    const emailContent = manuscriptAcceptedEmail({
+      authorName: submission.author.name,
+      journalName: submission.journal.name,
+      manuscriptTitle: submission.title,
+      decisionComments: comments,
+      submissionUrl,
+    });
 
     await deliverDecisionEmail({
       to: submission.author.email,
@@ -457,18 +367,14 @@ export async function sendEditorialDecision(
   }
 
   if (decision === "REJECTED") {
-    const emailContent =
-      manuscriptRejectedEmail({
-        authorName:
-          submission.author.name,
-        journalName:
-          submission.journal.name,
-        manuscriptTitle:
-          submission.title,
-        decisionComments: comments,
-        submissionUrl,
-        contactUrl,
-      });
+    const emailContent = manuscriptRejectedEmail({
+      authorName: submission.author.name,
+      journalName: submission.journal.name,
+      manuscriptTitle: submission.title,
+      decisionComments: comments,
+      submissionUrl,
+      contactUrl,
+    });
 
     await deliverDecisionEmail({
       to: submission.author.email,
@@ -478,45 +384,28 @@ export async function sendEditorialDecision(
     });
   }
 
-  console.info(
-    "Editorial decision completed:",
-    {
-      editorialDecisionId:
-        editorialDecision.id,
-      submissionId,
-      decision,
-    },
-  );
+  logger.info("Editorial decision completed", {
+    event: "EDITORIAL_DECISION_COMPLETED",
+    editorialDecisionId: editorialDecision.id,
+    submissionId,
+    decision,
+  });
 
-  revalidatePath(
-    `/editor/submissions/${submissionId}`,
-  );
+  revalidatePath(`/editor/submissions/${submissionId}`);
 
-  revalidatePath(
-    `/editor/submissions/${submissionId}/decisions`,
-  );
+  revalidatePath(`/editor/submissions/${submissionId}/decisions`);
 
-  revalidatePath(
-    `/editor/submissions/${submissionId}/review-rounds`,
-  );
+  revalidatePath(`/editor/submissions/${submissionId}/review-rounds`);
 
-  revalidatePath(
-    `/editor/submissions/${submissionId}/revisions`,
-  );
+  revalidatePath(`/editor/submissions/${submissionId}/revisions`);
 
-  revalidatePath(
-    `/author/submissions/${submissionId}`,
-  );
+  revalidatePath(`/author/submissions/${submissionId}`);
 
-  revalidatePath(
-    `/author/submissions/${submissionId}/revision`,
-  );
+  revalidatePath(`/author/submissions/${submissionId}/revision`);
 
   revalidatePath("/editor/dashboard");
   revalidatePath("/author/dashboard");
   revalidatePath("/admin/submissions");
 
-  redirect(
-    `/editor/submissions/${submissionId}`,
-  );
+  redirect(`/editor/submissions/${submissionId}`);
 }

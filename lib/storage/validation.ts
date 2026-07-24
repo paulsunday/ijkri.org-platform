@@ -5,6 +5,7 @@
  */
 
 import { randomUUID } from "crypto";
+import { validateFileSignature } from "./file-signature";
 
 import {
     ALLOWED_EXTENSIONS,
@@ -517,6 +518,18 @@ export function validateFile({
     };
 }
 
+export async function validateFileAsync(
+    options: ValidateFileOptions,
+): Promise<ValidatedFile> {
+    const validatedFile = validateFile(options);
+
+    await validateFileSignature(
+        options.file,
+        validatedFile.extension,
+    );
+
+    return validatedFile;
+}
 /**
  * Non-throwing validation API.
  *

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
+import { AuthenticationError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 
 export async function getCurrentUser() {
@@ -44,7 +45,9 @@ export async function requireActionUser() {
     const user = await getCurrentUser();
 
     if (!user) {
-        throw new Error("You must be signed in to perform this action.");
+        throw new AuthenticationError(
+            "You must be signed in to perform this action.",
+        );
     }
 
     return user;

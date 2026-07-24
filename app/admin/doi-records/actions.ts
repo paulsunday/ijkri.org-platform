@@ -103,7 +103,9 @@ export async function markDoiRegistered(
         throw new Error(
             "This DOI record is not linked to an article.",
         );
-    } const article = record.article;
+    }
+
+    const article = record.article;
 
     await verifyDoiManager(
         user.id,
@@ -132,7 +134,10 @@ export async function markDoiRegistered(
                 metadata: {
                     event: "DOI_MARKED_REGISTERED",
                     articleId: article.id,
+                    articleTitle: article.title,
+                    journalId: article.journalId,
                     doi: record.doi,
+                    previousStatus: record.status,
                     registeredAt:
                         registeredAt.toISOString(),
                 },
@@ -191,7 +196,9 @@ export async function markDoiFailed(
         throw new Error(
             "This DOI record is not linked to an article.",
         );
-    } const article = record.article;
+    }
+
+    const article = record.article;
 
     await verifyDoiManager(
         user.id,
@@ -233,6 +240,7 @@ export async function markDoiFailed(
                     event: "DOI_MARKED_FAILED",
                     articleId: article.id,
                     doi: record.doi,
+                    previousStatus: record.status,
                     failureReason,
                     failedAt: failedAt.toISOString(),
                 },
@@ -280,7 +288,9 @@ export async function resetDoiToPending(
         throw new Error(
             "This DOI record is not linked to an article.",
         );
-    } const article = record.article;
+    }
+
+    const article = record.article;
 
     await verifyDoiManager(
         user.id,
@@ -308,6 +318,7 @@ export async function resetDoiToPending(
                     event: "DOI_RESET_TO_PENDING",
                     articleId: article.id,
                     doi: record.doi,
+                    previousStatus: record.status,
                 },
             },
         });

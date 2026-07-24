@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireAnyActionRole } from "@/lib/auth/permissions";
 import { REVIEWER_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 import {
   deleteJournalFile,
   uploadJournalFile,
@@ -448,13 +449,15 @@ export async function submitReview(formData: FormData) {
       cleanupResults.forEach(
         (result, index) => {
           if (result.status === "rejected") {
-            console.error(
-              "Failed to clean up reviewer attachment:",
+            logger.error(
+              "Failed to clean up reviewer attachment",
+              result.reason,
               {
+                event: "REVIEW_ATTACHMENT_CLEANUP_FAILED",
                 attachment:
-                  uploadedAttachments[index]
-                    ?.pathname,
-                reason: result.reason,
+                  uploadedAttachments[index]?.pathname,
+                reviewAssignmentId: assignmentId,
+                submissionId: assignment.submissionId,
               },
             );
           }

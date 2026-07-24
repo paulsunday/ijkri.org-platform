@@ -197,21 +197,24 @@ model Volume {
 }
 
 model Issue {
-  id          String    @id @default(cuid())
-  journalId   String
-  volumeId    String
-  number      Int
-  title       String?
-  description String?
-  coverImage  String?
-  publishedAt DateTime?
-  isCurrent   Boolean   @default(false)
-  isPublished Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  articles    Article[]
-  journal     Journal   @relation(fields: [journalId], references: [id], onDelete: Cascade)
-  volume      Volume    @relation(fields: [volumeId], references: [id], onDelete: Cascade)
+  id           String    @id @default(cuid())
+  journalId    String
+  volumeId     String
+  number       Int
+  title        String?
+  description  String?
+  coverImage   String?
+  editorial    String?
+  fullIssuePdf String?
+  slug         String?   @unique
+  publishedAt  DateTime?
+  isCurrent    Boolean   @default(false)
+  isPublished  Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  articles     Article[]
+  journal      Journal   @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  volume       Volume    @relation(fields: [volumeId], references: [id], onDelete: Cascade)
 
   @@unique([volumeId, number])
   @@index([journalId])
@@ -417,6 +420,8 @@ model Article {
   body         String?
   pdfUrl       String?
   doi          String?
+  startPage    Int?
+  endPage      Int?
   status       ArticleStatus      @default(DRAFT)
   publishedAt  DateTime?
   createdAt    DateTime           @default(now())

@@ -13,8 +13,9 @@
  */
 
 import "server-only";
-
+import { logger } from "@/lib/logger";
 import { del, put } from "@vercel/blob";
+import { logActivity } from "@/lib/activity-log";
 
 import {
     PRIVATE_FILE_TYPES,
@@ -33,7 +34,9 @@ import type {
 } from "./types";
 
 import { StorageError } from "./types";
-import { validateFile } from "./validation";
+import {
+    validateFileAsync,
+} from "./validation";
 
 /**
  * Maps every supported file category to its storage folder.
@@ -289,6 +292,7 @@ export async function uploadJournalFile({
     maxSize,
     additionalAllowedExtensions = [],
     allowOverwrite = false,
+
 }: UploadJournalFileOptions): Promise<UploadResult> {
     const visibility =
         requestedVisibility ?? getDefaultFileVisibility(category);
@@ -307,12 +311,13 @@ export async function uploadJournalFile({
         );
     }
 
-    const validatedFile = validateFile({
-        file,
-        category,
-        maxSize,
-        additionalAllowedExtensions,
-    });
+    const validatedFile =
+        await validateFileAsync({
+            file,
+            category,
+            maxSize,
+            additionalAllowedExtensions,
+        });
 
     const pathname = buildStoragePath(
         metadata,
@@ -374,17 +379,16 @@ export async function uploadJournalFile({
             throw error;
         }
 
-        console.error(
-            "Vercel Blob upload failed:",
-            {
-                pathname,
-                category,
-                visibility,
-                originalFilename:
-                    validatedFile.originalFilename,
-                error,
-            },
-        );
+        logger.error("Vercel Blob upload failed", {
+            pathname,
+            category,
+            visibility,
+            originalFilename: validatedFile.originalFilename,
+            error:
+                error instanceof Error
+                    ? error.message
+                    : String(error),
+        });
 
         throw new StorageError(
             "UPLOAD_FAILED",
@@ -440,14 +444,14 @@ export async function deleteJournalFile(
             token,
         });
     } catch (error) {
-        console.error(
-            "Vercel Blob deletion failed:",
-            {
-                urlOrPathname: normalizedValue,
-                visibility,
-                error,
-            },
-        );
+        logger.error("Vercel Blob deletion failed", {
+            urlOrPathname: normalizedValue,
+            visibility,
+            error:
+                error instanceof Error
+                    ? error.message
+                    : String(error),
+        });
 
         throw new StorageError(
             "UPLOAD_FAILED",

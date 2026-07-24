@@ -476,10 +476,12 @@ export async function publishSubmission(
                     entityId:
                         article.id,
                     metadata: {
+                        event: "ARTICLE_PUBLISHED",
                         submissionId,
                         issueId,
-                        doi:
-                            doi || null,
+                        journalId: submission.journalId,
+                        articleSlug,
+                        doi: doi || null,
                         authorCount:
                             publicationAuthors.length,
                         authors:

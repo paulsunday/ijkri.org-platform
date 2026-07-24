@@ -13,9 +13,7 @@ import {
   updateIssue,
 } from "./actions";
 
-function formatDate(
-  value: Date | null | undefined,
-) {
+function formatDate(value: Date | null | undefined) {
   if (!value) {
     return "Not published";
   }
@@ -25,6 +23,14 @@ function formatDate(
     month: "short",
     year: "numeric",
   }).format(value);
+}
+
+function formatDateInput(value: Date | null | undefined) {
+  if (!value) {
+    return "";
+  }
+
+  return value.toISOString().slice(0, 10);
 }
 
 export default async function AdminIssuesPage() {
@@ -101,16 +107,11 @@ export default async function AdminIssuesPage() {
     }),
   ]);
 
-  const publishedCount = issues.filter(
-    (issue) => issue.isPublished,
-  ).length;
+  const publishedCount = issues.filter((issue) => issue.isPublished).length;
 
-  const currentCount = issues.filter(
-    (issue) => issue.isCurrent,
-  ).length;
+  const currentCount = issues.filter((issue) => issue.isCurrent).length;
 
-  const draftCount =
-    issues.length - publishedCount;
+  const draftCount = issues.length - publishedCount;
 
   return (
     <main className="mx-auto max-w-7xl space-y-8 px-6 py-12">
@@ -122,9 +123,7 @@ export default async function AdminIssuesPage() {
           ← Back to admin dashboard
         </Link>
 
-        <h1 className="mt-4 text-4xl font-bold">
-          Issues
-        </h1>
+        <h1 className="mt-4 text-4xl font-bold">Issues</h1>
 
         <p className="mt-3 text-gray-600">
           Create, publish and manage journal issues.
@@ -133,19 +132,13 @@ export default async function AdminIssuesPage() {
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <article className="rounded-xl border bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500">
-            Total Issues
-          </p>
+          <p className="text-sm text-gray-500">Total Issues</p>
 
-          <p className="mt-2 text-3xl font-bold">
-            {issues.length}
-          </p>
+          <p className="mt-2 text-3xl font-bold">{issues.length}</p>
         </article>
 
         <article className="rounded-xl border border-green-200 bg-green-50 p-5">
-          <p className="text-sm text-green-700">
-            Published
-          </p>
+          <p className="text-sm text-green-700">Published</p>
 
           <p className="mt-2 text-3xl font-bold text-green-900">
             {publishedCount}
@@ -153,9 +146,7 @@ export default async function AdminIssuesPage() {
         </article>
 
         <article className="rounded-xl border border-yellow-200 bg-yellow-50 p-5">
-          <p className="text-sm text-yellow-700">
-            Draft
-          </p>
+          <p className="text-sm text-yellow-700">Draft</p>
 
           <p className="mt-2 text-3xl font-bold text-yellow-900">
             {draftCount}
@@ -163,9 +154,7 @@ export default async function AdminIssuesPage() {
         </article>
 
         <article className="rounded-xl border border-blue-200 bg-blue-50 p-5">
-          <p className="text-sm text-blue-700">
-            Current Issues
-          </p>
+          <p className="text-sm text-blue-700">Current Issues</p>
 
           <p className="mt-2 text-3xl font-bold text-blue-900">
             {currentCount}
@@ -174,9 +163,7 @@ export default async function AdminIssuesPage() {
       </section>
 
       <section className="rounded-xl border bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-semibold">
-          Create Issue
-        </h2>
+        <h2 className="text-xl font-semibold">Create Issue</h2>
 
         {volumes.length === 0 ? (
           <div className="mt-5 rounded-lg border border-yellow-300 bg-yellow-50 p-5">
@@ -196,15 +183,9 @@ export default async function AdminIssuesPage() {
             </Link>
           </div>
         ) : (
-          <form
-            action={createIssue}
-            className="mt-6 grid gap-5 md:grid-cols-2"
-          >
+          <form action={createIssue} className="mt-6 grid gap-5 md:grid-cols-2">
             <div className="md:col-span-2">
-              <label
-                htmlFor="volumeId"
-                className="mb-2 block font-semibold"
-              >
+              <label htmlFor="volumeId" className="mb-2 block font-semibold">
                 Volume
               </label>
 
@@ -220,22 +201,16 @@ export default async function AdminIssuesPage() {
                 </option>
 
                 {volumes.map((volume) => (
-                  <option
-                    key={volume.id}
-                    value={volume.id}
-                  >
-                    {volume.journal.shortName} — Volume{" "}
-                    {volume.number} ({volume.year})
+                  <option key={volume.id} value={volume.id}>
+                    {volume.journal.shortName} — Volume {volume.number} (
+                    {volume.year})
                   </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label
-                htmlFor="number"
-                className="mb-2 block font-semibold"
-              >
+              <label htmlFor="number" className="mb-2 block font-semibold">
                 Issue Number
               </label>
 
@@ -250,10 +225,7 @@ export default async function AdminIssuesPage() {
             </div>
 
             <div>
-              <label
-                htmlFor="title"
-                className="mb-2 block font-semibold"
-              >
+              <label htmlFor="title" className="mb-2 block font-semibold">
                 Issue Title
               </label>
 
@@ -266,10 +238,7 @@ export default async function AdminIssuesPage() {
             </div>
 
             <div className="md:col-span-2">
-              <label
-                htmlFor="description"
-                className="mb-2 block font-semibold"
-              >
+              <label htmlFor="description" className="mb-2 block font-semibold">
                 Description
               </label>
 
@@ -282,10 +251,21 @@ export default async function AdminIssuesPage() {
             </div>
 
             <div className="md:col-span-2">
-              <label
-                htmlFor="coverImage"
-                className="mb-2 block font-semibold"
-              >
+              <label htmlFor="editorial" className="mb-2 block font-semibold">
+                Editorial or Editor&apos;s Note
+              </label>
+
+              <textarea
+                id="editorial"
+                name="editorial"
+                rows={7}
+                className="w-full rounded-lg border p-3"
+                placeholder="Write the editor's introduction or note for this issue."
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label htmlFor="coverImage" className="mb-2 block font-semibold">
                 Cover Image URL
               </label>
 
@@ -295,6 +275,40 @@ export default async function AdminIssuesPage() {
                 type="url"
                 className="w-full rounded-lg border p-3"
                 placeholder="https://..."
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label
+                htmlFor="fullIssuePdf"
+                className="mb-2 block font-semibold"
+              >
+                Complete Issue PDF URL
+              </label>
+
+              <input
+                id="fullIssuePdf"
+                name="fullIssuePdf"
+                type="url"
+                className="w-full rounded-lg border p-3"
+                placeholder="https://example.com/complete-issue.pdf"
+              />
+
+              <p className="mt-2 text-sm text-gray-500">
+                Enter the URL of the PDF containing all articles in this issue.
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="publishedAt" className="mb-2 block font-semibold">
+                Planned Publication Date
+              </label>
+
+              <input
+                id="publishedAt"
+                name="publishedAt"
+                type="date"
+                className="w-full rounded-lg border p-3"
               />
             </div>
 
@@ -311,28 +325,19 @@ export default async function AdminIssuesPage() {
       </section>
 
       <section className="rounded-xl border bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-semibold">
-          Existing Issues
-        </h2>
+        <h2 className="text-xl font-semibold">Existing Issues</h2>
 
         {issues.length === 0 ? (
-          <p className="mt-5 text-gray-600">
-            No issues have been created.
-          </p>
+          <p className="mt-5 text-gray-600">No issues have been created.</p>
         ) : (
           <div className="mt-6 space-y-6">
             {issues.map((issue) => {
-              const publishedArticles =
-                issue.articles.filter(
-                  (article) =>
-                    article.status === "PUBLISHED",
-                ).length;
+              const publishedArticles = issue.articles.filter(
+                (article) => article.status === "PUBLISHED",
+              ).length;
 
               return (
-                <article
-                  key={issue.id}
-                  className="rounded-xl border p-6"
-                >
+                <article key={issue.id} className="rounded-xl border p-6">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                       <p className="text-sm font-semibold text-blue-700">
@@ -340,31 +345,33 @@ export default async function AdminIssuesPage() {
                       </p>
 
                       <h3 className="mt-2 text-2xl font-bold">
-                        Volume {issue.volume.number}, Issue{" "}
-                        {issue.number}
+                        Volume {issue.volume.number}, Issue {issue.number}
                       </h3>
 
                       <p className="mt-1 text-sm text-gray-500">
                         {issue.volume.year}
                       </p>
 
-                      {issue.title && (
-                        <p className="mt-3 text-gray-700">
-                          {issue.title}
+                      {issue.slug && (
+                        <p className="mt-2 text-xs text-gray-500">
+                          Slug: <span className="font-mono">{issue.slug}</span>
                         </p>
+                      )}
+
+                      {issue.title && (
+                        <p className="mt-3 text-gray-700">{issue.title}</p>
                       )}
                     </div>
 
                     <div className="flex flex-wrap gap-2">
                       <span
-                        className={`rounded-full px-4 py-2 text-sm font-semibold ${issue.isPublished
-                          ? "bg-green-100 text-green-800"
-                          : "bg-yellow-100 text-yellow-800"
-                          }`}
+                        className={`rounded-full px-4 py-2 text-sm font-semibold ${
+                          issue.isPublished
+                            ? "bg-green-100 text-green-800"
+                            : "bg-yellow-100 text-yellow-800"
+                        }`}
                       >
-                        {issue.isPublished
-                          ? "Published"
-                          : "Draft"}
+                        {issue.isPublished ? "Published" : "Draft"}
                       </span>
 
                       {issue.isCurrent && (
@@ -377,13 +384,9 @@ export default async function AdminIssuesPage() {
 
                   <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <div>
-                      <p className="text-sm text-gray-500">
-                        Articles
-                      </p>
+                      <p className="text-sm text-gray-500">Articles</p>
 
-                      <p className="font-medium">
-                        {issue.articles.length}
-                      </p>
+                      <p className="font-medium">{issue.articles.length}</p>
                     </div>
 
                     <div>
@@ -391,15 +394,11 @@ export default async function AdminIssuesPage() {
                         Published Articles
                       </p>
 
-                      <p className="font-medium">
-                        {publishedArticles}
-                      </p>
+                      <p className="font-medium">{publishedArticles}</p>
                     </div>
 
                     <div>
-                      <p className="text-sm text-gray-500">
-                        Published Date
-                      </p>
+                      <p className="text-sm text-gray-500">Published Date</p>
 
                       <p className="font-medium">
                         {formatDate(issue.publishedAt)}
@@ -407,14 +406,10 @@ export default async function AdminIssuesPage() {
                     </div>
 
                     <div>
-                      <p className="text-sm text-gray-500">
-                        Volume Status
-                      </p>
+                      <p className="text-sm text-gray-500">Volume Status</p>
 
                       <p className="font-medium">
-                        {issue.volume.isPublished
-                          ? "Published"
-                          : "Draft"}
+                        {issue.volume.isPublished ? "Published" : "Draft"}
                       </p>
                     </div>
                   </div>
@@ -422,6 +417,16 @@ export default async function AdminIssuesPage() {
                   {issue.description && (
                     <div className="mt-5 whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm">
                       {issue.description}
+                    </div>
+                  )}
+
+                  {issue.editorial && (
+                    <div className="mt-5 rounded-lg border border-blue-100 bg-blue-50 p-4">
+                      <p className="font-semibold text-blue-900">Editorial</p>
+
+                      <p className="mt-2 whitespace-pre-wrap text-sm text-blue-900">
+                        {issue.editorial}
+                      </p>
                     </div>
                   )}
 
@@ -438,15 +443,42 @@ export default async function AdminIssuesPage() {
                     </div>
                   )}
 
+                  {issue.fullIssuePdf && (
+                    <div className="mt-5">
+                      <a
+                        href={issue.fullIssuePdf}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex rounded-lg border border-red-200 bg-red-50 px-4 py-3 font-semibold text-red-700 hover:bg-red-100"
+                      >
+                        View Complete Issue PDF
+                      </a>
+                    </div>
+                  )}
+
                   <form
                     action={updateIssue}
                     className="mt-6 grid gap-4 md:grid-cols-2"
                   >
-                    <input
-                      type="hidden"
-                      name="issueId"
-                      value={issue.id}
-                    />
+                    <input type="hidden" name="issueId" value={issue.id} />
+                    <div className="md:col-span-2">
+                      <label className="mb-2 block text-sm font-semibold">
+                        Issue Slug
+                      </label>
+
+                      <input
+                        name="slug"
+                        required
+                        defaultValue={issue.slug || ""}
+                        className="w-full rounded-lg border p-3 font-mono"
+                        placeholder="journal-volume-1-issue-1-2026"
+                      />
+
+                      <p className="mt-2 text-xs text-gray-500">
+                        Use lowercase words separated by hyphens. This becomes
+                        the public issue URL.
+                      </p>
+                    </div>
 
                     <div>
                       <label className="mb-2 block text-sm font-semibold">
@@ -468,9 +500,33 @@ export default async function AdminIssuesPage() {
                       <input
                         name="coverImage"
                         type="url"
-                        defaultValue={
-                          issue.coverImage || ""
-                        }
+                        defaultValue={issue.coverImage || ""}
+                        className="w-full rounded-lg border p-3"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold">
+                        Complete Issue PDF URL
+                      </label>
+
+                      <input
+                        name="fullIssuePdf"
+                        type="url"
+                        defaultValue={issue.fullIssuePdf || ""}
+                        className="w-full rounded-lg border p-3"
+                        placeholder="https://example.com/complete-issue.pdf"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold">
+                        Publication Date
+                      </label>
+
+                      <input
+                        name="publishedAt"
+                        type="date"
+                        defaultValue={formatDateInput(issue.publishedAt)}
                         className="w-full rounded-lg border p-3"
                       />
                     </div>
@@ -483,9 +539,20 @@ export default async function AdminIssuesPage() {
                       <textarea
                         name="description"
                         rows={4}
-                        defaultValue={
-                          issue.description || ""
-                        }
+                        defaultValue={issue.description || ""}
+                        className="w-full rounded-lg border p-3"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="mb-2 block text-sm font-semibold">
+                        Editorial or Editor&apos;s Note
+                      </label>
+
+                      <textarea
+                        name="editorial"
+                        rows={7}
+                        defaultValue={issue.editorial || ""}
                         className="w-full rounded-lg border p-3"
                       />
                     </div>
@@ -503,11 +570,7 @@ export default async function AdminIssuesPage() {
                   <div className="mt-6 flex flex-wrap gap-3">
                     {!issue.isPublished ? (
                       <form action={publishIssue}>
-                        <input
-                          type="hidden"
-                          name="issueId"
-                          value={issue.id}
-                        />
+                        <input type="hidden" name="issueId" value={issue.id} />
 
                         <button
                           type="submit"
@@ -518,11 +581,7 @@ export default async function AdminIssuesPage() {
                       </form>
                     ) : (
                       <form action={unpublishIssue}>
-                        <input
-                          type="hidden"
-                          name="issueId"
-                          value={issue.id}
-                        />
+                        <input type="hidden" name="issueId" value={issue.id} />
 
                         <button
                           type="submit"
@@ -533,31 +592,22 @@ export default async function AdminIssuesPage() {
                       </form>
                     )}
 
-                    {issue.isPublished &&
-                      !issue.isCurrent && (
-                        <form action={setCurrentIssue}>
-                          <input
-                            type="hidden"
-                            name="issueId"
-                            value={issue.id}
-                          />
+                    {issue.isPublished && !issue.isCurrent && (
+                      <form action={setCurrentIssue}>
+                        <input type="hidden" name="issueId" value={issue.id} />
 
-                          <button
-                            type="submit"
-                            className="rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"
-                          >
-                            Set as Current Issue
-                          </button>
-                        </form>
-                      )}
+                        <button
+                          type="submit"
+                          className="rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"
+                        >
+                          Set as Current Issue
+                        </button>
+                      </form>
+                    )}
 
                     {issue.isCurrent && (
                       <form action={clearCurrentIssue}>
-                        <input
-                          type="hidden"
-                          name="issueId"
-                          value={issue.id}
-                        />
+                        <input type="hidden" name="issueId" value={issue.id} />
 
                         <button
                           type="submit"
@@ -577,11 +627,7 @@ export default async function AdminIssuesPage() {
 
                     {issue.articles.length === 0 && (
                       <form action={deleteIssue}>
-                        <input
-                          type="hidden"
-                          name="issueId"
-                          value={issue.id}
-                        />
+                        <input type="hidden" name="issueId" value={issue.id} />
 
                         <button
                           type="submit"

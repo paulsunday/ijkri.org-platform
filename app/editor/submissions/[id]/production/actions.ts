@@ -222,7 +222,7 @@ export async function assignCopyeditor(formData: FormData) {
         await tx.activityLog.create({
             data: {
                 userId: editor.id,
-                action: "UPDATE",
+                action: "CREATE",
                 entity: "ProductionAssignment",
                 entityId: assignment.id,
                 metadata: {

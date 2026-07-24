@@ -1,30 +1,25 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
 import { sendEmail } from "@/lib/email/send-email";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const OPEN_REVIEW_STATUSES = [
-    "INVITED",
-    "ACCEPTED",
-] as const;
+const OPEN_REVIEW_STATUSES = ["INVITED", "ACCEPTED"] as const;
 
-const MILLISECONDS_PER_DAY =
-    24 * 60 * 60 * 1000;
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
 type ReminderCategory =
-    | "INVITATION_PENDING"
-    | "DUE_IN_THREE_DAYS"
-    | "DUE_TOMORROW"
-    | "OVERDUE";
+    "INVITATION_PENDING" | "DUE_IN_THREE_DAYS" | "DUE_TOMORROW" | "OVERDUE";
 
 function getAppUrl() {
-    return (
-        process.env.NEXT_PUBLIC_APP_URL ||
-        "http://localhost:3000"
-    ).replace(/\/+$/, "");
+    return (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(
+        /\/+$/,
+        "",
+    );
 }
 
 function getStartOfDay(value: Date) {
@@ -35,16 +30,12 @@ function getStartOfDay(value: Date) {
     return date;
 }
 
-function getDaysUntil(
-    dueDate: Date,
-    now: Date,
-) {
+function getDaysUntil(dueDate: Date, now: Date) {
     const dueDay = getStartOfDay(dueDate);
     const currentDay = getStartOfDay(now);
 
     return Math.round(
-        (dueDay.getTime() - currentDay.getTime()) /
-        MILLISECONDS_PER_DAY,
+        (dueDay.getTime() - currentDay.getTime()) / MILLISECONDS_PER_DAY,
     );
 }
 
@@ -83,18 +74,14 @@ function determineReminderCategory({
 }): ReminderCategory | null {
     if (
         !OPEN_REVIEW_STATUSES.includes(
-            status as
-            (typeof OPEN_REVIEW_STATUSES)[number],
+            status as (typeof OPEN_REVIEW_STATUSES)[number],
         )
     ) {
         return null;
     }
 
     if (dueDate) {
-        const daysUntilDue = getDaysUntil(
-            dueDate,
-            now,
-        );
+        const daysUntilDue = getDaysUntil(dueDate, now);
 
         if (daysUntilDue < 0) {
             return "OVERDUE";
@@ -110,13 +97,9 @@ function determineReminderCategory({
     }
 
     if (status === "INVITED") {
-        const invitationAge =
-            now.getTime() - invitedAt.getTime();
+        const invitationAge = now.getTime() - invitedAt.getTime();
 
-        if (
-            invitationAge >=
-            3 * MILLISECONDS_PER_DAY
-        ) {
+        if (invitationAge >= 3 * MILLISECONDS_PER_DAY) {
             return "INVITATION_PENDING";
         }
     }
@@ -146,52 +129,40 @@ function getReminderContent({
 
     switch (category) {
         case "INVITATION_PENDING":
-            subject =
-                `Reminder: review invitation for "${manuscriptTitle}"`;
+            subject = `Reminder: review invitation for "${manuscriptTitle}"`;
 
-            message =
-                "You have not yet accepted or declined this review invitation.";
+            message = "You have not yet accepted or declined this review invitation.";
             break;
 
         case "DUE_IN_THREE_DAYS":
-            subject =
-                `Review due in three days: "${manuscriptTitle}"`;
+            subject = `Review due in three days: "${manuscriptTitle}"`;
 
-            message =
-                "Your accepted review assignment is due in three days.";
+            message = "Your accepted review assignment is due in three days.";
             break;
 
         case "DUE_TOMORROW":
-            subject =
-                `Review due tomorrow: "${manuscriptTitle}"`;
+            subject = `Review due tomorrow: "${manuscriptTitle}"`;
 
-            message =
-                "Your accepted review assignment is due tomorrow.";
+            message = "Your accepted review assignment is due tomorrow.";
             break;
 
         case "OVERDUE":
-            subject =
-                `Overdue review reminder: "${manuscriptTitle}"`;
+            subject = `Overdue review reminder: "${manuscriptTitle}"`;
 
             message =
                 "The deadline for this review assignment has passed, and the report is still outstanding.";
             break;
     }
 
-    const safeReviewerName =
-        escapeHtml(reviewerName);
+    const safeReviewerName = escapeHtml(reviewerName);
 
-    const safeManuscriptTitle =
-        escapeHtml(manuscriptTitle);
+    const safeManuscriptTitle = escapeHtml(manuscriptTitle);
 
-    const safeJournalName =
-        escapeHtml(journalName);
+    const safeJournalName = escapeHtml(journalName);
 
-    const safeMessage =
-        escapeHtml(message);
+    const safeMessage = escapeHtml(message);
 
-    const dueDateText =
-        formatDate(dueDate);
+    const dueDateText = formatDate(dueDate);
 
     const text = [
         `Dear ${reviewerName},`,
@@ -274,28 +245,44 @@ function getReminderContent({
     };
 }
 
-function isAuthorized(request: NextRequest) {
-    const cronSecret =
-        process.env.CRON_SECRET;
+function securelyMatches(
+    providedValue: string,
+    expectedValue: string,
+): boolean {
+    const providedBuffer = Buffer.from(providedValue);
+
+    const expectedBuffer = Buffer.from(expectedValue);
+
+    if (providedBuffer.length !== expectedBuffer.length) {
+        return false;
+    }
+
+    return timingSafeEqual(providedBuffer, expectedBuffer);
+}
+
+function isAuthorized(request: NextRequest): boolean {
+    const cronSecret = process.env.CRON_SECRET;
 
     if (!cronSecret) {
-        console.error(
-            "CRON_SECRET is not configured.",
-        );
+        logger.error("CRON_SECRET is not configured");
 
         return false;
     }
 
-    const authorization =
-        request.headers.get("authorization");
+    const authorization = request.headers.get("authorization");
 
-    return authorization ===
-        `Bearer ${cronSecret}`;
+    if (!authorization?.startsWith("Bearer ")) {
+        return false;
+    }
+
+    const suppliedSecret = authorization
+        .slice("Bearer ".length)
+        .trim();
+
+    return securelyMatches(suppliedSecret, cronSecret);
 }
 
-export async function GET(
-    request: NextRequest,
-) {
+export async function GET(request: NextRequest) {
     if (!isAuthorized(request)) {
         return NextResponse.json(
             {
@@ -304,54 +291,52 @@ export async function GET(
             },
             {
                 status: 401,
+                headers: {
+                    "Cache-Control": "no-store",
+                },
             },
         );
     }
 
     const now = new Date();
-    const startOfToday =
-        getStartOfDay(now);
+    const startOfToday = getStartOfDay(now);
 
-    const assignments =
-        await prisma.reviewAssignment.findMany({
-            where: {
-                status: {
-                    in: [
-                        "INVITED",
-                        "ACCEPTED",
-                    ],
-                },
+    const assignments = await prisma.reviewAssignment.findMany({
+        where: {
+            status: {
+                in: ["INVITED", "ACCEPTED"],
+            },
 
-                reviewer: {
-                    isActive: true,
+            reviewer: {
+                isActive: true,
+            },
+        },
+
+        include: {
+            reviewer: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
                 },
             },
 
-            include: {
-                reviewer: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                    },
-                },
+            submission: {
+                select: {
+                    id: true,
+                    title: true,
 
-                submission: {
-                    select: {
-                        id: true,
-                        title: true,
-
-                        journal: {
-                            select: {
-                                id: true,
-                                name: true,
-                                shortName: true,
-                            },
+                    journal: {
+                        select: {
+                            id: true,
+                            name: true,
+                            shortName: true,
                         },
                     },
                 },
             },
-        });
+        },
+    });
 
     let sentCount = 0;
     let skippedCount = 0;
@@ -365,13 +350,12 @@ export async function GET(
     }> = [];
 
     for (const assignment of assignments) {
-        const category =
-            determineReminderCategory({
-                status: assignment.status,
-                invitedAt: assignment.invitedAt,
-                dueDate: assignment.dueDate,
-                now,
-            });
+        const category = determineReminderCategory({
+            status: assignment.status,
+            invitedAt: assignment.invitedAt,
+            dueDate: assignment.dueDate,
+            now,
+        });
 
         if (!category) {
             skippedCount += 1;
@@ -379,34 +363,31 @@ export async function GET(
             results.push({
                 assignmentId: assignment.id,
                 status: "SKIPPED",
-                message:
-                    "No reminder is due today.",
+                message: "No reminder is due today.",
             });
 
             continue;
         }
 
-        const existingReminder =
-            await prisma.activityLog.findFirst({
-                where: {
-                    entity: "ReviewAssignment",
-                    entityId: assignment.id,
-                    action: "UPDATE",
-                    createdAt: {
-                        gte: startOfToday,
-                    },
-
-                    metadata: {
-                        path: ["event"],
-                        equals:
-                            "AUTOMATIC_REVIEW_REMINDER_SENT",
-                    },
+        const existingReminder = await prisma.activityLog.findFirst({
+            where: {
+                entity: "ReviewAssignment",
+                entityId: assignment.id,
+                action: "UPDATE",
+                createdAt: {
+                    gte: startOfToday,
                 },
 
-                select: {
-                    id: true,
+                metadata: {
+                    path: ["event"],
+                    equals: "AUTOMATIC_REVIEW_REMINDER_SENT",
                 },
-            });
+            },
+
+            select: {
+                id: true,
+            },
+        });
 
         if (existingReminder) {
             skippedCount += 1;
@@ -415,31 +396,23 @@ export async function GET(
                 assignmentId: assignment.id,
                 category,
                 status: "SKIPPED",
-                message:
-                    "A reminder was already sent today.",
+                message: "A reminder was already sent today.",
             });
 
             continue;
         }
 
-        const reviewUrl =
-            `${getAppUrl()}/reviewer/reviews/${assignment.id}`;
+        const reviewUrl = `${getAppUrl()}/reviewer/reviews/${assignment.id}`;
 
-        const content =
-            getReminderContent({
-                category,
-                reviewerName:
-                    assignment.reviewer.name,
-                manuscriptTitle:
-                    assignment.submission.title,
-                journalName:
-                    assignment.submission.journal.name,
-                reviewRound:
-                    assignment.reviewRound,
-                dueDate:
-                    assignment.dueDate,
-                reviewUrl,
-            });
+        const content = getReminderContent({
+            category,
+            reviewerName: assignment.reviewer.name,
+            manuscriptTitle: assignment.submission.title,
+            journalName: assignment.submission.journal.name,
+            reviewRound: assignment.reviewRound,
+            dueDate: assignment.dueDate,
+            reviewUrl,
+        });
 
         try {
             await sendEmail({
@@ -449,61 +422,40 @@ export async function GET(
                 text: content.text,
             });
 
-            await prisma.$transaction(
-                async (tx) => {
-                    await tx.notification.create({
-                        data: {
-                            userId:
-                                assignment.reviewer.id,
-                            type: "REVIEW",
-                            title:
-                                category === "OVERDUE"
-                                    ? "Review overdue"
-                                    : "Review reminder",
-                            message:
-                                `A reminder was sent for "${assignment.submission.title}" in review round ${assignment.reviewRound}.`,
-                            link:
-                                `/reviewer/reviews/${assignment.id}`,
-                        },
-                    });
+            await prisma.$transaction(async (tx) => {
+                await tx.notification.create({
+                    data: {
+                        userId: assignment.reviewer.id,
+                        type: "REVIEW",
+                        title:
+                            category === "OVERDUE" ? "Review overdue" : "Review reminder",
+                        message: `A reminder was sent for "${assignment.submission.title}" in review round ${assignment.reviewRound}.`,
+                        link: `/reviewer/reviews/${assignment.id}`,
+                    },
+                });
 
-                    await tx.activityLog.create({
-                        data: {
-                            userId: null,
-                            action: "UPDATE",
-                            entity:
-                                "ReviewAssignment",
-                            entityId:
-                                assignment.id,
+                await tx.activityLog.create({
+                    data: {
+                        userId: null,
+                        action: "UPDATE",
+                        entity: "ReviewAssignment",
+                        entityId: assignment.id,
 
-                            metadata: {
-                                event:
-                                    "AUTOMATIC_REVIEW_REMINDER_SENT",
-                                category,
-                                submissionId:
-                                    assignment.submission.id,
-                                journalId:
-                                    assignment.submission
-                                        .journal.id,
-                                reviewerId:
-                                    assignment.reviewer.id,
-                                reviewerEmail:
-                                    assignment.reviewer.email,
-                                reviewRound:
-                                    assignment.reviewRound,
-                                assignmentStatus:
-                                    assignment.status,
-                                dueDate:
-                                    assignment.dueDate
-                                        ?.toISOString() ||
-                                    null,
-                                sentAt:
-                                    new Date().toISOString(),
-                            },
+                        metadata: {
+                            event: "AUTOMATIC_REVIEW_REMINDER_SENT",
+                            category,
+                            submissionId: assignment.submission.id,
+                            journalId: assignment.submission.journal.id,
+                            reviewerId: assignment.reviewer.id,
+                            reviewerEmail: assignment.reviewer.email,
+                            reviewRound: assignment.reviewRound,
+                            assignmentStatus: assignment.status,
+                            dueDate: assignment.dueDate?.toISOString() || null,
+                            sentAt: new Date().toISOString(),
                         },
-                    });
-                },
-            );
+                    },
+                });
+            });
 
             sentCount += 1;
 
@@ -515,39 +467,43 @@ export async function GET(
         } catch (error) {
             failedCount += 1;
 
-            console.error(
-                "Automatic reviewer reminder failed:",
-                {
-                    assignmentId:
-                        assignment.id,
-                    reviewerEmail:
-                        assignment.reviewer.email,
-                    category,
-                    error,
-                },
-            );
+            logger.error("Automatic reviewer reminder failed", {
+                assignmentId: assignment.id,
+                reviewerEmail: assignment.reviewer.email,
+                category,
+                error:
+                    error instanceof Error
+                        ? {
+                            name: error.name,
+                            message: error.message,
+                            stack: error.stack,
+                        }
+                        : error,
+            });
 
             results.push({
                 assignmentId: assignment.id,
                 category,
                 status: "FAILED",
-                message:
-                    error instanceof Error
-                        ? error.message
-                        : "Unknown error",
+                message: error instanceof Error ? error.message : "Unknown error",
             });
         }
     }
 
-    return NextResponse.json({
-        success: true,
-        processed:
-            assignments.length,
-        sent: sentCount,
-        skipped: skippedCount,
-        failed: failedCount,
-        executedAt:
-            new Date().toISOString(),
-        results,
-    });
+    return NextResponse.json(
+        {
+            success: true,
+            processed: assignments.length,
+            sent: sentCount,
+            skipped: skippedCount,
+            failed: failedCount,
+            executedAt: new Date().toISOString(),
+            results,
+        },
+        {
+            headers: {
+                "Cache-Control": "no-store",
+            },
+        },
+    );
 }

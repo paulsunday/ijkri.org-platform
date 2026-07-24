@@ -6,17 +6,14 @@ import { redirect } from "next/navigation";
 import { requireAnyActionRole } from "@/lib/auth/permissions";
 import { AUTHOR_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
-import {
-  deleteJournalFile,
-  uploadJournalFile,
-} from "@/lib/storage/blob";
+import { deleteJournalFile, uploadJournalFile } from "@/lib/storage/blob";
 import type { UploadResult } from "@/lib/storage/types";
 
 async function safelyDeleteUploadedFiles(
   uploads: Array<UploadResult | undefined>,
 ) {
-  const completedUploads = uploads.filter(
-    (upload): upload is UploadResult => Boolean(upload),
+  const completedUploads = uploads.filter((upload): upload is UploadResult =>
+    Boolean(upload),
   );
 
   await Promise.allSettled(
@@ -29,29 +26,20 @@ async function safelyDeleteUploadedFiles(
 export async function submitRevision(formData: FormData) {
   const author = await requireAnyActionRole(AUTHOR_ROLES);
 
-  const submissionId = String(
-    formData.get("submissionId") || "",
-  ).trim();
+  const submissionId = String(formData.get("submissionId") || "").trim();
 
-  const authorNotes = String(
-    formData.get("authorNotes") || "",
-  ).trim();
+  const authorNotes = String(formData.get("authorNotes") || "").trim();
 
-  const coverLetter = String(
-    formData.get("coverLetter") || "",
-  ).trim();
+  const coverLetter = String(formData.get("coverLetter") || "").trim();
 
   const manuscriptFileValue = formData.get("manuscriptFile");
   const responseFileValue = formData.get("responseFile");
 
   const manuscriptFile =
-    manuscriptFileValue instanceof File
-      ? manuscriptFileValue
-      : null;
+    manuscriptFileValue instanceof File ? manuscriptFileValue : null;
 
   const responseFile =
-    responseFileValue instanceof File &&
-      responseFileValue.size > 0
+    responseFileValue instanceof File && responseFileValue.size > 0
       ? responseFileValue
       : null;
 
@@ -107,8 +95,7 @@ export async function submitRevision(formData: FormData) {
     );
   }
 
-  const latestVersionNumber =
-    submission.versions[0]?.versionNumber || 1;
+  const latestVersionNumber = submission.versions[0]?.versionNumber || 1;
 
   const nextVersionNumber = latestVersionNumber + 1;
 
@@ -142,10 +129,7 @@ export async function submitRevision(formData: FormData) {
       });
     }
   } catch (error) {
-    await safelyDeleteUploadedFiles([
-      manuscriptUpload,
-      responseUpload,
-    ]);
+    await safelyDeleteUploadedFiles([manuscriptUpload, responseUpload]);
 
     throw error;
   }
@@ -159,12 +143,10 @@ export async function submitRevision(formData: FormData) {
           versionNumber: nextVersionNumber,
 
           manuscriptFileUrl: manuscriptUpload.url,
-          manuscriptFileName:
-            manuscriptUpload.originalFilename,
+          manuscriptFileName: manuscriptUpload.originalFilename,
 
           responseFileUrl: responseUpload?.url,
-          responseFileName:
-            responseUpload?.originalFilename,
+          responseFileName: responseUpload?.originalFilename,
 
           coverLetter: coverLetter || null,
           authorNotes: authorNotes || null,
@@ -199,14 +181,14 @@ export async function submitRevision(formData: FormData) {
           entity: "SubmissionVersion",
           entityId: submissionId,
           metadata: {
+            event: "REVISION_SUBMITTED",
+            submissionId,
+            submissionTitle: submission.title,
             versionNumber: nextVersionNumber,
-            manuscriptFileName:
-              manuscriptUpload.originalFilename,
+            manuscriptFileName: manuscriptUpload.originalFilename,
             manuscriptFileUrl: manuscriptUpload.url,
-            responseFileName:
-              responseUpload?.originalFilename || null,
-            responseFileUrl:
-              responseUpload?.url || null,
+            responseFileName: responseUpload?.originalFilename ?? null,
+            responseFileUrl: responseUpload?.url ?? null,
             storageProvider: "VERCEL_BLOB",
           },
         },
@@ -217,21 +199,14 @@ export async function submitRevision(formData: FormData) {
      * Uploads have already succeeded, but the database transaction failed.
      * Remove the uploaded Blob objects so they do not become orphaned files.
      */
-    await safelyDeleteUploadedFiles([
-      manuscriptUpload,
-      responseUpload,
-    ]);
+    await safelyDeleteUploadedFiles([manuscriptUpload, responseUpload]);
 
     throw error;
   }
 
-  revalidatePath(
-    `/author/submissions/${submissionId}/revision`,
-  );
+  revalidatePath(`/author/submissions/${submissionId}/revision`);
 
-  revalidatePath(
-    `/author/submissions/${submissionId}`,
-  );
+  revalidatePath(`/author/submissions/${submissionId}`);
 
   revalidatePath("/author/dashboard");
   revalidatePath(`/editor/submissions/${submissionId}`);
