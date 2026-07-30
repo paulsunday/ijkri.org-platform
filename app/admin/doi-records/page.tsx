@@ -8,6 +8,7 @@ import {
   markDoiFailed,
   markDoiRegistered,
   resetDoiToPending,
+  submitDoiRegistration,
 } from "./actions";
 
 function formatDate(
@@ -164,7 +165,9 @@ export default async function DoiRecordsPage() {
           </h2>
 
           <p className="text-sm text-gray-500">
-            Crossref submission will be connected later.
+            Automated registration submits deposit XML to Crossref
+            (test.crossref.org unless production credentials are
+            configured).
           </p>
         </div>
 
@@ -294,6 +297,26 @@ export default async function DoiRecordsPage() {
 
                   {currentManager && (
                     <div className="mt-6 flex flex-wrap gap-4">
+                      {article &&
+                        record.status !== "REGISTERED" && (
+                          <form
+                            action={submitDoiRegistration}
+                          >
+                            <input
+                              type="hidden"
+                              name="doiRecordId"
+                              value={record.id}
+                            />
+
+                            <button
+                              type="submit"
+                              className="rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"
+                            >
+                              Submit to Crossref
+                            </button>
+                          </form>
+                        )}
+
                       {record.status !== "REGISTERED" && (
                         <form action={markDoiRegistered}>
                           <input
@@ -312,7 +335,7 @@ export default async function DoiRecordsPage() {
                             type="submit"
                             className="rounded-lg bg-green-700 px-5 py-3 font-semibold text-white hover:bg-green-800"
                           >
-                            Mark Registered
+                            Mark Registered Manually
                           </button>
                         </form>
                       )}

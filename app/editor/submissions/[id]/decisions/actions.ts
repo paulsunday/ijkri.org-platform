@@ -13,6 +13,8 @@ import {
 } from "@/lib/email/templates";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { createApcInvoice } from "@/lib/payments/create-apc-invoice";
+import type { Invoice } from "@/lib/generated/prisma";
 
 const VALID_DECISIONS = ["REVISION_REQUIRED", "ACCEPTED", "REJECTED"] as const;
 
@@ -220,10 +222,8 @@ export async function sendEditorialDecision(formData: FormData) {
 
   if (pendingAssignments.length > 0) {
     throw new Error(
-      `An editorial decision cannot yet be made. ${
-        pendingAssignments.length
-      } review assignment${
-        pendingAssignments.length === 1 ? " is" : "s are"
+      `An editorial decision cannot yet be made. ${pendingAssignments.length
+      } review assignment${pendingAssignments.length === 1 ? " is" : "s are"
       } still outstanding in review round ${currentRound}.`,
     );
   }
@@ -282,13 +282,35 @@ export async function sendEditorialDecision(formData: FormData) {
       },
     });
 
+    let invoice: Invoice | null = null;
+
+    if (decision === "ACCEPTED") {
+      const result = await createApcInvoice(tx, submissionId);
+      invoice = result.invoice;
+    }
+
     await tx.notification.create({
       data: {
         userId: submission.authorId,
-        type: "DECISION",
-        title: decisionTitle,
-        message: decisionMessage,
-        link: authorNotificationLink,
+
+        type: decision === "ACCEPTED"
+          ? "PAYMENT"
+          : "DECISION",
+
+        title:
+          decision === "ACCEPTED"
+            ? "Article Accepted – APC Invoice Issued"
+            : decisionTitle,
+
+        message:
+          decision === "ACCEPTED" && invoice
+            ? `Your manuscript has been accepted. APC Invoice ${invoice.invoiceNumber} has been issued for ${invoice.currency} ${invoice.amount.toFixed(2)}.`
+            : decisionMessage,
+
+        link:
+          decision === "ACCEPTED" && invoice
+            ? `/author/invoices/${invoice.id}`
+            : authorNotificationLink,
       },
     });
 
@@ -309,6 +331,10 @@ export async function sendEditorialDecision(formData: FormData) {
           journalName: submission.journal.name,
           reviewRound: currentRound,
           decision,
+          invoiceId: invoice?.id ?? null,
+          invoiceNumber: invoice?.invoiceNumber ?? null,
+          invoiceAmount: invoice?.amount?.toString() ?? null,
+          invoiceCurrency: invoice?.currency ?? null,
           revisionDeadline: revisionDeadline?.toISOString() || null,
           submittedReviewCount: submittedReviews.length,
 
@@ -405,6 +431,8 @@ export async function sendEditorialDecision(formData: FormData) {
 
   revalidatePath("/editor/dashboard");
   revalidatePath("/author/dashboard");
+  revalidatePath("/author/invoices");
+  revalidatePath("/admin/payments");
   revalidatePath("/admin/submissions");
 
   redirect(`/editor/submissions/${submissionId}`);

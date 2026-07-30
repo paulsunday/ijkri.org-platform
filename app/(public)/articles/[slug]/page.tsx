@@ -129,7 +129,11 @@ async function getPublishedArticle(slug: string) {
     },
 
     include: {
-      journal: true,
+      journal: {
+        include: {
+          publisher: true,
+        },
+      },
 
       issue: {
         include: {
@@ -178,6 +182,54 @@ async function getPublishedArticle(slug: string) {
       },
     },
   });
+}
+
+function normalizeOrcid(
+  orcid: string | null | undefined,
+): string | null {
+  const trimmed = orcid
+    ?.replace("https://orcid.org/", "")
+    .trim();
+
+  return trimmed || null;
+}
+
+/**
+ * Authors are stored as free-text ArticleAuthor rows (no
+ * relation to User), so a verified ORCID iD is confirmed by
+ * matching the author's ORCID string against a User account
+ * that has completed ORCID OAuth verification.
+ */
+async function getVerifiedOrcidSet(
+  orcids: (string | null)[],
+): Promise<Set<string>> {
+  const uniqueOrcids = Array.from(
+    new Set(orcids.filter((value): value is string => Boolean(value))),
+  );
+
+  if (uniqueOrcids.length === 0) {
+    return new Set();
+  }
+
+  const verifiedUsers = await prisma.user.findMany({
+    where: {
+      orcid: {
+        in: uniqueOrcids,
+      },
+      orcidVerifiedAt: {
+        not: null,
+      },
+    },
+    select: {
+      orcid: true,
+    },
+  });
+
+  return new Set(
+    verifiedUsers
+      .map((user) => user.orcid)
+      .filter((value): value is string => Boolean(value)),
+  );
 }
 
 export async function generateMetadata({
@@ -271,6 +323,12 @@ export async function generateMetadata({
 
       citation_journal_title: article.journal.name,
 
+      citation_issn:
+        article.journal.issnOnline || article.journal.issnPrint || "",
+
+      citation_publisher:
+        article.journal.publisher?.name || article.journal.name,
+
       citation_publication_date:
         article.publishedAt?.toISOString().split("T")[0] || "",
 
@@ -310,6 +368,10 @@ export default async function PublicArticlePage({ params }: PageProps) {
   if (!article) {
     notFound();
   }
+
+  const verifiedOrcids = await getVerifiedOrcidSet(
+    article.authors.map((author) => normalizeOrcid(author.orcid)),
+  );
 
   const productionFile = article.submission?.productionFiles.find(
     (file) =>
@@ -628,9 +690,14 @@ export default async function PublicArticlePage({ params }: PageProps) {
 
                 <div className="divide-y divide-slate-200">
                   {article.authors.map((author, index) => {
-                    const cleanOrcid = author.orcid
-                      ?.replace("https://orcid.org/", "")
-                      .trim();
+                    const cleanOrcid = normalizeOrcid(
+                      author.orcid,
+                    );
+
+                    const isOrcidVerified = Boolean(
+                      cleanOrcid &&
+                        verifiedOrcids.has(cleanOrcid),
+                    );
 
                     return (
                       <div
@@ -687,6 +754,11 @@ export default async function PublicArticlePage({ params }: PageProps) {
                                 >
                                   {cleanOrcid}
                                 </a>
+                                {isOrcidVerified && (
+                                  <span className="ml-2 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-800">
+                                    Verified
+                                  </span>
+                                )}
                               </p>
                             )}
 

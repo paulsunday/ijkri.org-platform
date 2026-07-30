@@ -132,12 +132,21 @@ export default async function AuthorDashboardPage() {
                     </p>
                 </div>
 
-                <Link
-                    href="/author/submit"
-                    className="rounded-lg bg-orange-500 px-6 py-3 font-semibold text-white hover:bg-orange-600"
-                >
-                    Submit New Manuscript
-                </Link>
+                <div className="flex flex-wrap items-center gap-3">
+                    <Link
+                        href="/account"
+                        className="rounded-lg border px-6 py-3 font-semibold hover:bg-gray-50"
+                    >
+                        My Account
+                    </Link>
+
+                    <Link
+                        href="/author/submit"
+                        className="rounded-lg bg-orange-500 px-6 py-3 font-semibold text-white hover:bg-orange-600"
+                    >
+                        Submit New Manuscript
+                    </Link>
+                </div>
             </header>
 
             <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">

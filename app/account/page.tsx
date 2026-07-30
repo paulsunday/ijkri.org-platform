@@ -3,6 +3,11 @@
 import LogoutButton from "@/components/auth/logout-button";
 import { requireCurrentUser } from "@/lib/auth/current-user";
 
+import {
+    disconnectOrcid,
+    startOrcidConnect,
+} from "./orcid/actions";
+
 function getDashboardPath(
     roles: {
         role: string;
@@ -50,11 +55,27 @@ function getDashboardPath(
     return null;
 }
 
-export default async function AccountPage() {
+type AccountPageProps = {
+    searchParams: Promise<{
+        orcidConnected?: string;
+        orcidError?: string;
+    }>;
+};
+
+export default async function AccountPage({
+    searchParams,
+}: AccountPageProps) {
     const user = await requireCurrentUser();
 
     const dashboardPath =
         getDashboardPath(user.roles);
+
+    const { orcidConnected, orcidError } =
+        await searchParams;
+
+    const isOrcidVerified = Boolean(
+        user.orcid && user.orcidVerifiedAt,
+    );
 
     return (
         <main className="mx-auto max-w-3xl p-8">
@@ -72,6 +93,25 @@ export default async function AccountPage() {
                         View your account information and continue to your workspace.
                     </p>
                 </div>
+
+                {orcidConnected && (
+                    <div
+                        role="status"
+                        className="mt-6 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800"
+                    >
+                        Your ORCID iD has been verified and
+                        connected to your account.
+                    </div>
+                )}
+
+                {orcidError && (
+                    <div
+                        role="alert"
+                        className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+                    >
+                        {orcidError}
+                    </div>
+                )}
 
                 <div className="mt-8 grid gap-5 rounded-lg bg-gray-50 p-5 md:grid-cols-2">
                     <div>
@@ -115,6 +155,63 @@ export default async function AccountPage() {
                             {user.roles.length}
                         </p>
                     </div>
+                </div>
+
+                <div className="mt-6 rounded-lg border p-5">
+                    <p className="text-sm text-gray-500">
+                        ORCID iD
+                    </p>
+
+                    {isOrcidVerified ? (
+                        <>
+                            <p className="mt-2 flex flex-wrap items-center gap-2 font-semibold">
+                                <a
+                                    href={`https://orcid.org/${user.orcid}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-700 hover:underline"
+                                >
+                                    {user.orcid}
+                                </a>
+
+                                <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-800">
+                                    Verified
+                                </span>
+                            </p>
+
+                            <form
+                                action={disconnectOrcid}
+                                className="mt-4"
+                            >
+                                <button
+                                    type="submit"
+                                    className="rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-gray-50"
+                                >
+                                    Disconnect ORCID
+                                </button>
+                            </form>
+                        </>
+                    ) : (
+                        <>
+                            <p className="mt-2 text-gray-600">
+                                Connect your ORCID iD to
+                                verifiably link your identity
+                                to your published articles.
+                            </p>
+
+                            <form
+                                action={startOrcidConnect}
+                                className="mt-4"
+                            >
+                                <button
+                                    type="submit"
+                                    className="rounded-lg bg-green-700 px-5 py-3 font-semibold text-white hover:bg-green-800"
+                                >
+                                    Connect your ORCID iD
+                                </button>
+                            </form>
+                        </>
+                    )}
                 </div>
 
                 <div className="mt-8 flex flex-wrap gap-3">

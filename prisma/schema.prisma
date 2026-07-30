@@ -37,29 +37,217 @@ model Publisher {
   @@index([slug])
 }
 
+model Invoice {
+  id            String        @id @default(cuid())
+  journalId     String
+  submissionId  String        @unique
+  userId        String
+  invoiceNumber String        @unique
+  amount        Decimal       @db.Decimal(10, 2)
+  currency      Currency      @default(USD)
+  status        InvoiceStatus @default(PENDING)
+  dueAt         DateTime?
+  paidAt        DateTime?
+  waivedAt      DateTime?
+  waivedAmount  Decimal?      @db.Decimal(10, 2)
+  waivedReason  String?
+  waivedById    String?
+  voidedAt      DateTime?
+  waivedBy      User?         @relation("InvoiceWaiverApprover", fields: [waivedById], references: [id], onDelete: SetNull)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  journal    Journal    @relation(fields: [journalId], references: [id], onDelete: Restrict)
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  payments   Payment[]
+
+  @@index([journalId])
+  @@index([userId])
+  @@index([status])
+  @@index([dueAt])
+  @@index([waivedById])
+}
+
+model Refund {
+  id                String       @id @default(cuid())
+  paymentId         String
+  processedById     String?
+  amount            Decimal      @db.Decimal(10, 2)
+  currency          Currency     @default(USD)
+  status            RefundStatus @default(PENDING)
+  internalReference String       @unique
+  providerReference String?      @unique
+  reason            String
+  providerResponse  Json?
+  failureReason     String?
+  requestedAt       DateTime     @default(now())
+  processedAt       DateTime?
+  failedAt          DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  payment     Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  processedBy User?   @relation("RefundProcessor", fields: [processedById], references: [id], onDelete: SetNull)
+
+  @@index([paymentId])
+  @@index([processedById])
+  @@index([status])
+  @@index([requestedAt])
+}
+
+model Payment {
+  id                String          @id @default(cuid())
+  journalId         String
+  userId            String
+  invoiceId         String?
+  subscriptionId    String?
+  articlePurchaseId String?
+  providerStatus    String?
+  providerChannel   String?
+  providerFees      Decimal?        @db.Decimal(10, 2)
+  paidAmount        Decimal?        @db.Decimal(10, 2)
+  customerEmail     String?
+  verifiedAt        DateTime?
+  purpose           PaymentPurpose
+  provider          PaymentProvider @default(PAYSTACK)
+  status            PaymentStatus   @default(PENDING)
+  amount            Decimal         @db.Decimal(10, 2)
+  currency          Currency        @default(USD)
+  internalReference String          @unique
+  providerReference String?         @unique
+  receiptNumber     String?         @unique
+  authorizationUrl  String?
+  providerResponse  Json?
+  failureReason     String?
+  initiatedAt       DateTime        @default(now())
+  paidAt            DateTime?
+  failedAt          DateTime?
+  cancelledAt       DateTime?
+  refundedAt        DateTime?
+  refundedAmount    Decimal?        @db.Decimal(10, 2)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  journal         Journal             @relation(fields: [journalId], references: [id], onDelete: Restrict)
+  user            User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  invoice         Invoice?            @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  subscription    Subscription?       @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  articlePurchase ArticlePurchase?    @relation(fields: [articlePurchaseId], references: [id], onDelete: SetNull)
+  refunds         Refund[]
+  webhookLogs     PaymentWebhookLog[]
+
+  @@index([journalId])
+  @@index([userId])
+  @@index([invoiceId])
+  @@index([subscriptionId])
+  @@index([articlePurchaseId])
+  @@index([purpose])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Subscription {
+  id          String             @id @default(cuid())
+  journalId   String
+  userId      String
+  status      SubscriptionStatus @default(PENDING)
+  amount      Decimal            @db.Decimal(10, 2)
+  currency    Currency           @default(USD)
+  startsAt    DateTime?
+  expiresAt   DateTime?
+  cancelledAt DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  journal        Journal   @relation(fields: [journalId], references: [id], onDelete: Restrict)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  payments       Payment[]
+  durationMonths Int       @default(1)
+  planName       String    @default("Reader Subscription")
+
+  @@index([journalId])
+  @@index([userId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model ArticlePurchase {
+  id              String    @id @default(cuid())
+  journalId       String
+  articleId       String
+  userId          String
+  amount          Decimal   @db.Decimal(10, 2)
+  currency        Currency  @default(USD)
+  accessGrantedAt DateTime?
+  accessRevokedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  journal  Journal   @relation(fields: [journalId], references: [id], onDelete: Restrict)
+  article  Article   @relation(fields: [articleId], references: [id], onDelete: Restrict)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  payments Payment[]
+
+  @@unique([userId, articleId])
+  @@index([journalId])
+  @@index([articleId])
+  @@index([userId])
+  @@index([accessGrantedAt])
+}
+
+model PaymentWebhookLog {
+  id                 String          @id @default(cuid())
+  paymentId          String?
+  provider           PaymentProvider @default(PAYSTACK)
+  providerEventId    String?         @unique
+  eventType          String
+  signatureValid     Boolean         @default(false)
+  processed          Boolean         @default(false)
+  processingAttempts Int             @default(0)
+  payload            Json
+  errorMessage       String?
+  receivedAt         DateTime        @default(now())
+  lastAttemptAt      DateTime?
+  processedAt        DateTime?
+
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([paymentId])
+  @@index([eventType])
+  @@index([processed])
+  @@index([receivedAt])
+}
+
 model User {
-  id                           String                 @id @default(cuid())
-  name                         String
-  email                        String                 @unique
-  passwordHash                 String?
-  image                        String?
-  orcid                        String?
-  bio                          String?
-  affiliation                  String?
-  country                      String?
-  phone                        String?
-  lastLogin                    DateTime?
-  isActive                     Boolean                @default(true)
-  createdAt                    DateTime               @default(now())
-  updatedAt                    DateTime               @updatedAt
-  emailVerified                DateTime?
-  failedLoginAttempts          Int                    @default(0)
-  lockedUntil                  DateTime?
-  passwordChangedAt            DateTime?
-  reviewedCareerApplications   CareerApplication[]    @relation("CareerApplicationReviewer")
-  careerApplications           CareerApplication[]    @relation("CareerApplicationApplicant")
-  decisions                    EditorialDecision[]
-  notifications                Notification[]
+  id                         String              @id @default(cuid())
+  name                       String
+  email                      String              @unique
+  passwordHash               String?
+  image                      String?
+  orcid                      String?
+  orcidVerifiedAt            DateTime?
+  bio                        String?
+  affiliation                String?
+  country                    String?
+  phone                      String?
+  lastLogin                  DateTime?
+  isActive                   Boolean             @default(true)
+  createdAt                  DateTime            @default(now())
+  updatedAt                  DateTime            @updatedAt
+  emailVerified              DateTime?
+  failedLoginAttempts        Int                 @default(0)
+  lockedUntil                DateTime?
+  passwordChangedAt          DateTime?
+  reviewedCareerApplications CareerApplication[] @relation("CareerApplicationReviewer")
+  careerApplications         CareerApplication[] @relation("CareerApplicationApplicant")
+  decisions                  EditorialDecision[]
+  notifications              Notification[]
+  invoices                   Invoice[]
+  payments                   Payment[]
+  subscriptions              Subscription[]
+  articlePurchases           ArticlePurchase[]
+
   passwordResetTokens          PasswordResetToken[]
   createdProductionTasks       ProductionAssignment[] @relation("ProductionAssignedBy")
   assignedProductionTasks      ProductionAssignment[] @relation("ProductionAssignee")
@@ -71,6 +259,8 @@ model User {
   submissions                  Submission[]           @relation("AuthorSubmissions")
   uploadedSubmissionVersions   SubmissionVersion[]    @relation("SubmissionVersionUploader")
   roles                        UserJournalRole[]
+  processedRefunds             Refund[]               @relation("RefundProcessor")
+  approvedInvoiceWaivers       Invoice[]              @relation("InvoiceWaiverApprover")
 
   @@index([email])
 }
@@ -111,6 +301,10 @@ model Journal {
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
   articles             Article[]
+  invoices             Invoice[]
+  payments             Payment[]
+  subscriptions        Subscription[]
+  articlePurchases     ArticlePurchase[]
   careerApplications   CareerApplication[]
   categories           Category[]
   editorialBoards      EditorialBoardMember[]
@@ -122,6 +316,11 @@ model Journal {
   submissions          Submission[]
   roles                UserJournalRole[]
   volumes              Volume[]
+
+  apcAmount          Decimal  @default(97.00) @db.Decimal(10, 2)
+  subscriptionAmount Decimal  @default(6.00) @db.Decimal(10, 2)
+  articlePrice       Decimal  @default(2.00) @db.Decimal(10, 2)
+  currency           Currency @default(USD)
 
   @@index([slug])
   @@index([tenantId])
@@ -228,6 +427,7 @@ model Submission {
   title                 String
   abstract              String
   manuscriptType        String?
+  invoice               Invoice?
   status                SubmissionStatus       @default(DRAFT)
   coverLetter           String?
   submittedAt           DateTime?
@@ -409,11 +609,11 @@ model EditorialDecision {
 }
 
 model Article {
-  id           String             @id @default(cuid())
+  id           String            @id @default(cuid())
   journalId    String
   issueId      String?
   categoryId   String?
-  submissionId String?            @unique
+  submissionId String?           @unique
   title        String
   slug         String
   abstract     String
@@ -422,18 +622,21 @@ model Article {
   doi          String?
   startPage    Int?
   endPage      Int?
-  status       ArticleStatus      @default(DRAFT)
+  status       ArticleStatus     @default(DRAFT)
   publishedAt  DateTime?
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
-  category     Category?          @relation(fields: [categoryId], references: [id])
-  issue        Issue?             @relation(fields: [issueId], references: [id])
-  journal      Journal            @relation(fields: [journalId], references: [id], onDelete: Cascade)
-  submission   Submission?        @relation(fields: [submissionId], references: [id])
-  authors      ArticleAuthor[]
-  keywords     ArticleKeyword[]
-  references   ArticleReference[]
-  doiRecord    DoiRecord?
+  accessType   ArticleAccessType @default(OPEN_ACCESS)
+
+  purchases  ArticlePurchase[]
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  category   Category?          @relation(fields: [categoryId], references: [id])
+  issue      Issue?             @relation(fields: [issueId], references: [id])
+  journal    Journal            @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  submission Submission?        @relation(fields: [submissionId], references: [id])
+  authors    ArticleAuthor[]
+  keywords   ArticleKeyword[]
+  references ArticleReference[]
+  doiRecord  DoiRecord?
 
   @@unique([journalId, slug])
   @@index([journalId])
@@ -844,4 +1047,60 @@ enum CareerPosition {
   PROOFREADER
   TYPESETTER
   EDITORIAL_ASSISTANT
+}
+
+enum PaymentPurpose {
+  APC
+  SUBSCRIPTION
+  ARTICLE_PURCHASE
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+  PARTIALLY_WAIVED
+  WAIVED
+  VOID
+}
+
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum PaymentProvider {
+  PAYSTACK
+  AIRTM
+}
+
+enum Currency {
+  USD
+}
+
+enum ArticleAccessType {
+  OPEN_ACCESS
+  SUBSCRIPTION
+  PAY_PER_VIEW
+  SUBSCRIPTION_OR_PAY_PER_VIEW
+}
+
+enum RefundStatus {
+  PENDING
+  PROCESSING
+  SUCCESSFUL
+  FAILED
+  CANCELLED
 }

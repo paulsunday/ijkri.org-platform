@@ -1,9 +1,11 @@
 ﻿"use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 
 import { requireAnyActionRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
+import { embedPublishedArticlePdfMetadata } from "@/lib/pdf/publish-metadata";
 import { prisma } from "@/lib/prisma";
 
 const VALID_ARTICLE_STATUSES = [
@@ -456,6 +458,21 @@ export async function changeArticleStatus(
     });
 
     refreshArticlePages(article.slug);
+
+    if (
+        status === "PUBLISHED" &&
+        article.status !== "PUBLISHED"
+    ) {
+        /*
+         * Runs after the response is sent, but keeps the
+         * serverless function alive until it finishes. A
+         * failure here should not undo the publication that
+         * already committed above, so the helper never throws.
+         */
+        after(() =>
+            embedPublishedArticlePdfMetadata(articleId),
+        );
+    }
 }
 
 export async function deleteArticle(
