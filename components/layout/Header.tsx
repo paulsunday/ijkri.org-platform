@@ -1,6 +1,9 @@
 ﻿import Image from "next/image";
 import Link from "next/link";
 
+import { getCurrentUser } from "@/lib/auth/current-user";
+import { getDashboardPath } from "@/lib/auth/dashboard-path";
+
 const navigation = [
   {
     label: "Home",
@@ -40,7 +43,13 @@ const navigation = [
   },
 ];
 
-export default function Header() {
+export default async function Header() {
+  const user = await getCurrentUser();
+
+  const dashboardPath = user
+    ? getDashboardPath(user.roles) ?? "/account"
+    : null;
+
   return (
     <header className="relative z-50 border-b border-slate-200 bg-white">
       <div className="bg-slate-950 text-white">
@@ -105,19 +114,39 @@ export default function Header() {
           </Link>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href="/login"
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 transition hover:border-slate-950 hover:bg-slate-50"
-            >
-              Login
-            </Link>
+            {user ? (
+              <>
+                <Link
+                  href="/account"
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 transition hover:border-slate-950 hover:bg-slate-50"
+                >
+                  My Account
+                </Link>
 
-            <Link
-              href="/register"
-              className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-            >
-              Register
-            </Link>
+                <Link
+                  href={dashboardPath ?? "/account"}
+                  className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Dashboard
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 transition hover:border-slate-950 hover:bg-slate-50"
+                >
+                  Login
+                </Link>
+
+                <Link
+                  href="/register"
+                  className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Register
+                </Link>
+              </>
+            )}
 
             <Link
               href="/author/submit"

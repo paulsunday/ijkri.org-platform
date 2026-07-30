@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import LogoutButton from "@/components/auth/logout-button";
 import { requireAnyRole } from "@/lib/auth/permissions";
 import { AUTHOR_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
@@ -139,6 +140,8 @@ export default async function AuthorDashboardPage() {
                     >
                         My Account
                     </Link>
+
+                    <LogoutButton />
 
                     <Link
                         href="/author/submit"

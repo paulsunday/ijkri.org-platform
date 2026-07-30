@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireActionUser } from "@/lib/auth/current-user";
+import { logger } from "@/lib/logger";
 import {
     ORCID_STATE_COOKIE,
     buildOrcidAuthorizeUrl,
@@ -17,6 +18,28 @@ export async function startOrcidConnect() {
 
     const state = randomUUID();
 
+    let authorizeUrl: string;
+
+    try {
+        authorizeUrl = buildOrcidAuthorizeUrl(state);
+    } catch (error) {
+        logger.error(
+            "Could not build the ORCID authorization URL",
+            {
+                error:
+                    error instanceof Error
+                        ? error.message
+                        : String(error),
+            },
+        );
+
+        redirect(
+            `/account?orcidError=${encodeURIComponent(
+                "ORCID connection is not available right now. Please contact the journal administrator.",
+            )}`,
+        );
+    }
+
     const cookieStore = await cookies();
 
     cookieStore.set(ORCID_STATE_COOKIE, state, {
@@ -27,7 +50,7 @@ export async function startOrcidConnect() {
         path: "/",
     });
 
-    redirect(buildOrcidAuthorizeUrl(state));
+    redirect(authorizeUrl);
 }
 
 export async function disconnectOrcid() {
