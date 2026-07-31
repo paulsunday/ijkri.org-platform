@@ -3,7 +3,10 @@
 import { requireAnyRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
-import { sendReviewerReminder } from "./actions";
+import {
+  cancelReviewerAssignment,
+  sendReviewerReminder,
+} from "./actions";
 
 type ReviewsPageProps = {
   searchParams: Promise<{
@@ -46,6 +49,17 @@ function formatDate(
 function isOpenReview(status: string) {
   return OPEN_REVIEW_STATUSES.includes(
     status as (typeof OPEN_REVIEW_STATUSES)[number],
+  );
+}
+
+const REMOVABLE_STATUSES = [
+  "INVITED",
+  "DECLINED",
+] as const;
+
+function canRemoveAssignment(status: string) {
+  return REMOVABLE_STATUSES.includes(
+    status as (typeof REMOVABLE_STATUSES)[number],
   );
 }
 
@@ -764,6 +778,24 @@ export default async function ReviewsPage({
                                 </button>
                               </form>
                             )}
+
+                            {canRemoveAssignment(assignment.status) && (
+                              <form action={cancelReviewerAssignment}>
+                                <input
+                                  type="hidden"
+                                  name="assignmentId"
+                                  value={assignment.id}
+                                />
+
+                                <button
+                                  type="submit"
+                                  className="rounded-lg bg-red-700 px-3 py-2 text-sm font-semibold text-white hover:bg-red-800"
+                                >
+                                  Remove Assignment
+                                </button>
+                              </form>
+                            )}
+
                             <Link
                               href={`/editor/submissions/${assignment.submission.id}/review-rounds`}
                               className="text-sm font-semibold text-blue-700 hover:underline"

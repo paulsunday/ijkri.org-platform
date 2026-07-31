@@ -225,3 +225,137 @@ export async function sendReviewerReminder(
         `/reviewer/reviews/${assignment.id}`,
     );
 }
+
+export async function cancelReviewerAssignment(
+    formData: FormData,
+) {
+    const admin =
+        await requireAnyActionRole(ADMIN_ROLES);
+
+    const assignmentId = String(
+        formData.get("assignmentId") || "",
+    ).trim();
+
+    if (!assignmentId) {
+        throw new Error(
+            "Review assignment ID is missing.",
+        );
+    }
+
+    const assignment =
+        await prisma.reviewAssignment.findUnique({
+            where: {
+                id: assignmentId,
+            },
+
+            include: {
+                reviewer: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                    },
+                },
+
+                submission: {
+                    select: {
+                        id: true,
+                        title: true,
+
+                        journal: {
+                            select: {
+                                name: true,
+                                shortName: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+    if (!assignment) {
+        throw new Error(
+            "Review assignment not found.",
+        );
+    }
+
+    if (
+        assignment.status !== "INVITED" &&
+        assignment.status !== "DECLINED"
+    ) {
+        throw new Error(
+            "Only an invited or declined review assignment can be removed.",
+        );
+    }
+
+    await prisma.$transaction(async (tx) => {
+        const result =
+            await tx.reviewAssignment.updateMany({
+                where: {
+                    id: assignmentId,
+                    status: {
+                        in: ["INVITED", "DECLINED"],
+                    },
+                },
+                data: {
+                    status: "CANCELLED",
+                },
+            });
+
+        if (result.count !== 1) {
+            throw new Error(
+                "This review assignment has already changed status. Refresh and try again.",
+            );
+        }
+
+        await tx.notification.create({
+            data: {
+                userId: assignment.reviewer.id,
+                type: "REVIEW",
+                title: "Review invitation withdrawn",
+                message:
+                    `Your invitation to review "${assignment.submission.title}" (round ${assignment.reviewRound}) has been withdrawn by the editorial office.`,
+                link: "/reviewer/dashboard",
+            },
+        });
+
+        await tx.activityLog.create({
+            data: {
+                userId: admin.id,
+                action: "UPDATE",
+                entity: "ReviewAssignment",
+                entityId: assignment.id,
+
+                metadata: {
+                    event: "REVIEW_ASSIGNMENT_CANCELLED",
+                    submissionId:
+                        assignment.submission.id,
+                    reviewerId:
+                        assignment.reviewer.id,
+                    reviewerEmail:
+                        assignment.reviewer.email,
+                    reviewRound:
+                        assignment.reviewRound,
+                    previousStatus:
+                        assignment.status,
+                },
+            },
+        });
+    });
+
+    revalidatePath("/admin/reviews");
+
+    revalidatePath(
+        `/editor/submissions/${assignment.submission.id}/reviewers`,
+    );
+
+    revalidatePath(
+        `/editor/submissions/${assignment.submission.id}/review-rounds`,
+    );
+
+    revalidatePath("/reviewer/dashboard");
+
+    revalidatePath(
+        `/reviewer/reviews/${assignment.id}`,
+    );
+}
