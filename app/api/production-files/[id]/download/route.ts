@@ -94,6 +94,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     select: {
       id: true,
       status: true,
+      accessType: true,
     },
   });
 
@@ -149,6 +150,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
       journalId: file.submission.journalId,
       articleId: publishedArticle.id,
       authorUserId: file.submission.authorId,
+      accessType: publishedArticle.accessType,
     }));
 
   if (!hasInternalAccess && !hasReaderAccess) {
@@ -212,11 +214,21 @@ export async function GET(_request: Request, { params }: RouteContext) {
   headers.set("X-Content-Type-Options", "nosniff");
 
   /*
-   * Access here always depends on the requester's identity
-   * (staff role, purchase, or subscription), so the response
-   * must never be cached by a shared/CDN cache.
+   * Open-access published files are identical for every
+   * requester and safe for a shared/CDN cache. Everything else
+   * (unpublished editorial files, or published files gated by
+   * subscription/purchase) depends on the requester's identity
+   * and must never be cached.
    */
-  headers.set("Cache-Control", "private, no-store, max-age=0");
+  const isPubliclyCacheable =
+    isPublished && publishedArticle?.accessType === "OPEN_ACCESS";
+
+  headers.set(
+    "Cache-Control",
+    isPubliclyCacheable
+      ? "public, max-age=3600, s-maxage=86400"
+      : "private, no-store, max-age=0",
+  );
 
   if (result.blob.size) {
     headers.set("Content-Length", String(result.blob.size));

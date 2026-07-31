@@ -113,6 +113,10 @@ export async function updateArticle(
         formData.get("pdfUrl") || "",
     ).trim();
 
+    const accessType = String(
+        formData.get("accessType") || "",
+    ).trim();
+
     const publicationDateValue = String(
         formData.get("publishedAt") || "",
     ).trim();
@@ -207,6 +211,21 @@ export async function updateArticle(
         }
     }
 
+    const validAccessTypes = [
+        "OPEN_ACCESS",
+        "SUBSCRIPTION",
+        "PAY_PER_VIEW",
+        "SUBSCRIPTION_OR_PAY_PER_VIEW",
+    ] as const;
+
+    if (
+        !validAccessTypes.includes(
+            accessType as (typeof validAccessTypes)[number],
+        )
+    ) {
+        throw new Error("Select a valid access type.");
+    }
+
     const baseSlug = slugify(title);
 
     if (!baseSlug) {
@@ -274,6 +293,8 @@ export async function updateArticle(
                     doi: doi || null,
                     pdfUrl: pdfUrl || null,
                     publishedAt,
+                    accessType:
+                        accessType as (typeof validAccessTypes)[number],
                 },
                 select: {
                     id: true,

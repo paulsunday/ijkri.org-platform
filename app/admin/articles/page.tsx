@@ -33,6 +33,31 @@ function displayDate(
   }).format(value);
 }
 
+function formatAccessType(accessType: string) {
+  switch (accessType) {
+    case "OPEN_ACCESS":
+      return "Open Access";
+
+    case "SUBSCRIPTION":
+      return "Subscription Only";
+
+    case "PAY_PER_VIEW":
+      return "Pay-Per-Article Only";
+
+    case "SUBSCRIPTION_OR_PAY_PER_VIEW":
+      return "Subscription or Pay-Per-Article";
+
+    default:
+      return accessType;
+  }
+}
+
+function accessTypeClass(accessType: string) {
+  return accessType === "OPEN_ACCESS"
+    ? "bg-green-100 text-green-800"
+    : "bg-amber-100 text-amber-800";
+}
+
 function statusClass(status: string) {
   switch (status) {
     case "PUBLISHED":
@@ -53,6 +78,8 @@ function statusClass(status: string) {
 }
 
 export default async function AdminArticlesPage() {
+  await requireAnyRole(ADMIN_ROLES);
+
   const [articles, issues] = await Promise.all([
     prisma.article.findMany({
       include: {
@@ -254,13 +281,23 @@ export default async function AdminArticlesPage() {
                       )}
                     </div>
 
-                    <span
-                      className={`rounded-full px-4 py-2 text-sm font-semibold ${statusClass(
-                        article.status,
-                      )}`}
-                    >
-                      {article.status}
-                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      <span
+                        className={`rounded-full px-4 py-2 text-sm font-semibold ${statusClass(
+                          article.status,
+                        )}`}
+                      >
+                        {article.status}
+                      </span>
+
+                      <span
+                        className={`rounded-full px-4 py-2 text-sm font-semibold ${accessTypeClass(
+                          article.accessType,
+                        )}`}
+                      >
+                        {formatAccessType(article.accessType)}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -439,6 +476,46 @@ export default async function AdminArticlesPage() {
                           className="w-full rounded-lg border bg-white p-3"
                         />
                       </div>
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor={`accessType-${article.id}`}
+                        className="mb-2 block font-semibold"
+                      >
+                        Access
+                      </label>
+
+                      <select
+                        id={`accessType-${article.id}`}
+                        name="accessType"
+                        required
+                        defaultValue={article.accessType}
+                        className="w-full rounded-lg border bg-white p-3"
+                      >
+                        <option value="OPEN_ACCESS">
+                          Open Access — free to everyone, no login required
+                        </option>
+
+                        <option value="SUBSCRIPTION">
+                          Subscription only
+                        </option>
+
+                        <option value="PAY_PER_VIEW">
+                          Pay-per-article only
+                        </option>
+
+                        <option value="SUBSCRIPTION_OR_PAY_PER_VIEW">
+                          Subscription or pay-per-article
+                        </option>
+                      </select>
+
+                      <p className="mt-2 text-sm text-gray-500">
+                        Open Access articles can be downloaded by anyone
+                        without signing in. All other options require the
+                        reader to be signed in with an active subscription
+                        and/or a purchase of this article.
+                      </p>
                     </div>
 
                     <button

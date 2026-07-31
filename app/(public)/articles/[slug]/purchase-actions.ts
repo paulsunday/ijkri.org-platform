@@ -52,6 +52,7 @@ export async function initializeArticlePurchase(
             slug: true,
             status: true,
             journalId: true,
+            accessType: true,
 
             journal: {
                 select: {
@@ -66,6 +67,12 @@ export async function initializeArticlePurchase(
 
     if (!article || article.status !== "PUBLISHED") {
         throw new Error("Article not found.");
+    }
+
+    if (article.accessType === "OPEN_ACCESS") {
+        throw new Error(
+            "This article is open access and does not require purchase.",
+        );
     }
 
     const user = await getCurrentUser();

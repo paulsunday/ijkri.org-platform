@@ -1,6 +1,7 @@
 import "server-only";
 
 import { isSuperAdmin } from "@/lib/auth/permissions";
+import type { ArticleAccessType } from "@/lib/generated/prisma";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -21,6 +22,7 @@ export type ArticleReadAccessInput = {
     journalId: string;
     articleId: string;
     authorUserId?: string | null;
+    accessType: ArticleAccessType;
 };
 
 /**
@@ -34,7 +36,16 @@ export async function hasArticleReadAccess({
     journalId,
     articleId,
     authorUserId,
+    accessType,
 }: ArticleReadAccessInput): Promise<boolean> {
+    /*
+     * Open-access articles are free to everyone, including
+     * anonymous readers - no authentication check applies.
+     */
+    if (accessType === "OPEN_ACCESS") {
+        return true;
+    }
+
     if (!userId) {
         return false;
     }
@@ -81,22 +92,36 @@ export async function hasArticleReadAccess({
         return true;
     }
 
-    const purchase = await prisma.articlePurchase.findFirst({
-        where: {
-            userId,
-            articleId,
-            accessGrantedAt: {
-                not: null,
-            },
-            accessRevokedAt: null,
-        },
-        select: {
-            id: true,
-        },
-    });
+    const allowsPurchase =
+        accessType === "PAY_PER_VIEW" ||
+        accessType === "SUBSCRIPTION_OR_PAY_PER_VIEW";
 
-    if (purchase) {
-        return true;
+    if (allowsPurchase) {
+        const purchase = await prisma.articlePurchase.findFirst({
+            where: {
+                userId,
+                articleId,
+                accessGrantedAt: {
+                    not: null,
+                },
+                accessRevokedAt: null,
+            },
+            select: {
+                id: true,
+            },
+        });
+
+        if (purchase) {
+            return true;
+        }
+    }
+
+    const allowsSubscription =
+        accessType === "SUBSCRIPTION" ||
+        accessType === "SUBSCRIPTION_OR_PAY_PER_VIEW";
+
+    if (!allowsSubscription) {
+        return false;
     }
 
     const activeSubscription =
