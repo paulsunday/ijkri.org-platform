@@ -265,6 +265,28 @@ export default async function AdminIssuesPage() {
             </div>
 
             <div className="md:col-span-2">
+              <label
+                htmlFor="coverImageFile"
+                className="mb-2 block font-semibold"
+              >
+                Cover Image
+              </label>
+
+              <input
+                id="coverImageFile"
+                name="coverImageFile"
+                type="file"
+                accept="image/png,image/jpeg"
+                className="w-full rounded-lg border p-3"
+              />
+
+              <p className="mt-2 text-sm text-gray-500">
+                PNG or JPEG, up to 5 MB. Or paste an already-hosted image
+                URL below instead.
+              </p>
+            </div>
+
+            <div className="md:col-span-2">
               <label htmlFor="coverImage" className="mb-2 block font-semibold">
                 Cover Image URL
               </label>
@@ -436,9 +458,13 @@ export default async function AdminIssuesPage() {
                         href={issue.coverImage}
                         target="_blank"
                         rel="noreferrer"
-                        className="font-semibold text-blue-700 hover:underline"
                       >
-                        View Cover Image
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={issue.coverImage}
+                          alt={`Cover for Volume ${issue.volume.number}, Issue ${issue.number}`}
+                          className="h-40 w-auto rounded-lg border object-cover"
+                        />
                       </a>
                     </div>
                   )}
@@ -490,6 +516,24 @@ export default async function AdminIssuesPage() {
                         defaultValue={issue.title || ""}
                         className="w-full rounded-lg border p-3"
                       />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold">
+                        Replace Cover Image
+                      </label>
+
+                      <input
+                        name="coverImageFile"
+                        type="file"
+                        accept="image/png,image/jpeg"
+                        className="w-full rounded-lg border p-3"
+                      />
+
+                      <p className="mt-2 text-xs text-gray-500">
+                        PNG or JPEG, up to 5 MB. Uploading a file replaces
+                        the URL below.
+                      </p>
                     </div>
 
                     <div>

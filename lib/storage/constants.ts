@@ -18,6 +18,7 @@ export const MAX_FILE_SIZE = {
     PROOF: 100 * MB,
     FINAL_ARTICLE: 100 * MB,
     SUPPLEMENTARY: 200 * MB,
+    ISSUE_COVER: 5 * MB,
 } as const;
 
 /**
@@ -32,6 +33,7 @@ export const STORAGE_FOLDERS = {
     PROOFREADING: "proofreading",
     PUBLICATIONS: "publications",
     SUPPLEMENTARY: "supplementary",
+    COVERS: "covers",
 } as const;
 
 /**
@@ -85,6 +87,12 @@ export const ALLOWED_EXTENSIONS = {
         "epub",
         "indd",
         "idml",
+    ],
+
+    ISSUE_COVER: [
+        "png",
+        "jpg",
+        "jpeg",
     ],
 } as const;
 
@@ -163,6 +171,7 @@ export const PUBLIC_FILE_TYPES = [
     "PDF_GALLEY",
     "HTML_GALLEY",
     "XML_GALLEY",
+    "ISSUE_COVER",
 ] as const;
 
 /**

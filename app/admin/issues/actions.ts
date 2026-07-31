@@ -5,6 +5,40 @@ import { revalidatePath } from "next/cache";
 import { isSuperAdmin, requireAnyActionRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
+import { uploadJournalFile } from "@/lib/storage/blob";
+
+/**
+ * Uploads an issue cover image if one was provided in the form.
+ * Returns null when no file was selected, so callers can fall back
+ * to a manually entered cover image URL.
+ */
+async function uploadIssueCoverIfProvided({
+  formData,
+  journalId,
+  issueId,
+}: {
+  formData: FormData;
+  journalId: string;
+  issueId: string;
+}): Promise<string | null> {
+  const coverImageFile = formData.get("coverImageFile");
+
+  if (!(coverImageFile instanceof File) || coverImageFile.size === 0) {
+    return null;
+  }
+
+  const uploadResult = await uploadJournalFile({
+    file: coverImageFile,
+    category: "ISSUE_COVER",
+    metadata: {
+      journalId,
+      issueId,
+      category: "ISSUE_COVER",
+    },
+  });
+
+  return uploadResult.url;
+}
 
 function createIssueSlug({
   journalSlug,
@@ -191,6 +225,23 @@ export async function createIssue(formData: FormData) {
     },
   });
 
+  const uploadedCoverImageUrl = await uploadIssueCoverIfProvided({
+    formData,
+    journalId: volume.journalId,
+    issueId: issue.id,
+  });
+
+  if (uploadedCoverImageUrl) {
+    await prisma.issue.update({
+      where: {
+        id: issue.id,
+      },
+      data: {
+        coverImage: uploadedCoverImageUrl,
+      },
+    });
+  }
+
   await prisma.activityLog.create({
     data: {
       userId: administrator.id,
@@ -276,6 +327,14 @@ export async function updateIssue(formData: FormData) {
     throw new Error("Another issue already uses this slug.");
   }
 
+  const uploadedCoverImageUrl = await uploadIssueCoverIfProvided({
+    formData,
+    journalId: issue.journalId,
+    issueId,
+  });
+
+  const finalCoverImage = uploadedCoverImageUrl || coverImage || null;
+
   await prisma.$transaction(async (tx) => {
     await tx.issue.update({
       where: {
@@ -286,7 +345,7 @@ export async function updateIssue(formData: FormData) {
         title: title || null,
         description: description || null,
         editorial: editorial || null,
-        coverImage: coverImage || null,
+        coverImage: finalCoverImage,
         fullIssuePdf: fullIssuePdf || null,
         publishedAt,
       },
@@ -315,7 +374,7 @@ export async function updateIssue(formData: FormData) {
           editorial: editorial || null,
 
           previousCoverImage: issue.coverImage,
-          coverImage: coverImage || null,
+          coverImage: finalCoverImage,
 
           previousFullIssuePdf: issue.fullIssuePdf,
           fullIssuePdf: fullIssuePdf || null,

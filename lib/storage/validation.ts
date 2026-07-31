@@ -38,6 +38,7 @@ const CATEGORY_EXTENSION_MAP = {
   PDF_GALLEY: ["pdf"],
   HTML_GALLEY: ["html"],
   XML_GALLEY: ["xml"],
+  ISSUE_COVER: ALLOWED_EXTENSIONS.ISSUE_COVER,
 } as const satisfies Record<FileCategory, readonly string[]>;
 
 /**
@@ -56,6 +57,7 @@ const CATEGORY_SIZE_MAP = {
   PDF_GALLEY: MAX_FILE_SIZE.FINAL_ARTICLE,
   HTML_GALLEY: MAX_FILE_SIZE.FINAL_ARTICLE,
   XML_GALLEY: MAX_FILE_SIZE.FINAL_ARTICLE,
+  ISSUE_COVER: MAX_FILE_SIZE.ISSUE_COVER,
 } as const satisfies Record<FileCategory, number>;
 
 /**

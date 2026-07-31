@@ -31,7 +31,8 @@ export type FileCategory =
   | "SUPPLEMENTARY"
   | "PDF_GALLEY"
   | "HTML_GALLEY"
-  | "XML_GALLEY";
+  | "XML_GALLEY"
+  | "ISSUE_COVER";
 
 /**
  * Storage visibility.
