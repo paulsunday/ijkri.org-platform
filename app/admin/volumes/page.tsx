@@ -11,6 +11,8 @@ import {
 } from "./actions";
 
 export default async function AdminVolumesPage() {
+  await requireAnyRole(ADMIN_ROLES);
+
   const [journals, volumes] = await Promise.all([
     prisma.journal.findMany({
       where: {
