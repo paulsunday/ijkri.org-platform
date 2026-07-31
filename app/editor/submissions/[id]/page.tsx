@@ -246,6 +246,16 @@ export default async function EditorSubmissionDetailsPage({
             Production Workflow
           </Link>
 
+          {(submission.status === "READY_FOR_PUBLICATION" ||
+            submission.status === "PUBLISHED") && (
+            <Link
+              href={`/editor/submissions/${submission.id}/format-article`}
+              className="rounded-lg bg-indigo-700 px-5 py-3 font-semibold text-white hover:bg-indigo-800"
+            >
+              Format Article
+            </Link>
+          )}
+
           {submission.status === "READY_FOR_PUBLICATION" && (
             <Link
               href={`/editor/submissions/${submission.id}/publication`}

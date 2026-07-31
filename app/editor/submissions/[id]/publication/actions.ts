@@ -308,6 +308,8 @@ export async function publishSubmission(
                         orcid:
                             publicationAuthor.orcid ||
                             null,
+                        isCorresponding:
+                            publicationAuthor.isCorresponding,
                         sortOrder:
                             publicationAuthor.sortOrder ||
                             index + 1,

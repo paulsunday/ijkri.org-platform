@@ -698,15 +698,16 @@ model ReviewerApplication {
 }
 
 model ArticleAuthor {
-  id          String  @id @default(cuid())
-  articleId   String
-  fullName    String
-  email       String?
-  affiliation String?
-  country     String?
-  orcid       String?
-  sortOrder   Int     @default(0)
-  article     Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  id              String  @id @default(cuid())
+  articleId       String
+  fullName        String
+  email           String?
+  affiliation     String?
+  country         String?
+  orcid           String?
+  isCorresponding Boolean @default(false)
+  sortOrder       Int     @default(0)
+  article         Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
 
   @@index([articleId])
 }
