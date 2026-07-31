@@ -49,6 +49,385 @@ async function verifyEditorialPermission(
   }
 }
 
+const REASSIGNABLE_STATUSES = [
+  "INVITED",
+  "ACCEPTED",
+  "DECLINED",
+] as const;
+
+export async function removeReviewerAssignment(formData: FormData) {
+  const editor = await requireAnyActionRole(EDITORIAL_ROLES);
+
+  const assignmentId = String(formData.get("assignmentId") || "").trim();
+
+  if (!assignmentId) {
+    throw new Error("Review assignment ID is missing.");
+  }
+
+  const assignment = await prisma.reviewAssignment.findUnique({
+    where: {
+      id: assignmentId,
+    },
+
+    include: {
+      reviewer: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+
+      submission: {
+        select: {
+          id: true,
+          title: true,
+          journalId: true,
+        },
+      },
+    },
+  });
+
+  if (!assignment) {
+    throw new Error("Review assignment not found.");
+  }
+
+  await verifyEditorialPermission(editor, assignment.submission.journalId);
+
+  if (
+    !REASSIGNABLE_STATUSES.includes(
+      assignment.status as (typeof REASSIGNABLE_STATUSES)[number],
+    )
+  ) {
+    throw new Error(
+      "Only an invited, accepted, or declined review assignment can be removed.",
+    );
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const result = await tx.reviewAssignment.updateMany({
+      where: {
+        id: assignmentId,
+        status: {
+          in: [...REASSIGNABLE_STATUSES],
+        },
+      },
+      data: {
+        status: "CANCELLED",
+      },
+    });
+
+    if (result.count !== 1) {
+      throw new Error(
+        "This review assignment has already changed status. Refresh and try again.",
+      );
+    }
+
+    await tx.notification.create({
+      data: {
+        userId: assignment.reviewer.id,
+        type: "REVIEW",
+        title: "Review assignment removed",
+        message: `Your assignment to review "${assignment.submission.title}" (round ${assignment.reviewRound}) has been removed by the editor.`,
+        link: "/reviewer/dashboard",
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        userId: editor.id,
+        action: "UPDATE",
+        entity: "ReviewAssignment",
+        entityId: assignment.id,
+
+        metadata: {
+          event: "REVIEW_ASSIGNMENT_REMOVED",
+          submissionId: assignment.submission.id,
+          reviewerId: assignment.reviewer.id,
+          reviewerEmail: assignment.reviewer.email,
+          reviewRound: assignment.reviewRound,
+          previousStatus: assignment.status,
+        },
+      },
+    });
+  });
+
+  revalidatePath(`/editor/submissions/${assignment.submission.id}/reviewers`);
+
+  revalidatePath(
+    `/editor/submissions/${assignment.submission.id}/review-rounds`,
+  );
+
+  revalidatePath(`/editor/submissions/${assignment.submission.id}`);
+
+  revalidatePath("/editor/dashboard");
+
+  revalidatePath("/reviewer/dashboard");
+
+  revalidatePath(`/reviewer/reviews/${assignment.id}`);
+
+  revalidatePath("/admin/reviews");
+
+  revalidatePath("/admin/submissions");
+}
+
+export async function reassignReviewer(formData: FormData) {
+  const editor = await requireAnyActionRole(EDITORIAL_ROLES);
+
+  const assignmentId = String(formData.get("assignmentId") || "").trim();
+
+  const newReviewerId = String(formData.get("newReviewerId") || "").trim();
+
+  if (!assignmentId) {
+    throw new Error("Review assignment ID is missing.");
+  }
+
+  if (!newReviewerId) {
+    throw new Error("Select a reviewer to reassign this review to.");
+  }
+
+  const assignment = await prisma.reviewAssignment.findUnique({
+    where: {
+      id: assignmentId,
+    },
+
+    include: {
+      reviewer: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+
+      submission: {
+        select: {
+          id: true,
+          title: true,
+          journalId: true,
+
+          journal: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!assignment) {
+    throw new Error("Review assignment not found.");
+  }
+
+  await verifyEditorialPermission(editor, assignment.submission.journalId);
+
+  if (
+    !REASSIGNABLE_STATUSES.includes(
+      assignment.status as (typeof REASSIGNABLE_STATUSES)[number],
+    )
+  ) {
+    throw new Error(
+      "Only an invited, accepted, or declined review assignment can be reassigned.",
+    );
+  }
+
+  if (newReviewerId === assignment.reviewerId) {
+    throw new Error(
+      "Select a different reviewer to reassign this review to.",
+    );
+  }
+
+  const newReviewer = await prisma.user.findUnique({
+    where: {
+      id: newReviewerId,
+    },
+
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      isActive: true,
+
+      roles: {
+        where: {
+          journalId: assignment.submission.journalId,
+          role: "REVIEWER",
+        },
+
+        select: {
+          id: true,
+        },
+      },
+    },
+  });
+
+  if (!newReviewer) {
+    throw new Error("Reviewer account not found.");
+  }
+
+  if (!newReviewer.isActive) {
+    throw new Error(
+      "This reviewer account is inactive and cannot receive assignments.",
+    );
+  }
+
+  if (newReviewer.roles.length === 0) {
+    throw new Error(
+      "The selected user does not have the REVIEWER role for this journal.",
+    );
+  }
+
+  const existingAssignment = await prisma.reviewAssignment.findUnique({
+    where: {
+      submissionId_reviewerId_reviewRound: {
+        submissionId: assignment.submissionId,
+        reviewerId: newReviewerId,
+        reviewRound: assignment.reviewRound,
+      },
+    },
+
+    select: {
+      id: true,
+    },
+  });
+
+  if (existingAssignment) {
+    throw new Error(
+      "This reviewer is already assigned to this review round.",
+    );
+  }
+
+  const newAssignment = await prisma.$transaction(async (tx) => {
+    const cancelResult = await tx.reviewAssignment.updateMany({
+      where: {
+        id: assignmentId,
+        status: {
+          in: [...REASSIGNABLE_STATUSES],
+        },
+      },
+      data: {
+        status: "CANCELLED",
+      },
+    });
+
+    if (cancelResult.count !== 1) {
+      throw new Error(
+        "This review assignment has already changed status. Refresh and try again.",
+      );
+    }
+
+    const createdAssignment = await tx.reviewAssignment.create({
+      data: {
+        submissionId: assignment.submissionId,
+        reviewerId: newReviewerId,
+        submissionVersionId: assignment.submissionVersionId,
+        reviewRound: assignment.reviewRound,
+        status: "INVITED",
+        invitedAt: new Date(),
+        dueDate: assignment.dueDate,
+        blindType: assignment.blindType,
+      },
+
+      select: {
+        id: true,
+        dueDate: true,
+      },
+    });
+
+    await tx.notification.create({
+      data: {
+        userId: assignment.reviewer.id,
+        type: "REVIEW",
+        title: "Review assignment removed",
+        message: `Your assignment to review "${assignment.submission.title}" (round ${assignment.reviewRound}) has been reassigned to another reviewer.`,
+        link: "/reviewer/dashboard",
+      },
+    });
+
+    await tx.notification.create({
+      data: {
+        userId: newReviewerId,
+        type: "REVIEW",
+        title: "New Review Invitation",
+        message: `You have been invited to review "${assignment.submission.title}" for review round ${assignment.reviewRound}.`,
+        link: `/reviewer/reviews/${createdAssignment.id}`,
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        userId: editor.id,
+        action: "UPDATE",
+        entity: "ReviewAssignment",
+        entityId: createdAssignment.id,
+
+        metadata: {
+          event: "REVIEWER_REASSIGNED",
+          submissionId: assignment.submissionId,
+          previousReviewerId: assignment.reviewer.id,
+          previousReviewerEmail: assignment.reviewer.email,
+          newReviewerId,
+          newReviewerEmail: newReviewer.email,
+          reviewRound: assignment.reviewRound,
+        },
+      },
+    });
+
+    return createdAssignment;
+  });
+
+  const appUrl = getAppUrl();
+
+  const invitationUrl = `${appUrl}/reviewer/reviews/${newAssignment.id}`;
+
+  const emailContent = reviewerInvitationEmail({
+    reviewerName: newReviewer.name,
+    journalName: assignment.submission.journal.name,
+    manuscriptTitle: assignment.submission.title,
+    reviewRound: assignment.reviewRound,
+    dueDate: newAssignment.dueDate,
+    invitationUrl,
+  });
+
+  try {
+    await sendEmail({
+      to: newReviewer.email,
+      subject: emailContent.subject,
+      html: emailContent.html,
+      text: emailContent.text,
+    });
+  } catch (error) {
+    logger.error("Reviewer invitation email failed", error, {
+      event: "REVIEWER_INVITATION_EMAIL_FAILED",
+      assignmentId: newAssignment.id,
+      submissionId: assignment.submissionId,
+      reviewerId: newReviewerId,
+      reviewerEmail: newReviewer.email,
+    });
+  }
+
+  revalidatePath(`/editor/submissions/${assignment.submissionId}/reviewers`);
+
+  revalidatePath(
+    `/editor/submissions/${assignment.submissionId}/review-rounds`,
+  );
+
+  revalidatePath(`/editor/submissions/${assignment.submissionId}`);
+
+  revalidatePath("/editor/dashboard");
+
+  revalidatePath("/reviewer/dashboard");
+
+  revalidatePath(`/reviewer/reviews/${assignment.id}`);
+
+  revalidatePath(`/reviewer/reviews/${newAssignment.id}`);
+
+  revalidatePath("/admin/reviews");
+
+  revalidatePath("/admin/submissions");
+}
+
 export async function assignReviewer(formData: FormData) {
   const editor = await requireAnyActionRole(EDITORIAL_ROLES);
 

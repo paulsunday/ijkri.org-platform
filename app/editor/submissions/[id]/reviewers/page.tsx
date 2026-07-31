@@ -8,7 +8,13 @@ import {
 import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 
-import { assignReviewer } from "./actions";
+import {
+  assignReviewer,
+  reassignReviewer,
+  removeReviewerAssignment,
+} from "./actions";
+
+const REASSIGNABLE_STATUSES = ["INVITED", "ACCEPTED", "DECLINED"];
 
 type Props = {
   params: Promise<{
@@ -192,35 +198,114 @@ export default async function AssignReviewersPage({
           )}
 
           {submission.reviewAssignments.map(
-            (assignment) => (
-              <div
-                key={assignment.id}
-                className="rounded-lg border bg-slate-50 p-4"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div>
-                    <p className="font-semibold">
-                      {assignment.reviewer.name}
-                    </p>
+            (assignment) => {
+              const canRemove = REASSIGNABLE_STATUSES.includes(
+                assignment.status,
+              );
 
-                    <p className="text-sm text-slate-600">
-                      {assignment.reviewer.email}
-                    </p>
+              const reassignCandidates = reviewers.filter(
+                (reviewer) => reviewer.id !== assignment.reviewerId,
+              );
+
+              return (
+                <div
+                  key={assignment.id}
+                  className="rounded-lg border bg-slate-50 p-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <p className="font-semibold">
+                        {assignment.reviewer.name}
+                      </p>
+
+                      <p className="text-sm text-slate-600">
+                        {assignment.reviewer.email}
+                      </p>
+                    </div>
+
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold">
+                      Round {assignment.reviewRound}
+                    </span>
                   </div>
 
-                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold">
-                    Round {assignment.reviewRound}
-                  </span>
-                </div>
+                  <p className="mt-3 text-sm">
+                    Status:{" "}
+                    <strong>
+                      {formatStatus(assignment.status)}
+                    </strong>
+                  </p>
 
-                <p className="mt-3 text-sm">
-                  Status:{" "}
-                  <strong>
-                    {formatStatus(assignment.status)}
-                  </strong>
-                </p>
-              </div>
-            ),
+                  {canRemove && (
+                    <div className="mt-4 flex flex-wrap items-end gap-3 border-t pt-4">
+                      {reassignCandidates.length > 0 && (
+                        <form
+                          action={reassignReviewer}
+                          className="flex flex-wrap items-end gap-2"
+                        >
+                          <input
+                            type="hidden"
+                            name="assignmentId"
+                            value={assignment.id}
+                          />
+
+                          <div>
+                            <label
+                              htmlFor={`reassign-${assignment.id}`}
+                              className="mb-1 block text-sm font-medium"
+                            >
+                              Reassign to
+                            </label>
+
+                            <select
+                              id={`reassign-${assignment.id}`}
+                              name="newReviewerId"
+                              defaultValue=""
+                              required
+                              className="rounded-lg border p-2 text-sm"
+                            >
+                              <option value="" disabled>
+                                Select a reviewer
+                              </option>
+
+                              {reassignCandidates.map((reviewer) => (
+                                <option
+                                  key={reviewer.id}
+                                  value={reviewer.id}
+                                >
+                                  {reviewer.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <button
+                            type="submit"
+                            className="rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-800"
+                          >
+                            Reassign
+                          </button>
+                        </form>
+                      )}
+
+                      <form action={removeReviewerAssignment}>
+                        <input
+                          type="hidden"
+                          name="assignmentId"
+                          value={assignment.id}
+                        />
+
+                        <button
+                          type="submit"
+                          className="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800"
+                        >
+                          Remove
+                        </button>
+                      </form>
+                    </div>
+                  )}
+                </div>
+              );
+            },
           )}
         </div>
       </section>
