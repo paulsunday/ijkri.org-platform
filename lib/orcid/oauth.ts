@@ -24,7 +24,7 @@ function getRedirectUri(): string {
 function getOrcidApiBase(): string {
     return (
         process.env.ORCID_API_BASE?.replace(/\/$/, "") ||
-        "https://sandbox.orcid.org"
+        "https://orcid.org"
     );
 }
 
