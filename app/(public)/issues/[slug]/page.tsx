@@ -142,7 +142,7 @@ export default async function PublicIssuePage({
       </nav>
 
       <div className="grid gap-8 lg:grid-cols-[260px_1fr]">
-        <aside className="lg:sticky lg:top-8 lg:self-start">
+        <aside className="mx-auto w-full max-w-xs lg:sticky lg:top-8 lg:max-w-none lg:self-start">
           <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
             {issue.coverImage ? (
               <a
