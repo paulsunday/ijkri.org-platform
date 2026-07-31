@@ -20,14 +20,31 @@ function getApplicationUrl(request: NextRequest) {
     return request.nextUrl.origin;
 }
 
-function buildInvoiceUrl({
+type RedirectablePayment = {
+    purpose: string;
+    invoice: {
+        id: string;
+    } | null;
+    subscription: {
+        journal: {
+            slug: string;
+        };
+    } | null;
+    articlePurchase: {
+        article: {
+            slug: string;
+        };
+    } | null;
+};
+
+function buildRedirectUrl({
     request,
-    invoiceId,
+    payment,
     paymentStatus,
     message,
 }: {
     request: NextRequest;
-    invoiceId: string;
+    payment: RedirectablePayment;
     paymentStatus:
     | "success"
     | "pending"
@@ -38,10 +55,23 @@ function buildInvoiceUrl({
     const applicationUrl =
         getApplicationUrl(request);
 
-    const url = new URL(
-        `/author/invoices/${invoiceId}`,
-        applicationUrl,
-    );
+    let path = "/";
+
+    if (
+        payment.purpose === "SUBSCRIPTION" &&
+        payment.subscription
+    ) {
+        path = `/subscribe/${payment.subscription.journal.slug}`;
+    } else if (
+        payment.purpose === "ARTICLE_PURCHASE" &&
+        payment.articlePurchase
+    ) {
+        path = `/articles/${payment.articlePurchase.article.slug}`;
+    } else if (payment.invoice) {
+        path = `/author/invoices/${payment.invoice.id}`;
+    }
+
+    const url = new URL(path, applicationUrl);
 
     url.searchParams.set(
         "payment",
@@ -127,6 +157,26 @@ export async function GET(
                     },
                 },
 
+                subscription: {
+                    select: {
+                        journal: {
+                            select: {
+                                slug: true,
+                            },
+                        },
+                    },
+                },
+
+                articlePurchase: {
+                    select: {
+                        article: {
+                            select: {
+                                slug: true,
+                            },
+                        },
+                    },
+                },
+
                 user: {
                     select: {
                         id: true,
@@ -137,11 +187,11 @@ export async function GET(
             },
         });
 
-    if (!payment || !payment.invoice) {
+    if (!payment) {
         return NextResponse.json(
             {
                 error:
-                    "No matching invoice payment was found.",
+                    "No matching payment was found.",
             },
             {
                 status: 404,
@@ -156,15 +206,11 @@ export async function GET(
      * check, so simultaneous callback and webhook requests
      * remain safe.
      */
-    if (
-        payment.status === "PAID" &&
-        payment.invoice.status === "PAID"
-    ) {
+    if (payment.status === "PAID") {
         return NextResponse.redirect(
-            buildInvoiceUrl({
+            buildRedirectUrl({
                 request,
-                invoiceId:
-                    payment.invoice.id,
+                payment,
                 paymentStatus: "success",
                 message:
                     "Payment was already verified.",
@@ -174,10 +220,9 @@ export async function GET(
 
     if (!payment.user.isActive) {
         return NextResponse.redirect(
-            buildInvoiceUrl({
+            buildRedirectUrl({
                 request,
-                invoiceId:
-                    payment.invoice.id,
+                payment,
                 paymentStatus: "error",
                 message:
                     "This account is inactive. Contact support for assistance.",
@@ -240,10 +285,9 @@ export async function GET(
             });
 
             return NextResponse.redirect(
-                buildInvoiceUrl({
+                buildRedirectUrl({
                     request,
-                    invoiceId:
-                        payment.invoice.id,
+                    payment,
                     paymentStatus: "error",
                     message:
                         "Payment reference validation failed.",
@@ -279,13 +323,12 @@ export async function GET(
             });
 
             return NextResponse.redirect(
-                buildInvoiceUrl({
+                buildRedirectUrl({
                     request,
-                    invoiceId:
-                        payment.invoice.id,
+                    payment,
                     paymentStatus: "error",
                     message:
-                        "The verified payment amount did not match the invoice amount.",
+                        "The verified payment amount did not match the expected amount.",
                 }),
             );
         }
@@ -309,13 +352,12 @@ export async function GET(
             });
 
             return NextResponse.redirect(
-                buildInvoiceUrl({
+                buildRedirectUrl({
                     request,
-                    invoiceId:
-                        payment.invoice.id,
+                    payment,
                     paymentStatus: "error",
                     message:
-                        "The verified payment currency did not match the invoice currency.",
+                        "The verified payment currency did not match the expected currency.",
                 }),
             );
         }
@@ -353,10 +395,9 @@ export async function GET(
             });
 
             return NextResponse.redirect(
-                buildInvoiceUrl({
+                buildRedirectUrl({
                     request,
-                    invoiceId:
-                        payment.invoice.id,
+                    payment,
                     paymentStatus: "error",
                     message:
                         "Payment customer validation failed.",
@@ -422,10 +463,9 @@ export async function GET(
             });
 
             return NextResponse.redirect(
-                buildInvoiceUrl({
+                buildRedirectUrl({
                     request,
-                    invoiceId:
-                        payment.invoice.id,
+                    payment,
                     paymentStatus: isFailed
                         ? "failed"
                         : "pending",
@@ -499,10 +539,9 @@ export async function GET(
         });
 
         return NextResponse.redirect(
-            buildInvoiceUrl({
+            buildRedirectUrl({
                 request,
-                invoiceId:
-                    payment.invoice.id,
+                payment,
                 paymentStatus: "success",
                 message:
                     "Your payment was verified successfully.",
@@ -518,8 +557,7 @@ export async function GET(
             "Paystack callback error:",
             {
                 paymentId: payment.id,
-                invoiceId:
-                    payment.invoice.id,
+                purpose: payment.purpose,
                 reference,
                 error,
             },
@@ -546,10 +584,9 @@ export async function GET(
         });
 
         return NextResponse.redirect(
-            buildInvoiceUrl({
+            buildRedirectUrl({
                 request,
-                invoiceId:
-                    payment.invoice.id,
+                payment,
                 paymentStatus: "error",
                 message:
                     "We could not verify the payment. Please try again or contact support.",

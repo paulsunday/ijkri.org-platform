@@ -208,6 +208,7 @@ export async function initializeInvoicePayment(
                 callbackUrl,
                 invoiceId: invoice.id,
                 userId: user.id,
+                purpose: "APC",
             });
 
         if (

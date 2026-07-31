@@ -6,8 +6,11 @@ type InitializePaystackPaymentInput = {
     currency: string;
     reference: string;
     callbackUrl: string;
-    invoiceId: string;
     userId: string;
+    purpose: "APC" | "SUBSCRIPTION" | "ARTICLE_PURCHASE";
+    invoiceId?: string;
+    subscriptionId?: string;
+    articlePurchaseId?: string;
 };
 
 type InitializePaystackPaymentResponse = {
@@ -27,7 +30,10 @@ export async function initializePaystackPayment({
     reference,
     callbackUrl,
     invoiceId,
+    subscriptionId,
+    articlePurchaseId,
     userId,
+    purpose,
 }: InitializePaystackPaymentInput) {
     if (!Number.isFinite(amount) || amount <= 0) {
         throw new Error("Payment amount must be greater than zero.");
@@ -50,8 +56,10 @@ export async function initializePaystackPayment({
 
                 metadata: {
                     invoiceId,
+                    subscriptionId,
+                    articlePurchaseId,
                     userId,
-                    purpose: "APC",
+                    purpose,
                 },
             }),
         },
