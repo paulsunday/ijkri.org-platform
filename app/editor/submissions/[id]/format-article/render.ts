@@ -1,7 +1,5 @@
 import "server-only";
 
-import { renderToStaticMarkup } from "react-dom/server";
-
 import {
     ArticleTemplate,
     type ArticleTemplateMetadata,
@@ -44,6 +42,13 @@ export async function renderArticlePdf({
     content,
     metadata,
 }: RenderArticlePdfInput): Promise<Uint8Array> {
+    /*
+     * Loaded dynamically so Turbopack's server-component graph
+     * analysis doesn't flag this server-only PDF renderer as a
+     * page trying to use react-dom/server directly.
+     */
+    const { renderToStaticMarkup } = await import("react-dom/server");
+
     const bodyMarkup = renderToStaticMarkup(
         ArticleTemplate({ content, metadata }),
     );
