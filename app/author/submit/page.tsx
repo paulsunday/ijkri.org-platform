@@ -152,7 +152,7 @@ export default async function SubmitManuscriptPage() {
               <input
                 name="authorAffiliation[]"
                 className="w-full rounded-lg border p-3"
-                placeholder="University of Nigeria"
+                placeholder="Department, University"
               />
             </div>
 
