@@ -35,6 +35,14 @@ function formatPageRange(startPage: number | null, endPage: number | null) {
   return null;
 }
 
+function truncateAbstract(abstract: string, maxLength = 220) {
+  if (abstract.length <= maxLength) {
+    return abstract;
+  }
+
+  return `${abstract.slice(0, maxLength).trimEnd()}…`;
+}
+
 export default async function PublicIssuePage({
   params,
 }: {
@@ -109,6 +117,19 @@ export default async function PublicIssuePage({
     notFound();
   }
 
+  const startPages = issue.articles
+    .map((article) => article.startPage)
+    .filter((page): page is number => page !== null);
+
+  const endPages = issue.articles
+    .map((article) => article.endPage)
+    .filter((page): page is number => page !== null);
+
+  const issuePageRange =
+    startPages.length > 0 && endPages.length > 0
+      ? `Pages ${Math.min(...startPages)}–${Math.max(...endPages)}`
+      : null;
+
   return (
     <main className="mx-auto max-w-7xl px-6 py-12">
       <nav className="mb-8">
@@ -120,9 +141,9 @@ export default async function PublicIssuePage({
         </Link>
       </nav>
 
-      <section className="overflow-hidden rounded-2xl border bg-white shadow-sm">
-        <div className="grid gap-8 p-6 md:grid-cols-[220px_1fr] md:p-8">
-          <div>
+      <div className="grid gap-8 lg:grid-cols-[260px_1fr]">
+        <aside className="lg:sticky lg:top-8 lg:self-start">
+          <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
             {issue.coverImage ? (
               <a
                 href={issue.coverImage}
@@ -134,138 +155,171 @@ export default async function PublicIssuePage({
                 <img
                   src={issue.coverImage}
                   alt={`Cover for Volume ${issue.volume.number}, Issue ${issue.number}`}
-                  className="aspect-[3/4] w-full rounded-xl border object-cover shadow-sm"
+                  className="aspect-[3/4] w-full object-cover"
                 />
               </a>
             ) : (
-              <div className="flex aspect-[3/4] items-center justify-center rounded-xl border bg-gray-100 p-5 text-center text-sm font-medium text-gray-500">
+              <div className="flex aspect-[3/4] items-center justify-center bg-gray-100 p-5 text-center text-sm font-medium text-gray-500">
                 Issue cover unavailable
               </div>
             )}
-          </div>
 
-          <div>
+            <div className="space-y-4 p-5">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.14em] text-blue-700">
+                  {issue.journal.shortName || issue.journal.name}
+                </p>
+
+                <p className="mt-1 text-lg font-bold text-gray-950">
+                  Volume {issue.volume.number}, Issue {issue.number}
+                </p>
+
+                {issue.isCurrent && (
+                  <span className="mt-2 inline-block rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
+                    Current Issue
+                  </span>
+                )}
+              </div>
+
+              <dl className="space-y-2 border-t pt-4 text-sm text-gray-600">
+                <div className="flex justify-between gap-3">
+                  <dt className="text-gray-500">Published</dt>
+                  <dd className="text-right font-medium text-gray-800">
+                    {formatDate(issue.publishedAt)}
+                  </dd>
+                </div>
+
+                {issuePageRange && (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-gray-500">Pages</dt>
+                    <dd className="text-right font-medium text-gray-800">
+                      {issuePageRange}
+                    </dd>
+                  </div>
+                )}
+
+                <div className="flex justify-between gap-3">
+                  <dt className="text-gray-500">Articles</dt>
+                  <dd className="text-right font-medium text-gray-800">
+                    {issue.articles.length}
+                  </dd>
+                </div>
+
+                {issue.journal.issnPrint && (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-gray-500">Print ISSN</dt>
+                    <dd className="text-right font-medium text-gray-800">
+                      {issue.journal.issnPrint}
+                    </dd>
+                  </div>
+                )}
+
+                {issue.journal.issnOnline && (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-gray-500">Online ISSN</dt>
+                    <dd className="text-right font-medium text-gray-800">
+                      {issue.journal.issnOnline}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+
+              <div className="space-y-2 border-t pt-4">
+                {issue.fullIssuePdf && (
+                  <a
+                    href={issue.fullIssuePdf}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block rounded-lg bg-red-700 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-red-800"
+                  >
+                    Download Complete Issue PDF
+                  </a>
+                )}
+
+                <Link
+                  href="/archives"
+                  className="block rounded-lg border border-blue-700 px-4 py-2.5 text-center text-sm font-semibold text-blue-700 hover:bg-blue-50"
+                >
+                  Browse Other Issues
+                </Link>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <div className="min-w-0">
+          <section>
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">
               {issue.journal.name}
             </p>
 
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <h1 className="text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl">
-                Volume {issue.volume.number}, Issue {issue.number}
-              </h1>
-
-              {issue.isCurrent && (
-                <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
-                  Current Issue
-                </span>
-              )}
-            </div>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl">
+              Volume {issue.volume.number}, Issue {issue.number}
+            </h1>
 
             {issue.title && (
-              <p className="mt-3 text-xl font-medium text-gray-700">
+              <p className="mt-2 text-xl font-medium text-gray-700">
                 {issue.title}
               </p>
             )}
 
-            <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-600">
-              <span>Published {formatDate(issue.publishedAt)}</span>
-
-              <span>
-                {issue.articles.length} article
-                {issue.articles.length === 1 ? "" : "s"}
-              </span>
-
-              {issue.journal.issnPrint && (
-                <span>Print ISSN: {issue.journal.issnPrint}</span>
-              )}
-
-              {issue.journal.issnOnline && (
-                <span>Online ISSN: {issue.journal.issnOnline}</span>
-              )}
-            </div>
-
             {issue.description && (
-              <p className="mt-6 max-w-4xl leading-8 text-gray-600">
+              <p className="mt-5 max-w-4xl leading-8 text-gray-600">
                 {issue.description}
               </p>
             )}
+          </section>
 
-            <div className="mt-6 flex flex-wrap gap-3">
-              {issue.fullIssuePdf && (
-                <a
-                  href={issue.fullIssuePdf}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-lg bg-red-700 px-5 py-3 font-semibold text-white hover:bg-red-800"
-                >
-                  Download Complete Issue PDF
-                </a>
-              )}
+          {issue.editorial && (
+            <section className="mt-8 rounded-2xl border border-blue-100 bg-blue-50 p-6 sm:p-8">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">
+                Editorial
+              </p>
 
-              <Link
-                href="/archives"
-                className="rounded-lg border border-blue-700 px-5 py-3 font-semibold text-blue-700 hover:bg-blue-50"
-              >
-                Browse Other Issues
-              </Link>
+              <h2 className="mt-3 text-2xl font-bold text-blue-950">
+                Editor&apos;s Note
+              </h2>
+
+              <div className="mt-5 whitespace-pre-wrap leading-8 text-blue-950">
+                {issue.editorial}
+              </div>
+            </section>
+          )}
+
+          <section className="mt-10">
+            <div className="border-b pb-5">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">
+                Published articles
+              </p>
+
+              <h2 className="mt-2 text-3xl font-bold text-gray-950">
+                Table of Contents
+              </h2>
             </div>
-          </div>
-        </div>
-      </section>
 
-      {issue.editorial && (
-        <section className="mt-8 rounded-2xl border border-blue-100 bg-blue-50 p-6 sm:p-8">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">
-            Editorial
-          </p>
+            {issue.articles.length === 0 ? (
+              <div className="mt-6 rounded-xl border border-yellow-300 bg-yellow-50 p-6">
+                <p className="font-semibold text-yellow-900">
+                  No published articles are available in this issue.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-6 divide-y rounded-2xl border bg-white px-6 shadow-sm sm:px-8">
+                {issue.articles.map((article) => {
+                  const authors = article.authors
+                    .map((author) => author.fullName)
+                    .join(", ");
 
-          <h2 className="mt-3 text-2xl font-bold text-blue-950">
-            Editor&apos;s Note
-          </h2>
+                  const pageRange = formatPageRange(
+                    article.startPage,
+                    article.endPage,
+                  );
 
-          <div className="mt-5 whitespace-pre-wrap leading-8 text-blue-950">
-            {issue.editorial}
-          </div>
-        </section>
-      )}
-
-      <section className="mt-10">
-        <div className="border-b pb-5">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">
-            Published articles
-          </p>
-
-          <h2 className="mt-2 text-3xl font-bold text-gray-950">
-            Table of Contents
-          </h2>
-        </div>
-
-        {issue.articles.length === 0 ? (
-          <div className="mt-6 rounded-xl border border-yellow-300 bg-yellow-50 p-6">
-            <p className="font-semibold text-yellow-900">
-              No published articles are available in this issue.
-            </p>
-          </div>
-        ) : (
-          <div className="mt-6 divide-y rounded-2xl border bg-white px-6 shadow-sm sm:px-8">
-            {issue.articles.map((article, index) => {
-              const authors = article.authors
-                .map((author) => author.fullName)
-                .join(", ");
-
-              const pageRange = formatPageRange(
-                article.startPage,
-                article.endPage,
-              );
-
-              return (
-                <article key={article.id} className="py-8 first:pt-6 last:pb-6">
-                  <div className="grid gap-4 sm:grid-cols-[52px_1fr]">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-sm font-bold text-gray-700">
-                      {index + 1}
-                    </div>
-
-                    <div>
+                  return (
+                    <article
+                      key={article.id}
+                      className="py-8 first:pt-6 last:pb-6"
+                    >
                       {article.category && (
                         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
                           {article.category.name}
@@ -284,6 +338,12 @@ export default async function PublicIssuePage({
                       <p className="mt-3 text-sm leading-6 text-gray-600">
                         {authors || "Author information unavailable"}
                       </p>
+
+                      {article.abstract && (
+                        <p className="mt-3 max-w-3xl text-sm leading-6 text-gray-500">
+                          {truncateAbstract(article.abstract)}
+                        </p>
+                      )}
 
                       <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-500">
                         {pageRange && <span>{pageRange}</span>}
@@ -327,14 +387,14 @@ export default async function PublicIssuePage({
                           </a>
                         )}
                       </div>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </section>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </div>
+      </div>
     </main>
   );
 }
