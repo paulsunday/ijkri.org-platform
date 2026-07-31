@@ -2,6 +2,7 @@ import { get } from "@vercel/blob";
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { hasArticleReadAccess } from "@/lib/payments/article-access";
 import { prisma } from "@/lib/prisma";
 
 type RouteContext = {
@@ -85,10 +86,6 @@ export async function GET(_request: Request, { params }: RouteContext) {
     });
   }
 
-  /*
-   * A file is publicly viewable when it belongs to
-   * an article whose status is PUBLISHED.
-   */
   const publishedArticle = await prisma.article.findUnique({
     where: {
       submissionId: file.submission.id,
@@ -97,56 +94,73 @@ export async function GET(_request: Request, { params }: RouteContext) {
     select: {
       id: true,
       status: true,
-      pdfUrl: true,
     },
   });
 
-  const expectedPublicPdfUrl = `/api/production-files/${file.id}/download`;
-
-  const isPubliclyAvailable =
-    publishedArticle?.status === "PUBLISHED" &&
-    publishedArticle.pdfUrl === expectedPublicPdfUrl;
+  const user = await getCurrentUser();
 
   /*
-   * Unpublished production files remain protected.
-   * Published article PDFs can be opened by anyone,
-   * including readers and Google Scholar.
+   * Production/editorial staff always retain access to files
+   * they're directly involved with, whether or not the
+   * article has been published yet.
    */
-  if (!isPubliclyAvailable) {
-    const user = await getCurrentUser();
+  const isSuperAdmin = Boolean(
+    user?.roles.some((role) => role.role === "SUPER_ADMIN"),
+  );
 
+  const isAuthor = Boolean(
+    user && file.submission.authorId === user.id,
+  );
+
+  const isAssignee = Boolean(
+    user && file.productionAssignment?.assigneeId === user.id,
+  );
+
+  const isAssigningEditor = Boolean(
+    user && file.productionAssignment?.assignedById === user.id,
+  );
+
+  const hasJournalAccess = Boolean(
+    user?.roles.some(
+      (role) =>
+        role.journalId === file.submission.journalId &&
+        JOURNAL_ACCESS_ROLES.some((allowedRole) => allowedRole === role.role),
+    ),
+  );
+
+  const hasInternalAccess =
+    isSuperAdmin ||
+    isAuthor ||
+    isAssignee ||
+    isAssigningEditor ||
+    hasJournalAccess;
+
+  /*
+   * For a published article's PDF, a reader who isn't staff
+   * still needs a paid subscription or a purchase of this
+   * specific article to download it.
+   */
+  const isPublished = publishedArticle?.status === "PUBLISHED";
+
+  const hasReaderAccess =
+    isPublished &&
+    (await hasArticleReadAccess({
+      userId: user?.id ?? null,
+      journalId: file.submission.journalId,
+      articleId: publishedArticle.id,
+      authorUserId: file.submission.authorId,
+    }));
+
+  if (!hasInternalAccess && !hasReaderAccess) {
     if (!user) {
       return new NextResponse("Authentication required.", {
         status: 401,
       });
     }
 
-    const isSuperAdmin = user.roles.some((role) => role.role === "SUPER_ADMIN");
-
-    const isAuthor = file.submission.authorId === user.id;
-
-    const isAssignee = file.productionAssignment?.assigneeId === user.id;
-
-    const isAssigningEditor =
-      file.productionAssignment?.assignedById === user.id;
-
-    const hasJournalAccess = user.roles.some(
-      (role) =>
-        role.journalId === file.submission.journalId &&
-        JOURNAL_ACCESS_ROLES.some((allowedRole) => allowedRole === role.role),
-    );
-
-    if (
-      !isSuperAdmin &&
-      !isAuthor &&
-      !isAssignee &&
-      !isAssigningEditor &&
-      !hasJournalAccess
-    ) {
-      return new NextResponse("Forbidden.", {
-        status: 403,
-      });
-    }
+    return new NextResponse("Forbidden.", {
+      status: 403,
+    });
   }
 
   let pathname: string;
@@ -197,12 +211,12 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
   headers.set("X-Content-Type-Options", "nosniff");
 
-  headers.set(
-    "Cache-Control",
-    isPubliclyAvailable
-      ? "public, max-age=3600, s-maxage=86400"
-      : "private, no-store, max-age=0",
-  );
+  /*
+   * Access here always depends on the requester's identity
+   * (staff role, purchase, or subscription), so the response
+   * must never be cached by a shared/CDN cache.
+   */
+  headers.set("Cache-Control", "private, no-store, max-age=0");
 
   if (result.blob.size) {
     headers.set("Content-Length", String(result.blob.size));

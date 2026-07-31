@@ -11,6 +11,14 @@ import { embedArticleMetadata } from "./embed-metadata";
  * metadata into it, and replaces the stored file with the annotated
  * version. Only articles with an existing `pdfUrl` are affected.
  *
+ * When the article's PDF is backed by a `ProductionFile` (the normal
+ * editorial publication path), the annotated file is re-uploaded
+ * privately and that record is updated in place, so the article keeps
+ * being served through the access-checked download route instead of
+ * a public blob URL. If there is no backing `ProductionFile` — an
+ * editor pasted an external URL directly — the URL is left untouched
+ * rather than silently replaced with a new public one.
+ *
  * This never throws — a failure here should not block publication,
  * so callers should fire-and-forget or catch around it themselves.
  */
@@ -25,6 +33,7 @@ export async function embedPublishedArticlePdfMetadata(
         select: {
             id: true,
             journalId: true,
+            submissionId: true,
             title: true,
             doi: true,
             pdfUrl: true,
@@ -57,6 +66,34 @@ export async function embedPublishedArticlePdfMetadata(
     });
 
     if (!article?.pdfUrl) {
+        return;
+    }
+
+    const finalProductionFile = article.submissionId
+        ? await prisma.productionFile.findFirst({
+              where: {
+                  submissionId: article.submissionId,
+                  fileType: {
+                      in: ["PDF_GALLEY", "FINAL_PUBLICATION_FILE", "PROOF_FILE"],
+                  },
+              },
+              orderBy: {
+                  updatedAt: "desc",
+              },
+              select: {
+                  id: true,
+              },
+          })
+        : null;
+
+    if (!finalProductionFile) {
+        logger.info(
+            "Skipped PDF metadata embedding: no production file backs this article's PDF",
+            {
+                articleId: article.id,
+            },
+        );
+
         return;
     }
 
@@ -97,6 +134,7 @@ export async function embedPublishedArticlePdfMetadata(
         const uploadResult = await uploadJournalFile({
             file: annotatedFile,
             category: "FINAL_ARTICLE",
+            visibility: "private",
 
             metadata: {
                 journalId: article.journalId,
@@ -105,12 +143,15 @@ export async function embedPublishedArticlePdfMetadata(
             },
         });
 
-        await prisma.article.update({
+        await prisma.productionFile.update({
             where: {
-                id: article.id,
+                id: finalProductionFile.id,
             },
             data: {
-                pdfUrl: uploadResult.url,
+                fileUrl: uploadResult.url,
+                fileName: uploadResult.originalFilename,
+                mimeType: uploadResult.mimeType,
+                fileSize: uploadResult.size,
             },
         });
 
