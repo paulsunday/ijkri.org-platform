@@ -4,22 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
-const adminLinks = [
-  ["Dashboard", "/admin"],
-  ["Journals", "/admin/journals"],
-  ["Editorial Board", "/admin/editorial-board"],
-  ["Submissions", "/admin/submissions"],
-  ["Users & Roles", "/admin/users"],
-  ["Volumes", "/admin/volumes"],
-  ["Issues", "/admin/issues"],
-  ["Articles", "/admin/articles"],
-  ["Reviews", "/admin/reviews"],
-  ["Reviewer Applications", "/admin/reviewer-applications"],
-  ["Career Applications", "/admin/career-applications"],
-  ["Payments", "/admin/payments"],
-  ["DOI Records", "/admin/doi-records"],
-  ["Settings", "/admin/settings"],
-] as const;
+import { ADMIN_NAV_LINKS as adminLinks } from "@/lib/constants/admin-nav-links";
 
 function isActive(pathname: string, href: string) {
   if (href === "/admin") {

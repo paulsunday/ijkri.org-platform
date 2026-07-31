@@ -3,6 +3,8 @@ import Link from "next/link";
 
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { getDashboardPath } from "@/lib/auth/dashboard-path";
+import { isSuperAdmin } from "@/lib/auth/permissions";
+import AdminQuickNav from "@/components/layout/AdminQuickNav";
 
 const navigation = [
   {
@@ -114,6 +116,8 @@ export default async function Header() {
           </Link>
 
           <div className="flex flex-wrap items-center gap-3">
+            {user && isSuperAdmin(user) && <AdminQuickNav />}
+
             {user ? (
               <>
                 <Link
