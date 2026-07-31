@@ -1,5 +1,7 @@
 ﻿import Link from "next/link";
 
+import { COUNTRIES } from "@/lib/constants/countries";
+
 import { submitReviewerApplication } from "./actions";
 
 type ReviewerApplicationPageProps = {
@@ -165,9 +167,10 @@ export default async function ReviewerApplicationPage({
                                     type="tel"
                                 />
 
-                                <Input
+                                <Select
                                     label="Country"
                                     name="country"
+                                    options={COUNTRIES}
                                     required
                                 />
 
@@ -443,6 +446,50 @@ function Input({
                 min={min}
                 className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
             />
+        </div>
+    );
+}
+
+type SelectProps = {
+    label: string;
+    name: string;
+    options: readonly string[];
+    required?: boolean;
+};
+
+function Select({
+    label,
+    name,
+    options,
+    required = false,
+}: SelectProps) {
+    return (
+        <div>
+            <label
+                htmlFor={name}
+                className="mb-2 block font-semibold"
+            >
+                {label}
+                {required ? " *" : ""}
+            </label>
+
+            <select
+                id={name}
+                name={name}
+                required={required}
+                defaultValue=""
+                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
+            >
+                <option value="" disabled>
+                    Select country
+                </option>
+
+                {options.map((option) => (
+                    <option key={option} value={option}>
+                        {option}
+                    </option>
+                ))}
+            </select>
         </div>
     );
 }

@@ -1,5 +1,6 @@
 ﻿import { requireAnyRole } from "@/lib/auth/permissions";
 import { AUTHOR_ROLES } from "@/lib/auth/role-groups";
+import { COUNTRIES } from "@/lib/constants/countries";
 
 import { submitManuscript } from "./actions";
 
@@ -161,11 +162,19 @@ export default async function SubmitManuscriptPage() {
                 Country
               </label>
 
-              <input
+              <select
                 name="authorCountry[]"
+                defaultValue=""
                 className="w-full rounded-lg border p-3"
-                placeholder="Nigeria"
-              />
+              >
+                <option value="">Select country</option>
+
+                {COUNTRIES.map((country) => (
+                  <option key={country} value={country}>
+                    {country}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -229,10 +238,19 @@ export default async function SubmitManuscriptPage() {
                 Country
               </label>
 
-              <input
+              <select
                 name="authorCountry[]"
+                defaultValue=""
                 className="w-full rounded-lg border p-3"
-              />
+              >
+                <option value="">Select country</option>
+
+                {COUNTRIES.map((country) => (
+                  <option key={country} value={country}>
+                    {country}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -295,10 +313,19 @@ export default async function SubmitManuscriptPage() {
                 Country
               </label>
 
-              <input
+              <select
                 name="authorCountry[]"
+                defaultValue=""
                 className="w-full rounded-lg border p-3"
-              />
+              >
+                <option value="">Select country</option>
+
+                {COUNTRIES.map((country) => (
+                  <option key={country} value={country}>
+                    {country}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>

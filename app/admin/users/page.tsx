@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireAnyRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
+import { COUNTRIES } from "@/lib/constants/countries";
 
 import {
   assignJournalRole,
@@ -43,6 +44,8 @@ function formatDate(value: Date) {
 }
 
 export default async function AdminUsersPage() {
+  await requireAnyRole(ADMIN_ROLES);
+
   const [users, journals] = await Promise.all([
     prisma.user.findMany({
       include: {
@@ -199,11 +202,20 @@ export default async function AdminUsersPage() {
               Country
             </label>
 
-            <input
+            <select
               id="country"
               name="country"
+              defaultValue=""
               className="w-full rounded-lg border p-3"
-            />
+            >
+              <option value="">Select country</option>
+
+              {COUNTRIES.map((country) => (
+                <option key={country} value={country}>
+                  {country}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>

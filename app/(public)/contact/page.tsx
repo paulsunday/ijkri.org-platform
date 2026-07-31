@@ -1,5 +1,7 @@
 ﻿import Link from "next/link";
 
+import { COUNTRIES } from "@/lib/constants/countries";
+
 const contactDepartments = [
   {
     title: "Editorial Office",
@@ -308,13 +310,21 @@ export default function ContactPage() {
                   Country
                 </label>
 
-                <input
+                <select
                   id="country"
                   name="country"
-                  type="text"
                   autoComplete="country-name"
+                  defaultValue=""
                   className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
-                />
+                >
+                  <option value="">Select country</option>
+
+                  {COUNTRIES.map((country) => (
+                    <option key={country} value={country}>
+                      {country}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 

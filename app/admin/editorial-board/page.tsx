@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import type { UserRole } from "@/lib/generated/prisma";
 import { requireAnyRole } from "@/lib/auth/permissions";
+import { COUNTRIES } from "@/lib/constants/countries";
 import { prisma } from "@/lib/prisma";
 
 import {
@@ -425,6 +426,7 @@ export default async function EditorialBoardAdminPage({
                                         label="Editorial role"
                                         name="role"
                                         options={BOARD_ROLES}
+                                        placeholder="Select a role"
                                         required
                                     />
 
@@ -434,10 +436,11 @@ export default async function EditorialBoardAdminPage({
                                         placeholder="University or institution"
                                     />
 
-                                    <FormInput
+                                    <FormSelect
                                         label="Country"
                                         name="country"
-                                        placeholder="Country"
+                                        options={COUNTRIES}
+                                        placeholder="Select country"
                                     />
 
                                     <FormInput
@@ -668,6 +671,7 @@ export default async function EditorialBoardAdminPage({
                                                                 label="Editorial role"
                                                                 name="role"
                                                                 options={BOARD_ROLES}
+                                                                placeholder="Select a role"
                                                                 required
                                                                 defaultValue={
                                                                     member.role || ""
@@ -683,9 +687,11 @@ export default async function EditorialBoardAdminPage({
                                                                 }
                                                             />
 
-                                                            <FormInput
+                                                            <FormSelect
                                                                 label="Country"
                                                                 name="country"
+                                                                options={COUNTRIES}
+                                                                placeholder="Select country"
                                                                 defaultValue={
                                                                     member.country || ""
                                                                 }
@@ -856,9 +862,10 @@ function FormInput({
 type FormSelectProps = {
     label: string;
     name: string;
-    options: string[];
+    options: readonly string[];
     required?: boolean;
     defaultValue?: string;
+    placeholder?: string;
 };
 
 function FormSelect({
@@ -867,6 +874,7 @@ function FormSelect({
     options,
     required = false,
     defaultValue = "",
+    placeholder = "Select an option",
 }: FormSelectProps) {
     return (
         <div>
@@ -886,7 +894,7 @@ function FormSelect({
                 className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
             >
                 <option value="" disabled>
-                    Select a role
+                    {placeholder}
                 </option>
 
                 {options.map((option) => (

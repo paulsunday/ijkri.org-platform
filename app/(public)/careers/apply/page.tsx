@@ -1,5 +1,7 @@
 ﻿import Link from "next/link";
 
+import { COUNTRIES } from "@/lib/constants/countries";
+
 import { submitCareerApplication } from "./actions";
 
 const POSITION_OPTIONS = [
@@ -323,11 +325,11 @@ export default async function CareerApplicationPage({
                                     autoComplete="tel"
                                 />
 
-                                <FormInput
+                                <FormSelect
                                     label="Country"
                                     name="country"
+                                    options={COUNTRIES}
                                     required
-                                    autoComplete="country-name"
                                 />
                             </div>
                         </fieldset>
@@ -592,6 +594,50 @@ function FormInput({
                 autoComplete={autoComplete}
                 className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
             />
+        </div>
+    );
+}
+
+type FormSelectProps = {
+    label: string;
+    name: string;
+    options: readonly string[];
+    required?: boolean;
+};
+
+function FormSelect({
+    label,
+    name,
+    options,
+    required = false,
+}: FormSelectProps) {
+    return (
+        <div>
+            <label
+                htmlFor={name}
+                className="mb-2 block font-semibold"
+            >
+                {label}
+                {required ? " *" : ""}
+            </label>
+
+            <select
+                id={name}
+                name={name}
+                required={required}
+                defaultValue=""
+                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
+            >
+                <option value="" disabled>
+                    Select country
+                </option>
+
+                {options.map((option) => (
+                    <option key={option} value={option}>
+                        {option}
+                    </option>
+                ))}
+            </select>
         </div>
     );
 }

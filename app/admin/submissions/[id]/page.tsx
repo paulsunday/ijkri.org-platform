@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { isSuperAdmin, requireAnyRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
+import { COUNTRIES } from "@/lib/constants/countries";
 import { prisma } from "@/lib/prisma";
 
 import { addSubmissionAuthor, assignEditor } from "./actions";
@@ -486,12 +487,20 @@ export default async function SubmissionDetailsPage({
                   Country
                 </label>
 
-                <input
+                <select
                   id="country"
                   name="country"
-                  type="text"
+                  defaultValue=""
                   className="w-full rounded-lg border p-2"
-                />
+                >
+                  <option value="">Select country</option>
+
+                  {COUNTRIES.map((country) => (
+                    <option key={country} value={country}>
+                      {country}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
