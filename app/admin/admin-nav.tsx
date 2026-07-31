@@ -92,7 +92,7 @@ export function AdminNav() {
         </div>
       )}
 
-      <aside className="hidden w-64 shrink-0 rounded-xl border bg-white p-5 shadow-sm lg:block">
+      <aside className="sticky top-8 hidden max-h-[calc(100vh-4rem)] w-64 shrink-0 self-start overflow-y-auto rounded-xl border bg-white p-5 shadow-sm lg:block">
         <h2 className="text-lg font-bold text-slate-950">Publisher Admin</h2>
         <p className="mt-1 text-sm text-slate-500">
           Innovare Academic Publishing
