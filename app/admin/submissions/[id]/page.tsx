@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { requireAnyRole } from "@/lib/auth/permissions";
+import { isSuperAdmin, requireAnyRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 
-import { assignEditor } from "./actions";
+import { addSubmissionAuthor, assignEditor } from "./actions";
 
 type PageProps = {
   params: Promise<{
@@ -23,7 +23,7 @@ function formatStatus(value: string) {
 export default async function SubmissionDetailsPage({
   params,
 }: PageProps) {
-  await requireAnyRole(ADMIN_ROLES);
+  const admin = await requireAnyRole(ADMIN_ROLES);
 
   const { id } = await params;
 
@@ -34,6 +34,12 @@ export default async function SubmissionDetailsPage({
     include: {
       author: true,
       journal: true,
+
+      submissionAuthors: {
+        orderBy: {
+          sortOrder: "asc",
+        },
+      },
     },
   });
 
@@ -334,6 +340,189 @@ export default async function SubmissionDetailsPage({
           .
         </section>
       )}
+
+      <section className="rounded-xl border bg-white p-8 shadow-sm">
+        <h2 className="text-xl font-bold">
+          Manuscript Authors
+        </h2>
+
+        <p className="mt-2 text-slate-600">
+          Everyone credited on this manuscript, in listing order.
+        </p>
+
+        <div className="mt-6 space-y-3">
+          {submission.submissionAuthors.length > 0 ? (
+            submission.submissionAuthors.map((author) => (
+              <div
+                key={author.id}
+                className="flex flex-wrap items-start justify-between gap-4 rounded-lg border bg-slate-50 p-4"
+              >
+                <div>
+                  <p className="font-semibold">
+                    {author.fullName}
+                    {author.isCorresponding && (
+                      <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">
+                        Corresponding
+                      </span>
+                    )}
+                  </p>
+
+                  <p className="text-sm text-slate-600">
+                    {[author.email, author.affiliation, author.country]
+                      .filter(Boolean)
+                      .join(" · ") || "No further details provided"}
+                  </p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-lg border bg-slate-50 p-4">
+              <p className="font-semibold">
+                {submission.author.name}
+                <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">
+                  Corresponding
+                </span>
+              </p>
+
+              <p className="text-sm text-slate-600">
+                {submission.author.email}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {isSuperAdmin(admin) && (
+          <div className="mt-8 border-t pt-6">
+            <h3 className="text-lg font-bold">
+              Add an Author
+            </h3>
+
+            <p className="mt-1 text-sm text-slate-600">
+              Adds a co-author at the corresponding author&apos;s request.
+              The new author is added alongside the existing
+              corresponding author, who is not changed.
+            </p>
+
+            <form
+              action={addSubmissionAuthor}
+              className="mt-5 grid gap-4 md:grid-cols-2"
+            >
+              <input
+                type="hidden"
+                name="submissionId"
+                value={submission.id}
+              />
+
+              <div>
+                <label
+                  htmlFor="fullName"
+                  className="mb-1 block text-sm font-medium"
+                >
+                  Full name
+                </label>
+
+                <input
+                  id="fullName"
+                  name="fullName"
+                  type="text"
+                  required
+                  className="w-full rounded-lg border p-2"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="email"
+                  className="mb-1 block text-sm font-medium"
+                >
+                  Email
+                </label>
+
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  className="w-full rounded-lg border p-2"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="affiliation"
+                  className="mb-1 block text-sm font-medium"
+                >
+                  Affiliation
+                </label>
+
+                <input
+                  id="affiliation"
+                  name="affiliation"
+                  type="text"
+                  className="w-full rounded-lg border p-2"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="department"
+                  className="mb-1 block text-sm font-medium"
+                >
+                  Department
+                </label>
+
+                <input
+                  id="department"
+                  name="department"
+                  type="text"
+                  className="w-full rounded-lg border p-2"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="country"
+                  className="mb-1 block text-sm font-medium"
+                >
+                  Country
+                </label>
+
+                <input
+                  id="country"
+                  name="country"
+                  type="text"
+                  className="w-full rounded-lg border p-2"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="orcid"
+                  className="mb-1 block text-sm font-medium"
+                >
+                  ORCID
+                </label>
+
+                <input
+                  id="orcid"
+                  name="orcid"
+                  type="text"
+                  placeholder="0000-0000-0000-0000"
+                  className="w-full rounded-lg border p-2"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <button
+                  type="submit"
+                  className="rounded-lg bg-blue-700 px-6 py-3 font-semibold text-white hover:bg-blue-800"
+                >
+                  Add Author
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+      </section>
 
       <section className="rounded-xl border bg-white p-8 shadow-sm">
         <h2 className="text-xl font-bold">

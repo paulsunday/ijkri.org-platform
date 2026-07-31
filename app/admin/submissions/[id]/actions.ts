@@ -2,9 +2,37 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAnyActionRole } from "@/lib/auth/permissions";
+import { requireActionRole, requireAnyActionRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
+
+const MAX_AUTHORS = 100;
+const MAX_AUTHOR_NAME_LENGTH = 200;
+const MAX_AUTHOR_EMAIL_LENGTH = 320;
+const MAX_AFFILIATION_LENGTH = 500;
+const MAX_DEPARTMENT_LENGTH = 200;
+const MAX_COUNTRY_LENGTH = 100;
+const MAX_ORCID_LENGTH = 19;
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function isValidOrcid(value: string): boolean {
+  return /^\d{4}-\d{4}-\d{4}-[\dX]{4}$/i.test(value);
+}
+
+function assertMaximumLength(
+  value: string,
+  maximumLength: number,
+  fieldLabel: string,
+) {
+  if (value.length > maximumLength) {
+    throw new Error(
+      `${fieldLabel} must not exceed ${maximumLength.toLocaleString()} characters.`,
+    );
+  }
+}
 
 export async function assignEditor(formData: FormData) {
   const admin = await requireAnyActionRole(ADMIN_ROLES);
@@ -111,4 +139,185 @@ export async function assignEditor(formData: FormData) {
     `/editor/submissions/${submissionId}`,
   );
   revalidatePath("/editor/dashboard");
+}
+
+/**
+ * Adds a co-author to a submission on the corresponding author's
+ * behalf. Restricted to SUPER_ADMIN, since this edits a manuscript's
+ * author list outside the normal author-facing submission flow.
+ *
+ * The new author is always added as non-corresponding; the existing
+ * corresponding author is left unchanged. Submissions created before
+ * per-author records existed are backfilled with the primary
+ * submitter as author 1 so the list stays consistent.
+ */
+export async function addSubmissionAuthor(formData: FormData) {
+  const admin = await requireActionRole("SUPER_ADMIN");
+
+  const submissionId = String(
+    formData.get("submissionId") || "",
+  ).trim();
+
+  const fullName = String(formData.get("fullName") || "").trim();
+
+  const email = String(formData.get("email") || "").trim();
+
+  const affiliation = String(
+    formData.get("affiliation") || "",
+  ).trim();
+
+  const department = String(
+    formData.get("department") || "",
+  ).trim();
+
+  const country = String(formData.get("country") || "").trim();
+
+  const orcid = String(formData.get("orcid") || "").trim();
+
+  if (!submissionId) {
+    throw new Error("Submission ID is missing.");
+  }
+
+  if (!fullName) {
+    throw new Error("Enter the author's full name.");
+  }
+
+  assertMaximumLength(
+    fullName,
+    MAX_AUTHOR_NAME_LENGTH,
+    "Author name",
+  );
+  assertMaximumLength(
+    email,
+    MAX_AUTHOR_EMAIL_LENGTH,
+    "Author email",
+  );
+  assertMaximumLength(
+    affiliation,
+    MAX_AFFILIATION_LENGTH,
+    "Author affiliation",
+  );
+  assertMaximumLength(
+    department,
+    MAX_DEPARTMENT_LENGTH,
+    "Author department",
+  );
+  assertMaximumLength(
+    country,
+    MAX_COUNTRY_LENGTH,
+    "Author country",
+  );
+  assertMaximumLength(orcid, MAX_ORCID_LENGTH, "Author ORCID");
+
+  if (email && !isValidEmail(email)) {
+    throw new Error(
+      "Enter a valid email address for the new author.",
+    );
+  }
+
+  if (orcid && !isValidOrcid(orcid)) {
+    throw new Error(
+      "Enter a valid ORCID using the format 0000-0000-0000-0000.",
+    );
+  }
+
+  const submission = await prisma.submission.findUnique({
+    where: {
+      id: submissionId,
+    },
+    select: {
+      id: true,
+      title: true,
+      journalId: true,
+
+      author: {
+        select: {
+          name: true,
+          email: true,
+          affiliation: true,
+          country: true,
+          orcid: true,
+        },
+      },
+
+      submissionAuthors: {
+        orderBy: {
+          sortOrder: "asc",
+        },
+        select: {
+          id: true,
+          sortOrder: true,
+        },
+      },
+    },
+  });
+
+  if (!submission) {
+    throw new Error("Submission not found.");
+  }
+
+  if (submission.submissionAuthors.length >= MAX_AUTHORS) {
+    throw new Error(
+      `A manuscript may contain no more than ${MAX_AUTHORS} authors.`,
+    );
+  }
+
+  await prisma.$transaction(async (tx) => {
+    if (submission.submissionAuthors.length === 0) {
+      await tx.submissionAuthor.create({
+        data: {
+          submissionId,
+          fullName: submission.author.name,
+          email: submission.author.email,
+          affiliation: submission.author.affiliation,
+          country: submission.author.country,
+          orcid: submission.author.orcid,
+          isCorresponding: true,
+          sortOrder: 1,
+        },
+      });
+    }
+
+    const nextSortOrder =
+      submission.submissionAuthors.length > 0
+        ? submission.submissionAuthors[
+            submission.submissionAuthors.length - 1
+          ].sortOrder + 1
+        : 2;
+
+    const createdAuthor = await tx.submissionAuthor.create({
+      data: {
+        submissionId,
+        fullName,
+        email: email || null,
+        affiliation: affiliation || null,
+        department: department || null,
+        country: country || null,
+        orcid: orcid || null,
+        isCorresponding: false,
+        sortOrder: nextSortOrder,
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        userId: admin.id,
+        action: "CREATE",
+        entity: "SubmissionAuthor",
+        entityId: createdAuthor.id,
+
+        metadata: {
+          event: "SUBMISSION_AUTHOR_ADDED",
+          submissionId,
+          journalId: submission.journalId,
+          submissionTitle: submission.title,
+          authorName: fullName,
+          addedBy: admin.id,
+        },
+      },
+    });
+  });
+
+  revalidatePath(`/admin/submissions/${submissionId}`);
+  revalidatePath(`/editor/submissions/${submissionId}`);
 }
