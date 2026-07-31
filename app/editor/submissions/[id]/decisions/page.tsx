@@ -184,12 +184,21 @@ export default async function EditorialDecisionPage({
   const latestVersion =
     submission.versions[0];
 
-  const terminalStatus = [
-    "ACCEPTED",
-    "REJECTED",
-    "PUBLISHED",
-    "WITHDRAWN",
-  ].includes(submission.status);
+  /*
+   * A decision may only be recorded while the submission is still
+   * awaiting one. Once it has been accepted, rejected, or has moved
+   * into production/publication, a fresh decision must not be
+   * allowed to stomp that progress back to an earlier status.
+   */
+  const decisionEligibleStatuses = [
+    "UNDER_INITIAL_REVIEW",
+    "UNDER_PEER_REVIEW",
+    "REVISION_REQUIRED",
+  ];
+
+  const terminalStatus = !decisionEligibleStatuses.includes(
+    submission.status,
+  );
 
   const recommendationCounts = {
     ACCEPT: submittedAssignments.filter(

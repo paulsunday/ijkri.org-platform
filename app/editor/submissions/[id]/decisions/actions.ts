@@ -144,22 +144,29 @@ export async function sendEditorialDecision(formData: FormData) {
     throw new Error("Submission not found.");
   }
 
-  const terminalStatuses = [
-    "ACCEPTED",
-    "REJECTED",
-    "PUBLISHED",
-    "WITHDRAWN",
+  /*
+   * A decision may only be recorded while the submission is still
+   * awaiting one. Once accepted/rejected, or once production has
+   * started, recording a new decision would silently overwrite that
+   * progress with an earlier status (e.g. re-accepting a submission
+   * already in AUTHOR_PROOF_APPROVAL would reset it back to
+   * ACCEPTED, discarding every completed production stage).
+   */
+  const decisionEligibleStatuses = [
+    "UNDER_INITIAL_REVIEW",
+    "UNDER_PEER_REVIEW",
+    "REVISION_REQUIRED",
   ] as const;
 
   if (
-    terminalStatuses.includes(
-      submission.status as (typeof terminalStatuses)[number],
+    !decisionEligibleStatuses.includes(
+      submission.status as (typeof decisionEligibleStatuses)[number],
     )
   ) {
     throw new Error(
       `A new decision cannot be recorded because this submission is already ${submission.status
         .replaceAll("_", " ")
-        .toLowerCase()}.`,
+        .toLowerCase()} and is no longer awaiting an editorial decision.`,
     );
   }
 
