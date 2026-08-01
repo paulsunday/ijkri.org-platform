@@ -242,7 +242,7 @@ export default async function ArchivesPage() {
                     className="rounded-xl border border-gray-200 p-5 sm:p-6"
                   >
                     <div className="grid gap-6 md:grid-cols-[160px_1fr]">
-                      <div>
+                      <div className="mx-auto w-full max-w-[160px] md:max-w-none">
                         {issue.coverImage ? (
                           <a
                             href={issue.coverImage}

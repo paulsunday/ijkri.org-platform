@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 import { getDashboardPath } from "@/lib/auth/dashboard-path";
 import { isSuperAdmin } from "@/lib/auth/permissions";
 import AdminQuickNav from "@/components/layout/AdminQuickNav";
+import MobileNav from "@/components/layout/MobileNav";
 
 const navigation = [
   {
@@ -162,29 +163,9 @@ export default async function Header() {
         </div>
       </div>
 
-      <nav
-        aria-label="Main navigation"
-        className="border-t border-slate-200 bg-slate-50"
-      >
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-7 gap-y-3 px-6 py-4 text-sm font-semibold text-slate-700">
-          {navigation.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="transition hover:text-amber-700"
-            >
-              {item.label}
-            </Link>
-          ))}
-
-          <Link
-            href="/reviewer/apply"
-            className="ml-auto rounded-full border border-amber-300 bg-amber-50 px-4 py-2 text-amber-800 transition hover:bg-amber-100"
-          >
-            Become a Reviewer
-          </Link>
-        </div>
-      </nav>
+      <div className="border-t border-slate-200 bg-slate-50">
+        <MobileNav navigation={navigation} />
+      </div>
     </header>
   );
 }
