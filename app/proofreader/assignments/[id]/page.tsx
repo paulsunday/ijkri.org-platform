@@ -372,7 +372,7 @@ export default async function ProofreaderAssignmentPage({
                             Instructions
                         </h3>
 
-                        <div className="mt-2 whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm">
+                        <div className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-gray-50 p-4 text-sm">
                             {
                                 assignment.instructions
                             }
@@ -399,8 +399,8 @@ export default async function ProofreaderAssignmentPage({
                                 className="rounded-xl border p-5"
                             >
                                 <div className="flex flex-wrap items-start justify-between gap-4">
-                                    <div>
-                                        <h3 className="font-semibold">
+                                    <div className="min-w-0">
+                                        <h3 className="break-words font-semibold">
                                             {
                                                 file.fileName
                                             }
@@ -419,7 +419,7 @@ export default async function ProofreaderAssignmentPage({
                                             }
                                         </p>
 
-                                        <p className="mt-1 text-sm text-gray-600">
+                                        <p className="mt-1 break-words text-sm text-gray-600">
                                             Uploaded by{" "}
                                             {
                                                 file
@@ -466,8 +466,8 @@ export default async function ProofreaderAssignmentPage({
                                 className="rounded-xl border p-5"
                             >
                                 <div className="flex flex-wrap items-start justify-between gap-4">
-                                    <div>
-                                        <h3 className="font-semibold">
+                                    <div className="min-w-0">
+                                        <h3 className="break-words font-semibold">
                                             {
                                                 file.fileName
                                             }
@@ -480,7 +480,7 @@ export default async function ProofreaderAssignmentPage({
                                             }
                                         </p>
 
-                                        <p className="mt-1 text-sm text-gray-600">
+                                        <p className="mt-1 break-words text-sm text-gray-600">
                                             Uploaded by{" "}
                                             {
                                                 file
@@ -496,7 +496,7 @@ export default async function ProofreaderAssignmentPage({
                                         </p>
 
                                         {file.description && (
-                                            <p className="mt-3 whitespace-pre-wrap text-sm">
+                                            <p className="mt-3 whitespace-pre-wrap break-words text-sm">
                                                 {
                                                     file.description
                                                 }
@@ -535,8 +535,8 @@ export default async function ProofreaderAssignmentPage({
                                     className="rounded-lg bg-gray-50 p-5"
                                 >
                                     <div className="flex flex-wrap justify-between gap-3">
-                                        <div>
-                                            <p className="font-semibold">
+                                        <div className="min-w-0">
+                                            <p className="break-words font-semibold">
                                                 {
                                                     note
                                                         .author
@@ -558,7 +558,7 @@ export default async function ProofreaderAssignmentPage({
                                         </p>
                                     </div>
 
-                                    <p className="mt-3 whitespace-pre-wrap text-sm">
+                                    <p className="mt-3 whitespace-pre-wrap break-words text-sm">
                                         {
                                             note.message
                                         }

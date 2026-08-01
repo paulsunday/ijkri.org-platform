@@ -76,7 +76,7 @@ export default async function SubscribePage({
         subscription.expiresAt > new Date();
 
     return (
-        <main className="mx-auto max-w-2xl space-y-8 p-8">
+        <main className="mx-auto max-w-2xl space-y-8 px-4 py-8 sm:px-6 sm:py-12">
             <div>
                 <h1 className="text-3xl font-bold">
                     Subscribe to {journal.name}

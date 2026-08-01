@@ -140,7 +140,7 @@ export default async function EditorRevisionHistoryPage({
                             submission.status !== "REJECTED" &&
                             submission.status !== "PUBLISHED" &&
                             submission.status !== "WITHDRAWN" && (
-                                -<Link
+                                <Link
                                     href={`/editor/submissions/${submission.id}/review-rounds/new`}
                                     className="rounded-lg bg-purple-700 px-5 py-3 font-semibold text-white hover:bg-purple-800"
                                 >

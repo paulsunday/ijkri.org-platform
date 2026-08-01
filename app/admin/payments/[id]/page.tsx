@@ -168,7 +168,7 @@ export default async function PaymentDetailsPage({
 
     return (
         <main className="mx-auto max-w-7xl px-6 py-10">
-            <div className="mb-8 flex items-center justify-between">
+            <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <p className="text-sm font-medium text-slate-500">
                         Finance / Payment Details
@@ -180,13 +180,13 @@ export default async function PaymentDetailsPage({
 
                     <p className="mt-2 text-slate-600">
                         Receipt{" "}
-                        <span className="font-semibold">
+                        <span className="break-all font-semibold">
                             {payment.receiptNumber ?? "Not Issued"}
                         </span>
                     </p>
                 </div>
 
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-3">
                     <Link
                         href="/admin/payments"
                         className="rounded-lg border px-4 py-2 hover:bg-slate-100"
@@ -730,7 +730,7 @@ export default async function PaymentDetailsPage({
                 outstanding={outstanding}
             />
 
-            <footer className="mt-10 flex items-center justify-between border-t pt-6">
+            <footer className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t pt-6">
 
                 <Link
                     href="/admin/payments"

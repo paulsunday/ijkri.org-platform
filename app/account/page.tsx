@@ -1,5 +1,6 @@
 ﻿import Link from "next/link";
 
+import { Container } from "@/components/layout/container";
 import LogoutButton from "@/components/auth/logout-button";
 import { requireCurrentUser } from "@/lib/auth/current-user";
 import { getDashboardPath } from "@/lib/auth/dashboard-path";
@@ -32,8 +33,8 @@ export default async function AccountPage({
     );
 
     return (
-        <main className="mx-auto max-w-3xl p-8">
-            <div className="rounded-xl border bg-white p-8 shadow-sm">
+        <Container as="main" size="3xl" className="py-8 sm:py-12">
+            <div className="rounded-xl border bg-white p-6 shadow-sm sm:p-8">
                 <div>
                     <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
                         Account
@@ -181,6 +182,6 @@ export default async function AccountPage({
                     <LogoutButton />
                 </div>
             </div>
-        </main>
+        </Container>
     );
 }

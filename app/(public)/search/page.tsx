@@ -1,5 +1,6 @@
 ﻿import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { Container } from "@/components/layout/container";
 
 type SearchPageProps = {
   searchParams: Promise<{
@@ -118,7 +119,7 @@ export default async function SearchPage({
     : [];
 
   return (
-    <main className="mx-auto max-w-7xl space-y-8 px-6 py-12">
+    <Container as="main" className="space-y-8 py-8 sm:py-12">
       <header>
         <h1 className="text-4xl font-bold">
           Search Articles
@@ -242,7 +243,7 @@ export default async function SearchPage({
                       href={`https://doi.org/${article.doi}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="font-medium text-blue-700 hover:underline"
+                      className="break-all font-medium text-blue-700 hover:underline"
                     >
                       {article.doi}
                     </a>
@@ -293,6 +294,6 @@ export default async function SearchPage({
           })}
         </section>
       )}
-    </main>
+    </Container>
   );
 }

@@ -575,24 +575,24 @@ export default async function CareerApplicationsPage({
                                         className="rounded-2xl border bg-white p-6 shadow-sm"
                                     >
                                         <div className="flex flex-wrap items-start justify-between gap-4">
-                                            <div>
+                                            <div className="min-w-0">
                                                 <p className="text-sm font-bold uppercase tracking-[0.16em] text-amber-700">
                                                     {formatEnum(
                                                         application.position,
                                                     )}
                                                 </p>
 
-                                                <h2 className="mt-2 text-2xl font-bold">
+                                                <h2 className="mt-2 break-words text-2xl font-bold">
                                                     {
                                                         application.fullName
                                                     }
                                                 </h2>
 
-                                                <p className="mt-1 text-slate-600">
+                                                <p className="mt-1 break-all text-slate-600">
                                                     {application.email}
                                                 </p>
 
-                                                <p className="mt-2 text-sm text-slate-500">
+                                                <p className="mt-2 break-words text-sm text-slate-500">
                                                     {application.affiliation ||
                                                         "Institution not provided"}
 

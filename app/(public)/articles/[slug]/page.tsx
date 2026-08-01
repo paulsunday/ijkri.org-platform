@@ -643,7 +643,7 @@ export default async function PublicArticlePage({ params }: PageProps) {
                   )}
 
                   {article.doi && (
-                    <p>
+                    <p className="min-w-0 break-all">
                       <span className="font-semibold text-slate-900">DOI:</span>{" "}
                       <a
                         href={`https://doi.org/${article.doi}`}
@@ -670,7 +670,7 @@ export default async function PublicArticlePage({ params }: PageProps) {
             <section className="rounded-xl border bg-white p-6 shadow-sm">
               <h2 className="text-2xl font-semibold">Abstract</h2>
 
-              <div className="mt-4 whitespace-pre-wrap leading-7 text-gray-700">
+              <div className="mt-4 whitespace-pre-wrap break-words leading-7 text-gray-700">
                 {article.abstract}
               </div>
             </section>
@@ -799,7 +799,7 @@ export default async function PublicArticlePage({ params }: PageProps) {
               <section className="rounded-xl border bg-white p-6 shadow-sm">
                 <h2 className="text-2xl font-semibold">Article</h2>
 
-                <div className="mt-5 whitespace-pre-wrap leading-7 text-gray-700">
+                <div className="mt-5 whitespace-pre-wrap break-words leading-7 text-gray-700">
                   {article.body}
                 </div>
               </section>
@@ -815,7 +815,7 @@ export default async function PublicArticlePage({ params }: PageProps) {
               <p className="mt-2 text-sm text-gray-600">APA 7th edition</p>
 
               <div className="mt-5 rounded-lg bg-gray-50 p-5">
-                <p className="leading-7 text-gray-800">{citation}</p>
+                <p className="break-words leading-7 text-gray-800">{citation}</p>
               </div>
             </section>
 
@@ -826,10 +826,10 @@ export default async function PublicArticlePage({ params }: PageProps) {
                 <ol className="mt-5 list-decimal space-y-4 pl-6 text-sm leading-6">
                   {article.references.map((reference) => (
                     <li key={reference.id}>
-                      <p>{reference.citation}</p>
+                      <p className="break-words">{reference.citation}</p>
 
                       {reference.doi && (
-                        <p className="mt-1 text-blue-700">
+                        <p className="mt-1 break-all text-blue-700">
                           DOI: {reference.doi}
                         </p>
                       )}

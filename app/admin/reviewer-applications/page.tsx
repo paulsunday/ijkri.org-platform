@@ -396,16 +396,16 @@ export default async function ReviewerApplicationsPage({
                                 className="rounded-2xl border bg-white p-6 shadow-sm"
                             >
                                 <div className="flex flex-wrap items-start justify-between gap-4">
-                                    <div>
-                                        <h2 className="text-2xl font-bold">
+                                    <div className="min-w-0">
+                                        <h2 className="break-words text-2xl font-bold">
                                             {application.fullName}
                                         </h2>
 
-                                        <p className="mt-1 text-slate-600">
+                                        <p className="mt-1 break-all text-slate-600">
                                             {application.email}
                                         </p>
 
-                                        <p className="mt-2 text-sm text-slate-500">
+                                        <p className="mt-2 break-words text-sm text-slate-500">
                                             {
                                                 application.affiliation
                                             }

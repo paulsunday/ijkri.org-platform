@@ -110,7 +110,7 @@ export default function LoginForm({
     }
 
     return (
-        <section className="mx-auto flex min-h-[75vh] max-w-lg items-center px-6 py-16">
+        <section className="mx-auto flex min-h-[70vh] max-w-lg items-center px-6 py-10 sm:py-16">
             <div className="w-full rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
                 <p className="text-sm font-bold uppercase tracking-[0.18em] text-amber-700">
                     Account Access

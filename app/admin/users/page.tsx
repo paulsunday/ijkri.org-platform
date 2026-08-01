@@ -367,12 +367,12 @@ export default async function AdminUsersPage() {
                 className="rounded-xl border p-6"
               >
                 <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div>
-                    <h3 className="text-xl font-semibold">
+                  <div className="min-w-0">
+                    <h3 className="break-words text-xl font-semibold">
                       {user.name}
                     </h3>
 
-                    <p className="mt-1 text-gray-600">
+                    <p className="mt-1 break-all text-gray-600">
                       {user.email}
                     </p>
 

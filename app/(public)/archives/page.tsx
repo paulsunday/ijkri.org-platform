@@ -1,6 +1,7 @@
 ﻿import Link from "next/link";
 
 import { prisma } from "@/lib/prisma";
+import { Container } from "@/components/layout/container";
 
 function formatDate(value: Date | null | undefined) {
   if (!value) {
@@ -133,7 +134,7 @@ export default async function ArchivesPage() {
   );
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-12">
+    <Container as="main" className="py-8 sm:py-12">
       <header className="border-b pb-8">
         <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-700">
           Journal publications
@@ -241,7 +242,7 @@ export default async function ArchivesPage() {
                     key={issue.id}
                     className="rounded-xl border border-gray-200 p-5 sm:p-6"
                   >
-                    <div className="grid gap-6 md:grid-cols-[160px_1fr]">
+                    <div className="grid gap-6 md:grid-cols-[160px_minmax(0,1fr)]">
                       <div className="mx-auto w-full max-w-[160px] md:max-w-none">
                         {issue.coverImage ? (
                           <a
@@ -373,7 +374,9 @@ export default async function ArchivesPage() {
                                   {pageRange && <span>{pageRange}</span>}
 
                                   {article.doi && (
-                                    <span>DOI: {article.doi}</span>
+                                    <span className="break-all">
+                                      DOI: {article.doi}
+                                    </span>
                                   )}
                                 </div>
 
@@ -420,6 +423,6 @@ export default async function ArchivesPage() {
           ))}
         </div>
       )}
-    </main>
+    </Container>
   );
 }

@@ -278,7 +278,7 @@ export default async function AuthorDashboardPage() {
                     </div>
                 ) : (
                     <div className="mt-6 overflow-x-auto">
-                        <table className="w-full min-w-[850px] text-left">
+                        <table className="w-full text-left">
                             <thead>
                                 <tr className="border-b bg-gray-50 text-sm text-gray-600">
                                     <th className="px-4 py-3">

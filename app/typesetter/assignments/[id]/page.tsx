@@ -226,7 +226,7 @@ export default async function TypesetterWorkspace({
                             Editor Instructions
                         </p>
 
-                        <div className="mt-2 whitespace-pre-wrap rounded-lg bg-yellow-50 p-4 text-sm">
+                        <div className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-yellow-50 p-4 text-sm">
                             {assignment.instructions}
                         </div>
                     </div>
@@ -249,8 +249,8 @@ export default async function TypesetterWorkspace({
                                 key={file.id}
                                 className="flex flex-wrap items-center justify-between gap-4 rounded border p-4"
                             >
-                                <div>
-                                    <p className="font-medium">
+                                <div className="min-w-0">
+                                    <p className="break-words font-medium">
                                         {file.fileName}
                                     </p>
 
@@ -287,8 +287,8 @@ export default async function TypesetterWorkspace({
                                 key={file.id}
                                 className="flex flex-wrap items-center justify-between gap-4 rounded border p-4"
                             >
-                                <div>
-                                    <p className="font-medium">
+                                <div className="min-w-0">
+                                    <p className="break-words font-medium">
                                         {file.fileName}
                                     </p>
 
@@ -436,7 +436,7 @@ export default async function TypesetterWorkspace({
                                 className="rounded border p-4"
                             >
                                 <div className="flex flex-wrap justify-between gap-3">
-                                    <p className="font-semibold">
+                                    <p className="min-w-0 break-words font-semibold">
                                         {note.author.name}
                                     </p>
 
@@ -445,7 +445,7 @@ export default async function TypesetterWorkspace({
                                     </p>
                                 </div>
 
-                                <p className="mt-2 whitespace-pre-wrap">
+                                <p className="mt-2 whitespace-pre-wrap break-words">
                                     {note.message}
                                 </p>
                             </div>

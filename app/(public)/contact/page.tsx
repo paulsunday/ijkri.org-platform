@@ -509,7 +509,7 @@ export default function ContactPage() {
           </p>
         </article>
 
-        <div className="flex min-h-80 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+        <div className="flex min-h-56 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center sm:min-h-80">
           <div>
             <p className="text-xl font-bold text-slate-800">
               Map Location

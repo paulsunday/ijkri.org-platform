@@ -18,7 +18,7 @@ export default function ArticleSidebar({
     issnOnline,
 }: Props) {
     return (
-        <aside className="sticky top-24 space-y-6">
+        <aside className="space-y-6 lg:sticky lg:top-24">
 
             <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
 

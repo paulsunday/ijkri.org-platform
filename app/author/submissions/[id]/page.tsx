@@ -516,7 +516,7 @@ export default async function AuthorSubmissionDetailsPage({
                       Cover letter
                     </p>
 
-                    <div className="mt-2 whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm">
+                    <div className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-gray-50 p-4 text-sm">
                       {
                         version.coverLetter
                       }
@@ -530,7 +530,7 @@ export default async function AuthorSubmissionDetailsPage({
                       Author notes
                     </p>
 
-                    <div className="mt-2 whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm">
+                    <div className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-gray-50 p-4 text-sm">
                       {
                         version.authorNotes
                       }
@@ -569,12 +569,12 @@ export default async function AuthorSubmissionDetailsPage({
                       key={file.id}
                       className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-gray-50 p-3"
                     >
-                      <div>
-                        <p className="text-sm font-medium">
+                      <div className="min-w-0">
+                        <p className="break-words text-sm font-medium">
                           {file.fileName}
                         </p>
 
-                        <p className="text-xs text-gray-500">
+                        <p className="break-words text-xs text-gray-500">
                           {file.label ||
                             file.fileType ||
                             "Submission file"}

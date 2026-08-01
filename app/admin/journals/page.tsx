@@ -6,7 +6,7 @@ export default async function AdminJournalsPage() {
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-12">
-      <div className="flex items-start justify-between gap-6">
+      <div className="flex flex-wrap items-start justify-between gap-6">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">
             Journal Management

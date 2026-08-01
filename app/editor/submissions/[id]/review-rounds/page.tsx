@@ -433,18 +433,18 @@ export default async function EditorReviewRoundsPage({
                       className="rounded-xl border p-5"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-4">
-                        <div>
-                          <h3 className="text-lg font-semibold">
+                        <div className="min-w-0">
+                          <h3 className="break-words text-lg font-semibold">
                             {assignment.reviewer.name}
                           </h3>
 
-                          <p className="mt-1 text-sm text-gray-600">
+                          <p className="mt-1 break-all text-sm text-gray-600">
                             {assignment.reviewer.email}
                           </p>
 
                           {(assignment.reviewer.affiliation ||
                             assignment.reviewer.country) && (
-                              <p className="mt-1 text-sm text-gray-500">
+                              <p className="mt-1 break-words text-sm text-gray-500">
                                 {[
                                   assignment.reviewer.affiliation,
                                   assignment.reviewer.country,

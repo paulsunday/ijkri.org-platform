@@ -199,7 +199,7 @@ export default async function AuthorRevisionPage({
                                 Editor’s comments
                             </p>
 
-                            <div className="mt-2 whitespace-pre-wrap rounded-lg bg-gray-50 p-4">
+                            <div className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-gray-50 p-4">
                                 {latestDecision.comments ||
                                     "No comments were provided."}
                             </div>
@@ -368,7 +368,7 @@ export default async function AuthorRevisionPage({
                                             href={file.fileUrl}
                                             target="_blank"
                                             rel="noreferrer"
-                                            className="block text-sm text-blue-700 hover:underline"
+                                            className="block break-words text-sm text-blue-700 hover:underline"
                                         >
                                             {file.fileName}
                                         </a>
@@ -384,12 +384,12 @@ export default async function AuthorRevisionPage({
                                     className="rounded-lg border p-4"
                                 >
                                     <div className="flex flex-wrap items-start justify-between gap-3">
-                                        <div>
+                                        <div className="min-w-0">
                                             <p className="font-semibold">
                                                 Version {version.versionNumber}
                                             </p>
 
-                                            <p className="mt-1 text-sm text-gray-600">
+                                            <p className="mt-1 break-words text-sm text-gray-600">
                                                 Uploaded by {version.uploadedBy.name} on{" "}
                                                 {new Date(
                                                     version.createdAt,
@@ -421,7 +421,7 @@ export default async function AuthorRevisionPage({
                                     </div>
 
                                     {version.authorNotes && (
-                                        <div className="mt-4 rounded bg-gray-50 p-3 text-sm whitespace-pre-wrap">
+                                        <div className="mt-4 rounded bg-gray-50 p-3 text-sm whitespace-pre-wrap break-words">
                                             {version.authorNotes}
                                         </div>
                                     )}

@@ -237,7 +237,7 @@ export default async function ReviewerReviewPage({
           Abstract
         </h2>
 
-        <div className="mt-4 whitespace-pre-wrap rounded-lg bg-slate-50 p-5">
+        <div className="mt-4 whitespace-pre-wrap break-words rounded-lg bg-slate-50 p-5">
           {assignment.submission.abstract}
         </div>
       </section>
@@ -250,8 +250,8 @@ export default async function ReviewerReviewPage({
         {assignment.submissionVersion ? (
           <div className="mt-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4">
-              <div>
-                <p className="font-semibold">
+              <div className="min-w-0">
+                <p className="break-words font-semibold">
                   Revised manuscript — Version{" "}
                   {
                     assignment.submissionVersion
@@ -259,7 +259,7 @@ export default async function ReviewerReviewPage({
                   }
                 </p>
 
-                <p className="mt-1 text-sm text-gray-600">
+                <p className="mt-1 break-words text-sm text-gray-600">
                   {assignment.submissionVersion
                     .manuscriptFileName ||
                     "Revised manuscript"}
@@ -282,12 +282,12 @@ export default async function ReviewerReviewPage({
             {assignment.submissionVersion
               .responseFileUrl && (
                 <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4">
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-semibold">
                       Response to Reviewers
                     </p>
 
-                    <p className="mt-1 text-sm text-gray-600">
+                    <p className="mt-1 break-words text-sm text-gray-600">
                       {assignment.submissionVersion
                         .responseFileName ||
                         "Response document"}
@@ -315,7 +315,7 @@ export default async function ReviewerReviewPage({
                     Revision Cover Letter
                   </p>
 
-                  <div className="mt-2 whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm">
+                  <div className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-gray-50 p-4 text-sm">
                     {
                       assignment.submissionVersion
                         .coverLetter
@@ -331,7 +331,7 @@ export default async function ReviewerReviewPage({
                     Author Notes
                   </p>
 
-                  <div className="mt-2 whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm">
+                  <div className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-gray-50 p-4 text-sm">
                     {
                       assignment.submissionVersion
                         .authorNotes
@@ -353,12 +353,12 @@ export default async function ReviewerReviewPage({
                   key={file.id}
                   className="flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4"
                 >
-                  <div>
-                    <p className="font-semibold">
+                  <div className="min-w-0">
+                    <p className="break-words font-semibold">
                       {file.fileName}
                     </p>
 
-                    <p className="mt-1 text-sm text-gray-600">
+                    <p className="mt-1 break-words text-sm text-gray-600">
                       {file.label ||
                         file.fileType ||
                         "Submission file"}
@@ -440,7 +440,7 @@ export default async function ReviewerReviewPage({
                             author
                           </p>
 
-                          <div className="mt-2 whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm">
+                          <div className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-gray-50 p-4 text-sm">
                             {previousAssignment.review
                               .commentsToAuthor ||
                               "No comments"}
@@ -453,7 +453,7 @@ export default async function ReviewerReviewPage({
                             comments to the editor
                           </p>
 
-                          <div className="mt-2 whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm">
+                          <div className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-gray-50 p-4 text-sm">
                             {previousAssignment.review
                               .commentsToEditor ||
                               "No comments"}
@@ -473,11 +473,13 @@ export default async function ReviewerReviewPage({
                                     href={attachment.fileUrl}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="flex items-center justify-between rounded-lg border bg-white p-3 text-sm hover:bg-gray-50"
+                                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-white p-3 text-sm hover:bg-gray-50"
                                   >
-                                    <span>{attachment.fileName}</span>
+                                    <span className="min-w-0 break-words">
+                                      {attachment.fileName}
+                                    </span>
 
-                                    <span className="font-medium text-blue-700">
+                                    <span className="shrink-0 font-medium text-blue-700">
                                       Download
                                     </span>
                                   </a>
@@ -712,7 +714,7 @@ export default async function ReviewerReviewPage({
                   Comments to Author
                 </p>
 
-                <div className="mt-2 whitespace-pre-wrap rounded-lg bg-white p-4">
+                <div className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-white p-4">
                   {assignment.review
                     .commentsToAuthor ||
                     "No comments"}
@@ -724,7 +726,7 @@ export default async function ReviewerReviewPage({
                   Confidential Comments to Editor
                 </p>
 
-                <div className="mt-2 whitespace-pre-wrap rounded-lg bg-white p-4">
+                <div className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-white p-4">
                   {assignment.review
                     .commentsToEditor ||
                     "No comments"}
@@ -744,10 +746,10 @@ export default async function ReviewerReviewPage({
                           href={attachment.fileUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="flex items-center justify-between rounded-lg border bg-white p-3"
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-white p-3"
                         >
-                          <div>
-                            <p className="font-medium">
+                          <div className="min-w-0">
+                            <p className="break-words font-medium">
                               {attachment.fileName}
                             </p>
 
@@ -760,7 +762,7 @@ export default async function ReviewerReviewPage({
                             </p>
                           </div>
 
-                          <span className="text-sm font-semibold text-blue-700">
+                          <span className="shrink-0 text-sm font-semibold text-blue-700">
                             Download
                           </span>
                         </a>

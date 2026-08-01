@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
+import { Container } from "@/components/layout/container";
 
 function formatDate(value: Date | null | undefined) {
   if (!value) {
@@ -110,7 +111,7 @@ export default async function PublicIssuePage({
   }
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-12">
+    <Container as="main" className="py-8 sm:py-12">
       <nav className="mb-8">
         <Link
           href="/archives"
@@ -121,7 +122,7 @@ export default async function PublicIssuePage({
       </nav>
 
       <section className="overflow-hidden rounded-2xl border bg-white shadow-sm">
-        <div className="grid gap-8 p-6 md:grid-cols-[220px_1fr] md:p-8">
+        <div className="grid gap-8 p-6 md:grid-cols-[220px_minmax(0,1fr)] md:p-8">
           <div className="mx-auto w-full max-w-[220px] md:max-w-none">
             {issue.coverImage ? (
               <a
@@ -260,12 +261,12 @@ export default async function PublicIssuePage({
 
               return (
                 <article key={article.id} className="py-8 first:pt-6 last:pb-6">
-                  <div className="grid gap-4 sm:grid-cols-[52px_1fr]">
+                  <div className="grid gap-4 sm:grid-cols-[52px_minmax(0,1fr)]">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-sm font-bold text-gray-700">
                       {index + 1}
                     </div>
 
-                    <div>
+                    <div className="min-w-0">
                       {article.category && (
                         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
                           {article.category.name}
@@ -294,7 +295,9 @@ export default async function PublicIssuePage({
                           </span>
                         )}
 
-                        {article.doi && <span>DOI: {article.doi}</span>}
+                        {article.doi && (
+                          <span className="break-all">DOI: {article.doi}</span>
+                        )}
                       </div>
 
                       <div className="mt-5 flex flex-wrap gap-4 text-sm">
@@ -335,6 +338,6 @@ export default async function PublicIssuePage({
           </div>
         )}
       </section>
-    </main>
+    </Container>
   );
 }

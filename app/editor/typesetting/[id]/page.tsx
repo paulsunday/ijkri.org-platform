@@ -328,7 +328,7 @@ export default async function TypesettingReviewPage({
                             Typesetting Instructions
                         </h3>
 
-                        <div className="mt-2 whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm">
+                        <div className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-gray-50 p-4 text-sm">
                             {assignment.instructions}
                         </div>
                     </div>
@@ -354,9 +354,9 @@ export default async function TypesettingReviewPage({
                                 className="rounded-xl border p-5"
                             >
                                 <div className="flex flex-wrap items-start justify-between gap-4">
-                                    <div>
+                                    <div className="min-w-0">
                                         <div className="flex flex-wrap items-center gap-3">
-                                            <h3 className="font-semibold">
+                                            <h3 className="break-words font-semibold">
                                                 {file.fileName}
                                             </h3>
 
@@ -396,7 +396,7 @@ export default async function TypesettingReviewPage({
                                 </div>
 
                                 {file.description && (
-                                    <div className="mt-4 whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm">
+                                    <div className="mt-4 whitespace-pre-wrap break-words rounded-lg bg-gray-50 p-4 text-sm">
                                         {file.description}
                                     </div>
                                 )}
@@ -423,8 +423,8 @@ export default async function TypesettingReviewPage({
                                 className="rounded-lg bg-gray-50 p-5"
                             >
                                 <div className="flex flex-wrap justify-between gap-3">
-                                    <div>
-                                        <p className="font-semibold">
+                                    <div className="min-w-0">
+                                        <p className="break-words font-semibold">
                                             {note.author.name}
                                         </p>
 
@@ -440,7 +440,7 @@ export default async function TypesettingReviewPage({
                                     </p>
                                 </div>
 
-                                <p className="mt-4 whitespace-pre-wrap text-sm">
+                                <p className="mt-4 whitespace-pre-wrap break-words text-sm">
                                     {note.message}
                                 </p>
                             </article>

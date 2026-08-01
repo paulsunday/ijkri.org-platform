@@ -506,7 +506,7 @@ export default async function StartNewReviewRoundPage({
 
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex flex-wrap items-center gap-3">
-                                                    <p className="font-semibold">
+                                                    <p className="break-words font-semibold">
                                                         {reviewer.name}
                                                     </p>
 
@@ -517,11 +517,11 @@ export default async function StartNewReviewRoundPage({
                                                     )}
                                                 </div>
 
-                                                <p className="mt-1 text-sm text-gray-600">
+                                                <p className="mt-1 break-all text-sm text-gray-600">
                                                     {reviewer.email}
                                                 </p>
 
-                                                <p className="mt-1 text-sm text-gray-600">
+                                                <p className="mt-1 break-words text-sm text-gray-600">
                                                     {reviewer.affiliation ||
                                                         "No affiliation provided"}
                                                     {reviewer.country

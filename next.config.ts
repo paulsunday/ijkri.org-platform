@@ -55,6 +55,15 @@ const nextConfig: NextConfig = {
 
   poweredByHeader: false,
 
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "*.public.blob.vercel-storage.com",
+      },
+    ],
+  },
+
   async headers() {
     return [
       {

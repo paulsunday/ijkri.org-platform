@@ -299,7 +299,7 @@ export default async function CopyeditorAssignmentPage({
                             Editor Instructions
                         </h3>
 
-                        <div className="mt-2 whitespace-pre-wrap rounded-lg bg-yellow-50 p-4 text-sm">
+                        <div className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-yellow-50 p-4 text-sm">
                             {assignment.instructions}
                         </div>
                     </div>
@@ -311,7 +311,7 @@ export default async function CopyeditorAssignmentPage({
                     Abstract
                 </h2>
 
-                <div className="mt-4 whitespace-pre-wrap rounded-lg bg-gray-50 p-5">
+                <div className="mt-4 whitespace-pre-wrap break-words rounded-lg bg-gray-50 p-5">
                     {assignment.submission.abstract}
                 </div>
             </section>
@@ -323,8 +323,8 @@ export default async function CopyeditorAssignmentPage({
 
                 {latestSubmissionVersion ? (
                     <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4">
-                        <div>
-                            <p className="font-semibold">
+                        <div className="min-w-0">
+                            <p className="break-words font-semibold">
                                 Accepted manuscript —
                                 Version{" "}
                                 {
@@ -332,7 +332,7 @@ export default async function CopyeditorAssignmentPage({
                                 }
                             </p>
 
-                            <p className="mt-1 text-sm text-gray-600">
+                            <p className="mt-1 break-words text-sm text-gray-600">
                                 {latestSubmissionVersion
                                     .manuscriptFileName ||
                                     "Revised manuscript"}
@@ -364,12 +364,12 @@ export default async function CopyeditorAssignmentPage({
                                     key={file.id}
                                     className="flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4"
                                 >
-                                    <div>
-                                        <p className="font-semibold">
+                                    <div className="min-w-0">
+                                        <p className="break-words font-semibold">
                                             {file.fileName}
                                         </p>
 
-                                        <p className="mt-1 text-sm text-gray-600">
+                                        <p className="mt-1 break-words text-sm text-gray-600">
                                             {file.label ||
                                                 file.fileType ||
                                                 "Submission file"}
@@ -566,8 +566,8 @@ export default async function CopyeditorAssignmentPage({
                                     className="rounded-lg border p-4"
                                 >
                                     <div className="flex flex-wrap items-start justify-between gap-4">
-                                        <div>
-                                            <p className="font-semibold">
+                                        <div className="min-w-0">
+                                            <p className="break-words font-semibold">
                                                 {file.fileName}
                                             </p>
 
@@ -585,7 +585,7 @@ export default async function CopyeditorAssignmentPage({
                                                     : ""}
                                             </p>
 
-                                            <p className="mt-1 text-sm text-gray-600">
+                                            <p className="mt-1 break-words text-sm text-gray-600">
                                                 Uploaded by{" "}
                                                 {file.uploadedBy.name}{" "}
                                                 on{" "}
@@ -668,7 +668,7 @@ export default async function CopyeditorAssignmentPage({
                                     className="rounded-lg bg-gray-50 p-4"
                                 >
                                     <div className="flex flex-wrap justify-between gap-3">
-                                        <p className="font-semibold">
+                                        <p className="min-w-0 break-words font-semibold">
                                             {note.author.name}
                                         </p>
 
@@ -679,7 +679,7 @@ export default async function CopyeditorAssignmentPage({
                                         </p>
                                     </div>
 
-                                    <p className="mt-3 whitespace-pre-wrap text-sm">
+                                    <p className="mt-3 whitespace-pre-wrap break-words text-sm">
                                         {note.message}
                                     </p>
                                 </article>

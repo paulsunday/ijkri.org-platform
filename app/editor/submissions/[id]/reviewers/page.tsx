@@ -213,12 +213,12 @@ export default async function AssignReviewersPage({
                   className="rounded-lg border bg-slate-50 p-4"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <p className="font-semibold">
+                    <div className="min-w-0">
+                      <p className="break-words font-semibold">
                         {assignment.reviewer.name}
                       </p>
 
-                      <p className="text-sm text-slate-600">
+                      <p className="break-all text-sm text-slate-600">
                         {assignment.reviewer.email}
                       </p>
                     </div>
@@ -335,16 +335,16 @@ export default async function AssignReviewersPage({
                 key={reviewer.id}
                 className="flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4"
               >
-                <div>
-                  <p className="font-semibold">
+                <div className="min-w-0">
+                  <p className="break-words font-semibold">
                     {reviewer.name}
                   </p>
 
-                  <p className="text-sm text-slate-600">
+                  <p className="break-all text-sm text-slate-600">
                     {reviewer.email}
                   </p>
 
-                  <p className="text-sm text-slate-600">
+                  <p className="break-words text-sm text-slate-600">
                     {reviewer.affiliation ||
                       "No affiliation provided"}
                   </p>
