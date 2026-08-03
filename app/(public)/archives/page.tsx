@@ -118,21 +118,6 @@ export default async function ArchivesPage() {
     ],
   });
 
-  const totalIssues = volumes.reduce(
-    (total, volume) => total + volume.issues.length,
-    0,
-  );
-
-  const totalArticles = volumes.reduce(
-    (volumeTotal, volume) =>
-      volumeTotal +
-      volume.issues.reduce(
-        (issueTotal, issue) => issueTotal + issue.articles.length,
-        0,
-      ),
-    0,
-  );
-
   return (
     <Container as="main" className="py-8 sm:py-12">
       <header className="border-b pb-8">
@@ -149,32 +134,6 @@ export default async function ArchivesPage() {
           journal archive.
         </p>
       </header>
-
-      <section className="mt-8 grid gap-4 sm:grid-cols-3">
-        <article className="rounded-xl border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-gray-500">Published volumes</p>
-
-          <p className="mt-2 text-3xl font-bold text-gray-950">
-            {volumes.length}
-          </p>
-        </article>
-
-        <article className="rounded-xl border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-gray-500">Published issues</p>
-
-          <p className="mt-2 text-3xl font-bold text-gray-950">{totalIssues}</p>
-        </article>
-
-        <article className="rounded-xl border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-gray-500">
-            Published articles
-          </p>
-
-          <p className="mt-2 text-3xl font-bold text-gray-950">
-            {totalArticles}
-          </p>
-        </article>
-      </section>
 
       {volumes.length === 0 ? (
         <section className="mt-8 rounded-xl border border-yellow-300 bg-yellow-50 p-8">

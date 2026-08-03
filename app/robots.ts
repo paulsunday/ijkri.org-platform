@@ -24,6 +24,7 @@ export default function robots(): MetadataRoute.Robots {
                     "/articles",
                     "/feed.xml",
                     "/api/oai",
+                    "/api/production-files/",
                 ],
                 disallow: [
                     "/admin/",

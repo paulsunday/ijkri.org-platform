@@ -497,16 +497,6 @@ export default function ContactPage() {
             Innovare Academic Publishing
           </h2>
 
-          <div className="mt-6 space-y-2 text-lg leading-8 text-slate-700">
-            <p>Editorial Office</p>
-            <p>Enugu State</p>
-            <p>Nigeria</p>
-          </div>
-
-          <p className="mt-6 leading-7 text-slate-600">
-            A complete physical address should be added before public
-            production launch.
-          </p>
         </article>
 
         <div className="flex min-h-56 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center sm:min-h-80">
