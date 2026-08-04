@@ -7,12 +7,19 @@ import {
 } from "@/lib/auth/permissions";
 import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
+import { detectConflicts, type ConflictReport } from "@/lib/coi/detect";
 
 import {
   assignReviewer,
   reassignReviewer,
   removeReviewerAssignment,
 } from "./actions";
+
+const SEVERITY_BADGE_CLASS: Record<string, string> = {
+  HIGH: "bg-red-100 text-red-800",
+  MEDIUM: "bg-yellow-100 text-yellow-800",
+  LOW: "bg-slate-100 text-slate-700",
+};
 
 const REASSIGNABLE_STATUSES = ["INVITED", "ACCEPTED", "DECLINED"];
 
@@ -114,12 +121,45 @@ export default async function AssignReviewersPage({
             },
           },
         },
+        /*
+         * Conflict of interest: a reviewer who referred this
+         * manuscript's author must never appear as an assignable
+         * reviewer for it.
+         */
+        ...(submission.referrerReviewerId
+          ? { id: { not: submission.referrerReviewerId } }
+          : {}),
       },
       orderBy: {
         name: "asc",
       },
     })
     : [];
+
+  /*
+   * Preview pass: run the advanced COI engine for every remaining
+   * candidate. HIGH findings remove the reviewer from the assignable
+   * list entirely (defense layer 1 — the server action re-checks and
+   * blocks HIGH findings again before writing the assignment). MEDIUM/LOW
+   * findings are shown as a warning the editor must acknowledge.
+   */
+  const reviewerConflicts = new Map<string, ConflictReport>(
+    await Promise.all(
+      reviewers.map(
+        async (reviewer): Promise<[string, ConflictReport]> => [
+          reviewer.id,
+          await detectConflicts({
+            submissionId: submission.id,
+            reviewerId: reviewer.id,
+          }),
+        ],
+      ),
+    ),
+  );
+
+  const assignableReviewers = reviewers.filter(
+    (reviewer) => reviewerConflicts.get(reviewer.id)?.highestSeverity !== "HIGH",
+  );
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-12">
@@ -203,7 +243,7 @@ export default async function AssignReviewersPage({
                 assignment.status,
               );
 
-              const reassignCandidates = reviewers.filter(
+              const reassignCandidates = assignableReviewers.filter(
                 (reviewer) => reviewer.id !== assignment.reviewerId,
               );
 
@@ -315,6 +355,13 @@ export default async function AssignReviewersPage({
           Available Reviewers
         </h2>
 
+        {submission.referrerReviewerId && (
+          <p className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+            This manuscript was referred by a reviewer. That reviewer is
+            excluded from this list to avoid a conflict of interest.
+          </p>
+        )}
+
         {!assignmentAllowed ? (
           <div className="mt-6 rounded-lg border border-yellow-300 bg-yellow-50 p-5 text-yellow-900">
             Reviewers cannot be assigned because this
@@ -323,14 +370,18 @@ export default async function AssignReviewersPage({
           </div>
         ) : (
           <div className="mt-6 space-y-4">
-            {reviewers.length === 0 && (
+            {assignableReviewers.length === 0 && (
               <p className="text-slate-500">
                 No eligible reviewers are available for
                 this journal and review round.
               </p>
             )}
 
-            {reviewers.map((reviewer) => (
+            {assignableReviewers.map((reviewer) => {
+              const conflicts = reviewerConflicts.get(reviewer.id);
+              const findings = conflicts?.findings ?? [];
+
+              return (
               <div
                 key={reviewer.id}
                 className="flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4"
@@ -348,6 +399,24 @@ export default async function AssignReviewersPage({
                     {reviewer.affiliation ||
                       "No affiliation provided"}
                   </p>
+
+                  {findings.length > 0 && (
+                    <div className="mt-3 space-y-1">
+                      {findings.map((finding, index) => (
+                        <div
+                          key={index}
+                          className="flex items-start gap-2 text-xs"
+                        >
+                          <span
+                            className={`rounded-full px-2 py-0.5 font-semibold ${SEVERITY_BADGE_CLASS[finding.severity]}`}
+                          >
+                            {finding.severity}
+                          </span>
+                          <span className="text-slate-600">{finding.reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <form action={assignReviewer}>
@@ -380,6 +449,18 @@ export default async function AssignReviewersPage({
                       />
                     </div>
 
+                    {findings.length > 0 && (
+                      <label className="flex items-center gap-2 text-xs text-slate-600">
+                        <input
+                          type="checkbox"
+                          name="acknowledgedConflicts"
+                          value="true"
+                          required
+                        />
+                        I acknowledge the flagged conflict(s) above
+                      </label>
+                    )}
+
                     <button
                       type="submit"
                       className="rounded-lg bg-blue-600 px-5 py-2 font-semibold text-white hover:bg-blue-700"
@@ -389,7 +470,8 @@ export default async function AssignReviewersPage({
                   </div>
                 </form>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>

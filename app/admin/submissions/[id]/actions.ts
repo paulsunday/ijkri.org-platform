@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireActionRole, requireAnyActionRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
+import { recordReferralEvent } from "@/lib/ambassador/referral-events";
 
 const MAX_AUTHORS = 100;
 const MAX_AUTHOR_NAME_LENGTH = 200;
@@ -55,6 +56,7 @@ export async function assignEditor(formData: FormData) {
       journalId: true,
       status: true,
       authorId: true,
+      referrerReviewerId: true,
     },
   });
 
@@ -101,6 +103,14 @@ export async function assignEditor(formData: FormData) {
         status: "UNDER_INITIAL_REVIEW",
       },
     });
+
+    if (submission.referrerReviewerId) {
+      await recordReferralEvent(tx, {
+        reviewerId: submission.referrerReviewerId,
+        submissionId,
+        stage: "DESK_REVIEW",
+      });
+    }
 
     await tx.notification.create({
       data: {

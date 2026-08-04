@@ -8,6 +8,57 @@ import { sendEmail } from "@/lib/email/send-email";
 import { reviewerInvitationEmail } from "@/lib/email/templates";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { recordReferralEvent } from "@/lib/ambassador/referral-events";
+import { detectConflicts, type ConflictFinding } from "@/lib/coi/detect";
+import type { Prisma } from "@/lib/generated/prisma";
+
+/**
+ * Runs the advanced COI engine and persists every finding as an audit
+ * row (spec: "Log every COI decision" — not just conflicts that block).
+ * Throws if any HIGH finding is present. For MEDIUM/LOW findings, the
+ * caller must have already collected the editor's acknowledgement
+ * (defense in depth mirrors the Phase 1 referral-conflict guard).
+ */
+async function enforceConflictOfInterest(
+  tx: Prisma.TransactionClient,
+  input: {
+    submissionId: string;
+    reviewerId: string;
+    acknowledgedConflicts: boolean;
+  },
+): Promise<void> {
+  const report = await detectConflicts({
+    submissionId: input.submissionId,
+    reviewerId: input.reviewerId,
+  });
+
+  const persistFinding = (finding: ConflictFinding) =>
+    tx.conflictOfInterestCheck.create({
+      data: {
+        submissionId: input.submissionId,
+        reviewerId: input.reviewerId,
+        conflictType: finding.conflictType,
+        severity: finding.severity,
+        reason: finding.reason,
+        recommendation: finding.recommendation,
+        blocked: finding.severity === "HIGH",
+      },
+    });
+
+  await Promise.all(report.findings.map(persistFinding));
+
+  if (report.highestSeverity === "HIGH") {
+    throw new Error(
+      "This reviewer cannot be assigned due to a high-severity conflict of interest.",
+    );
+  }
+
+  if (report.findings.length > 0 && !input.acknowledgedConflicts) {
+    throw new Error(
+      "Please acknowledge the flagged conflict(s) of interest before assigning this reviewer.",
+    );
+  }
+}
 
 function getAppUrl() {
   return (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(
@@ -178,6 +229,9 @@ export async function reassignReviewer(formData: FormData) {
 
   const newReviewerId = String(formData.get("newReviewerId") || "").trim();
 
+  const acknowledgedConflicts =
+    String(formData.get("acknowledgedConflicts") || "") === "true";
+
   if (!assignmentId) {
     throw new Error("Review assignment ID is missing.");
   }
@@ -205,6 +259,7 @@ export async function reassignReviewer(formData: FormData) {
           id: true,
           title: true,
           journalId: true,
+          referrerReviewerId: true,
 
           journal: {
             select: {
@@ -235,6 +290,12 @@ export async function reassignReviewer(formData: FormData) {
   if (newReviewerId === assignment.reviewerId) {
     throw new Error(
       "Select a different reviewer to reassign this review to.",
+    );
+  }
+
+  if (newReviewerId === assignment.submission.referrerReviewerId) {
+    throw new Error(
+      "This reviewer referred this manuscript's author and cannot be assigned to review it.",
     );
   }
 
@@ -299,6 +360,12 @@ export async function reassignReviewer(formData: FormData) {
   }
 
   const newAssignment = await prisma.$transaction(async (tx) => {
+    await enforceConflictOfInterest(tx, {
+      submissionId: assignment.submissionId,
+      reviewerId: newReviewerId,
+      acknowledgedConflicts,
+    });
+
     const cancelResult = await tx.reviewAssignment.updateMany({
       where: {
         id: assignmentId,
@@ -437,6 +504,9 @@ export async function assignReviewer(formData: FormData) {
 
   const dueDateValue = String(formData.get("dueDate") || "").trim();
 
+  const acknowledgedConflicts =
+    String(formData.get("acknowledgedConflicts") || "") === "true";
+
   if (!submissionId) {
     throw new Error("Submission ID is missing.");
   }
@@ -456,6 +526,7 @@ export async function assignReviewer(formData: FormData) {
       journalId: true,
       status: true,
       currentReviewRound: true,
+      referrerReviewerId: true,
 
       journal: {
         select: {
@@ -545,6 +616,12 @@ export async function assignReviewer(formData: FormData) {
     );
   }
 
+  if (reviewerId === submission.referrerReviewerId) {
+    throw new Error(
+      "This reviewer referred this manuscript's author and cannot be assigned to review it.",
+    );
+  }
+
   const reviewRound = submission.currentReviewRound || 1;
 
   const submissionVersionId = submission.versions[0]?.id || null;
@@ -585,6 +662,12 @@ export async function assignReviewer(formData: FormData) {
   }
 
   const assignment = await prisma.$transaction(async (tx) => {
+    await enforceConflictOfInterest(tx, {
+      submissionId,
+      reviewerId,
+      acknowledgedConflicts,
+    });
+
     const createdAssignment = await tx.reviewAssignment.create({
       data: {
         submissionId,
@@ -617,6 +700,17 @@ export async function assignReviewer(formData: FormData) {
         status: "UNDER_PEER_REVIEW",
       },
     });
+
+    if (
+      submission.referrerReviewerId &&
+      submission.status !== "UNDER_PEER_REVIEW"
+    ) {
+      await recordReferralEvent(tx, {
+        reviewerId: submission.referrerReviewerId,
+        submissionId,
+        stage: "PEER_REVIEW",
+      });
+    }
 
     await tx.notification.create({
       data: {

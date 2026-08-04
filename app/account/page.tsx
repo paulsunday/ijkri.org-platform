@@ -4,11 +4,20 @@ import { Container } from "@/components/layout/container";
 import LogoutButton from "@/components/auth/logout-button";
 import { requireCurrentUser } from "@/lib/auth/current-user";
 import { getDashboardPath } from "@/lib/auth/dashboard-path";
+import { prisma } from "@/lib/prisma";
 
 import {
     disconnectOrcid,
     startOrcidConnect,
+    refreshOrcidData,
 } from "./orcid/actions";
+
+type OrcidEmploymentOrEducation = {
+    organization: string | null;
+    role: string | null;
+    startYear: string | null;
+    endYear: string | null;
+};
 
 type AccountPageProps = {
     searchParams: Promise<{
@@ -31,6 +40,12 @@ export default async function AccountPage({
     const isOrcidVerified = Boolean(
         user.orcid && user.orcidVerifiedAt,
     );
+
+    const orcidProfile = isOrcidVerified
+        ? await prisma.orcidProfileSnapshot.findUnique({
+            where: { userId: user.id },
+        })
+        : null;
 
     return (
         <Container as="main" size="3xl" className="py-8 sm:py-12">
@@ -134,17 +149,107 @@ export default async function AccountPage({
                                 </span>
                             </p>
 
-                            <form
-                                action={disconnectOrcid}
-                                className="mt-4"
-                            >
-                                <button
-                                    type="submit"
-                                    className="rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-gray-50"
-                                >
-                                    Disconnect ORCID
-                                </button>
-                            </form>
+                            <div className="mt-4 flex flex-wrap gap-3">
+                                <form action={disconnectOrcid}>
+                                    <button
+                                        type="submit"
+                                        className="rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-gray-50"
+                                    >
+                                        Disconnect ORCID
+                                    </button>
+                                </form>
+
+                                <form action={refreshOrcidData}>
+                                    <button
+                                        type="submit"
+                                        className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white hover:bg-green-800"
+                                    >
+                                        Refresh ORCID Data
+                                    </button>
+                                </form>
+                            </div>
+
+                            {orcidProfile && (
+                                <div className="mt-6 space-y-4 border-t pt-6">
+                                    {orcidProfile.biography && (
+                                        <div>
+                                            <p className="text-sm text-gray-500">Biography</p>
+                                            <p className="mt-1 whitespace-pre-wrap text-gray-800">
+                                                {orcidProfile.biography}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {Array.isArray(orcidProfile.employments) &&
+                                        orcidProfile.employments.length > 0 && (
+                                            <div>
+                                                <p className="text-sm text-gray-500">Employment</p>
+                                                <ul className="mt-1 space-y-1 text-gray-800">
+                                                    {(orcidProfile.employments as unknown as OrcidEmploymentOrEducation[]).map(
+                                                        (employment, index) => (
+                                                            <li key={index}>
+                                                                {employment.role ?? "Role"} —{" "}
+                                                                {employment.organization ?? "Organization"}
+                                                                {employment.startYear
+                                                                    ? ` (${employment.startYear}–${employment.endYear ?? "present"})`
+                                                                    : ""}
+                                                            </li>
+                                                        ),
+                                                    )}
+                                                </ul>
+                                            </div>
+                                        )}
+
+                                    {Array.isArray(orcidProfile.educations) &&
+                                        orcidProfile.educations.length > 0 && (
+                                            <div>
+                                                <p className="text-sm text-gray-500">Education</p>
+                                                <ul className="mt-1 space-y-1 text-gray-800">
+                                                    {(orcidProfile.educations as unknown as OrcidEmploymentOrEducation[]).map(
+                                                        (education, index) => (
+                                                            <li key={index}>
+                                                                {education.role ?? "Degree"} —{" "}
+                                                                {education.organization ?? "Institution"}
+                                                                {education.startYear
+                                                                    ? ` (${education.startYear}–${education.endYear ?? "present"})`
+                                                                    : ""}
+                                                            </li>
+                                                        ),
+                                                    )}
+                                                </ul>
+                                            </div>
+                                        )}
+
+                                    {Array.isArray(orcidProfile.keywords) &&
+                                        orcidProfile.keywords.length > 0 && (
+                                            <div>
+                                                <p className="text-sm text-gray-500">
+                                                    Research Keywords
+                                                </p>
+                                                <p className="mt-1 text-gray-800">
+                                                    {(orcidProfile.keywords as unknown as string[]).join(", ")}
+                                                </p>
+                                            </div>
+                                        )}
+
+                                    <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                                        <span>{orcidProfile.worksCount} works on ORCID</span>
+
+                                        <a
+                                            href={orcidProfile.publicProfileUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="font-semibold text-blue-700 hover:underline"
+                                        >
+                                            Public ORCID Profile →
+                                        </a>
+
+                                        <span>
+                                            Last synced {orcidProfile.syncedAt.toLocaleDateString()}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
                         </>
                     ) : (
                         <>

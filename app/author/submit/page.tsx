@@ -4,8 +4,16 @@ import { COUNTRIES } from "@/lib/constants/countries";
 
 import { submitManuscript } from "./actions";
 
-export default async function SubmitManuscriptPage() {
+type SubmitManuscriptPageProps = {
+  searchParams: Promise<{ ref?: string }>;
+};
+
+export default async function SubmitManuscriptPage({
+  searchParams,
+}: SubmitManuscriptPageProps) {
   await requireAnyRole(AUTHOR_ROLES);
+
+  const { ref } = await searchParams;
 
   return (
     <main className="container mx-auto max-w-5xl px-6 py-12">
@@ -19,6 +27,10 @@ export default async function SubmitManuscriptPage() {
       </p>
 
       <form action={submitManuscript} className="space-y-8">
+
+        {ref && (
+          <input type="hidden" name="referralCode" value={ref} />
+        )}
 
         {/* ===========================
             MANUSCRIPT DETAILS

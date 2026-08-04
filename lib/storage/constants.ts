@@ -19,6 +19,8 @@ export const MAX_FILE_SIZE = {
     FINAL_ARTICLE: 100 * MB,
     SUPPLEMENTARY: 200 * MB,
     ISSUE_COVER: 5 * MB,
+    MARKETING_TEMPLATE: 10 * MB,
+    CAMPAIGN_BANNER: 5 * MB,
 } as const;
 
 /**
@@ -34,6 +36,7 @@ export const STORAGE_FOLDERS = {
     PUBLICATIONS: "publications",
     SUPPLEMENTARY: "supplementary",
     COVERS: "covers",
+    MARKETING: "marketing",
 } as const;
 
 /**
@@ -93,6 +96,13 @@ export const ALLOWED_EXTENSIONS = {
         "png",
         "jpg",
         "jpeg",
+    ],
+
+    MARKETING_IMAGE: [
+        "png",
+        "jpg",
+        "jpeg",
+        "webp",
     ],
 } as const;
 
@@ -172,6 +182,8 @@ export const PUBLIC_FILE_TYPES = [
     "HTML_GALLEY",
     "XML_GALLEY",
     "ISSUE_COVER",
+    "MARKETING_TEMPLATE",
+    "CAMPAIGN_BANNER",
 ] as const;
 
 /**

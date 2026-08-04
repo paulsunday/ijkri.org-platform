@@ -14,6 +14,17 @@ import {
   uploadJournalFile,
 } from "@/lib/storage/blob";
 import type { UploadResult } from "@/lib/storage/types";
+import {
+  resolveReferralCode,
+  resolveAmbassadorByReviewerId,
+} from "@/lib/ambassador/resolve-referral";
+import { recordReferralEvent } from "@/lib/ambassador/referral-events";
+import { creditWallet } from "@/lib/ambassador/wallet";
+import { getRewardSettings } from "@/lib/ambassador/reward-settings";
+import { sendEmail } from "@/lib/email/send-email";
+import { referralSubmittedEmail } from "@/lib/email/templates";
+import { resolveActiveCampaignBonus } from "@/lib/campaigns/resolve-active-campaign";
+import { applyCampaignBonus } from "@/lib/campaigns/apply-campaign-bonus";
 
 const MAX_MANUSCRIPT_SIZE = 20 * 1024 * 1024;
 
@@ -545,6 +556,20 @@ export async function submitManuscript(
   const completedUpload =
     manuscriptUpload;
 
+  const referralCodeInput = String(
+    formData.get("referralCode") || "",
+  ).trim();
+
+  const explicitReferral = await resolveReferralCode(
+    referralCodeInput,
+  );
+
+  const referral =
+    explicitReferral ??
+    (await resolveAmbassadorByReviewerId(
+      submittingUser.referredByReviewerId,
+    ));
+
   try {
     await prisma.$transaction(
       async (tx) => {
@@ -558,6 +583,8 @@ export async function submitManuscript(
             manuscriptType,
             status: "SUBMITTED",
             submittedAt: new Date(),
+            referrerReviewerId: referral?.reviewerId,
+            referrerAssignedAt: referral ? new Date() : null,
           },
         });
 
@@ -624,9 +651,72 @@ export async function submitManuscript(
                 completedUpload.url,
               storageProvider:
                 "VERCEL_BLOB",
+              referrerReviewerId:
+                referral?.reviewerId ?? null,
             },
           },
         });
+
+        if (referral) {
+          await recordReferralEvent(tx, {
+            reviewerId: referral.reviewerId,
+            referredUserId: submittingUser.id,
+            submissionId,
+            stage: "SUBMITTED",
+          });
+
+          const wallet = await tx.ambassadorWallet.findUnique({
+            where: { ambassadorId: referral.ambassadorId },
+            select: { id: true },
+          });
+
+          if (wallet) {
+            const rewardSettings = await getRewardSettings(
+              journal.id,
+            );
+
+            await creditWallet(tx, {
+              walletId: wallet.id,
+              type: "SUBMISSION_REWARD",
+              amount: rewardSettings.submissionReward,
+              idempotencyKey: `SUBMISSION_REWARD:${submissionId}`,
+              sourceType: "Submission",
+              sourceId: submissionId,
+              description:
+                "A manuscript from your referral was submitted",
+            });
+
+            const campaignBonus = await resolveActiveCampaignBonus({
+              journalId: journal.id,
+              rewardType: "SUBMISSION_REWARD",
+              baseAmount: rewardSettings.submissionReward,
+              manuscriptType,
+              referredCountry: submittingUser.country,
+              referredAffiliation: submittingUser.affiliation,
+            });
+
+            if (campaignBonus) {
+              await applyCampaignBonus(tx, {
+                walletId: wallet.id,
+                walletTransactionType: "SUBMISSION_REWARD",
+                bonus: campaignBonus,
+                sourceType: "Submission",
+                sourceId: submissionId,
+                description: "Referral campaign bonus for this submission",
+              });
+            }
+
+            await tx.notification.create({
+              data: {
+                userId: referral.reviewerId,
+                type: "SUBMISSION",
+                title: "A referred manuscript was submitted",
+                message: `${submittingUser.name} submitted a manuscript through your referral link.`,
+                link: `/reviewer/referrals/${submissionId}`,
+              },
+            });
+          }
+        }
       },
     );
   } catch (error) {
@@ -664,6 +754,41 @@ export async function submitManuscript(
   revalidatePath(
     `/author/submissions/${submissionId}`,
   );
+
+  if (referral) {
+    const referringReviewer = await prisma.user.findUnique({
+      where: { id: referral.reviewerId },
+      select: { name: true, email: true },
+    });
+
+    if (referringReviewer) {
+      const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(
+        /\/+$/,
+        "",
+      );
+
+      const referralEmailContent = referralSubmittedEmail({
+        reviewerName: referringReviewer.name,
+        manuscriptTitle: title,
+        referralCentreUrl: `${appUrl}/reviewer/referrals/${submissionId}`,
+      });
+
+      try {
+        await sendEmail({
+          to: referringReviewer.email,
+          subject: referralEmailContent.subject,
+          html: referralEmailContent.html,
+          text: referralEmailContent.text,
+        });
+      } catch (error) {
+        logger.error("Referral submission email failed", error, {
+          event: "REFERRAL_SUBMISSION_EMAIL_FAILED",
+          reviewerId: referral.reviewerId,
+          submissionId,
+        });
+      }
+    }
+  }
 
   redirect(
     `/author/submissions/${submissionId}`,

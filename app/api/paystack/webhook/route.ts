@@ -12,6 +12,7 @@ import {
 import { Prisma } from "@/lib/generated/prisma";
 import { completePayment } from "@/lib/payments/complete-payment";
 import { verifyPaystackPayment } from "@/lib/payments/verify-payment";
+import { handleTransferWebhookEvent } from "@/lib/payments/handle-transfer-webhook";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -32,6 +33,8 @@ type PaystackWebhookData = {
     paid_at?: string | null;
     gateway_response?: string | null;
     customer?: PaystackWebhookCustomer | null;
+    transfer_code?: string;
+    reason?: string;
 };
 
 type PaystackWebhookEvent = {
@@ -356,6 +359,55 @@ export async function POST(
             },
             401,
         );
+    }
+
+    /*
+     * Ambassador withdrawal payouts. Handled on the same
+     * idempotent PaymentWebhookLog row (via withdrawalRequestId
+     * instead of paymentId) before falling through to the
+     * charge.success handling below, which is otherwise
+     * completely unmodified.
+     */
+    if (
+        eventType === "transfer.success" ||
+        eventType === "transfer.failed" ||
+        eventType === "transfer.reversed"
+    ) {
+        try {
+            await handleTransferWebhookEvent(event, webhookLog.id);
+        } catch (error) {
+            console.error("Paystack transfer webhook processing error:", error);
+
+            await prisma.paymentWebhookLog.update({
+                where: { id: webhookLog.id },
+                data: {
+                    errorMessage:
+                        error instanceof Error
+                            ? error.message
+                            : "Transfer webhook processing failed.",
+                },
+            });
+
+            return jsonResponse(
+                { received: false, error: "Transfer webhook processing failed." },
+                500,
+            );
+        }
+
+        await prisma.paymentWebhookLog.update({
+            where: { id: webhookLog.id },
+            data: {
+                processed: true,
+                processedAt: new Date(),
+                errorMessage: null,
+            },
+        });
+
+        return jsonResponse({
+            received: true,
+            processed: true,
+            eventType,
+        });
     }
 
     /*

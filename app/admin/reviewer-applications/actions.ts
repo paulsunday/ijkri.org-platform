@@ -11,6 +11,7 @@ import {
     isSuperAdmin,
     requireAnyActionRole,
 } from "@/lib/auth/permissions";
+import { generateReferralCode } from "@/lib/ambassador/referral-code";
 
 import { prisma } from "@/lib/prisma";
 
@@ -290,6 +291,30 @@ export async function approveReviewerApplication(
                 role: "REVIEWER",
             },
         });
+
+        const existingAmbassador =
+            await tx.reviewerAmbassador.findUnique({
+                where: { userId: reviewerUserId },
+                select: { id: true },
+            });
+
+        if (!existingAmbassador) {
+            const referralCode = await generateReferralCode(
+                application.journal.shortName,
+            );
+
+            const ambassador = await tx.reviewerAmbassador.create({
+                data: {
+                    userId: reviewerUserId,
+                    journalId: application.journalId,
+                    referralCode,
+                },
+            });
+
+            await tx.ambassadorWallet.create({
+                data: { ambassadorId: ambassador.id },
+            });
+        }
 
         await tx.reviewerApplication.update({
             where: {

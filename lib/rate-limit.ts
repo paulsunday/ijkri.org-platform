@@ -14,6 +14,10 @@ type RateLimitName =
   | "reviewer-application"
   | "career-application"
   | "account-activation"
+  | "referral-redeem"
+  | "withdrawal-request"
+  | "certificate-download"
+  | "bank-resolve"
   | "general-api";
 
 type RateLimitResult = {
@@ -67,6 +71,14 @@ const limiters: Record<RateLimitName, Ratelimit | null> = {
   "reviewer-application": createLimiter(5, "1 d", "reviewer-application"),
 
   "career-application": createLimiter(5, "1 d", "career-application"),
+
+  "referral-redeem": createLimiter(20, "1 h", "referral-redeem"),
+
+  "withdrawal-request": createLimiter(5, "1 d", "withdrawal-request"),
+
+  "certificate-download": createLimiter(30, "1 h", "certificate-download"),
+
+  "bank-resolve": createLimiter(10, "1 h", "bank-resolve"),
 
   "general-api": createLimiter(100, "1 m", "general-api"),
 };

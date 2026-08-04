@@ -7,6 +7,7 @@ import { requireAnyActionRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 import { embedPublishedArticlePdfMetadata } from "@/lib/pdf/publish-metadata";
 import { prisma } from "@/lib/prisma";
+import { processAmbassadorPublicationEvent } from "@/lib/ambassador/process-publication-event";
 
 const VALID_ARTICLE_STATUSES = [
     "DRAFT",
@@ -492,6 +493,13 @@ export async function changeArticleStatus(
          */
         after(() =>
             embedPublishedArticlePdfMetadata(articleId),
+        );
+
+        after(() =>
+            processAmbassadorPublicationEvent({
+                articleId,
+                submissionId: article.submissionId,
+            }),
         );
     }
 }

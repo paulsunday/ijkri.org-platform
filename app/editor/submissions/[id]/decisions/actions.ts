@@ -15,6 +15,8 @@ import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { createApcInvoice } from "@/lib/payments/create-apc-invoice";
 import type { Invoice } from "@/lib/generated/prisma";
+import { recordReferralEvent } from "@/lib/ambassador/referral-events";
+import { deriveRevisionSeverity } from "@/lib/ambassador/revision-severity";
 
 const VALID_DECISIONS = ["REVISION_REQUIRED", "ACCEPTED", "REJECTED"] as const;
 
@@ -294,6 +296,24 @@ export async function sendEditorialDecision(formData: FormData) {
     if (decision === "ACCEPTED") {
       const result = await createApcInvoice(tx, submissionId);
       invoice = result.invoice;
+    }
+
+    if (submission.referrerReviewerId) {
+      await recordReferralEvent(tx, {
+        reviewerId: submission.referrerReviewerId,
+        submissionId,
+        stage: decision,
+        metadata:
+          decision === "REVISION_REQUIRED"
+            ? {
+              revisionSeverity: deriveRevisionSeverity(
+                submittedReviews.map(
+                  (assignment) => assignment.review?.recommendation,
+                ),
+              ),
+            }
+            : undefined,
+      });
     }
 
     await tx.notification.create({

@@ -32,7 +32,9 @@ export type FileCategory =
   | "PDF_GALLEY"
   | "HTML_GALLEY"
   | "XML_GALLEY"
-  | "ISSUE_COVER";
+  | "ISSUE_COVER"
+  | "MARKETING_TEMPLATE"
+  | "CAMPAIGN_BANNER";
 
 /**
  * Storage visibility.

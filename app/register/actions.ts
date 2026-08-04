@@ -7,9 +7,15 @@ import { logger } from "@/lib/logger";
 import { sendEmail } from "@/lib/email/send-email";
 import { prisma } from "@/lib/prisma";
 import { createAccountActivationLink } from "@/lib/auth/account-activation";
-import { accountActivationEmail } from "@/lib/email/templates";
+import { accountActivationEmail, referralRegisteredEmail } from "@/lib/email/templates";
 import { createHash } from "node:crypto";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { resolveReferralCode } from "@/lib/ambassador/resolve-referral";
+import { recordReferralEvent } from "@/lib/ambassador/referral-events";
+import { creditWallet } from "@/lib/ambassador/wallet";
+import { resolveActiveCampaignBonus } from "@/lib/campaigns/resolve-active-campaign";
+import { applyCampaignBonus } from "@/lib/campaigns/apply-campaign-bonus";
+import { getRewardSettings } from "@/lib/ambassador/reward-settings";
 
 function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
@@ -123,6 +129,10 @@ export async function registerUser(formData: FormData) {
 
   const passwordHash = await bcrypt.hash(password, 12);
 
+  const referralCodeInput = String(formData.get("referralCode") || "").trim();
+
+  const referral = await resolveReferralCode(referralCodeInput);
+
   const createdUser = await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
       data: {
@@ -136,6 +146,9 @@ export async function registerUser(formData: FormData) {
         isActive: false,
         emailVerified: null,
         passwordChangedAt: null,
+        referredByReviewerId: referral?.reviewerId,
+        referredByCode: referral ? referralCodeInput : null,
+        referredAt: referral ? new Date() : null,
       },
     });
 
@@ -158,9 +171,66 @@ export async function registerUser(formData: FormData) {
           email: user.email,
           journalId: journal.id,
           assignedRole: "AUTHOR",
+          referredByReviewerId: referral?.reviewerId ?? null,
         },
       },
     });
+
+    if (referral) {
+      await recordReferralEvent(tx, {
+        reviewerId: referral.reviewerId,
+        referredUserId: user.id,
+        stage: "REGISTERED",
+      });
+
+      const wallet = await tx.ambassadorWallet.findUnique({
+        where: { ambassadorId: referral.ambassadorId },
+        select: { id: true },
+      });
+
+      if (wallet) {
+        const rewardSettings = await getRewardSettings(journal.id);
+
+        await creditWallet(tx, {
+          walletId: wallet.id,
+          type: "REFERRAL_BONUS",
+          amount: rewardSettings.referralBonus,
+          idempotencyKey: `REFERRAL_BONUS:${user.id}`,
+          sourceType: "User",
+          sourceId: user.id,
+          description: "New author registered through your referral link",
+        });
+
+        const campaignBonus = await resolveActiveCampaignBonus({
+          journalId: journal.id,
+          rewardType: "REFERRAL_BONUS",
+          baseAmount: rewardSettings.referralBonus,
+          referredCountry: country || null,
+          referredAffiliation: affiliation || null,
+        });
+
+        if (campaignBonus) {
+          await applyCampaignBonus(tx, {
+            walletId: wallet.id,
+            walletTransactionType: "REFERRAL_BONUS",
+            bonus: campaignBonus,
+            sourceType: "User",
+            sourceId: user.id,
+            description: "Referral campaign bonus for a new registration",
+          });
+        }
+
+        await tx.notification.create({
+          data: {
+            userId: referral.reviewerId,
+            type: "GENERAL",
+            title: "Someone registered through your referral link",
+            message: `${user.name} created an author account using your referral link.`,
+            link: "/reviewer/referrals",
+          },
+        });
+      }
+    }
 
     return user;
   });
@@ -190,6 +260,40 @@ export async function registerUser(formData: FormData) {
       email: createdUser.email,
       error: error instanceof Error ? error.message : String(error),
     });
+  }
+
+  if (referral) {
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(
+      /\/+$/,
+      "",
+    );
+
+    const referringReviewer = await prisma.user.findUnique({
+      where: { id: referral.reviewerId },
+      select: { name: true, email: true },
+    });
+
+    if (referringReviewer) {
+      const referralEmailContent = referralRegisteredEmail({
+        reviewerName: referringReviewer.name,
+        referredName: createdUser.name,
+        referralCentreUrl: `${appUrl}/reviewer/referrals`,
+      });
+
+      try {
+        await sendEmail({
+          to: referringReviewer.email,
+          subject: referralEmailContent.subject,
+          html: referralEmailContent.html,
+          text: referralEmailContent.text,
+        });
+      } catch (error) {
+        logger.error("Referral registration email failed", {
+          reviewerId: referral.reviewerId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
   }
 
   redirect("/login?registered=true&activationRequired=true");

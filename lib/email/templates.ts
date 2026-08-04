@@ -1321,3 +1321,348 @@ export function accountActivationEmail({
     }),
   };
 }
+
+export function referralRegisteredEmail({
+  reviewerName,
+  referredName,
+  referralCentreUrl,
+}: {
+  reviewerName: string;
+  referredName: string;
+  referralCentreUrl: string;
+}) {
+  const safeReviewerName = escapeHtml(reviewerName);
+  const safeReferredName = escapeHtml(referredName);
+
+  return {
+    subject: `${journalShortName}: Someone registered through your referral link`,
+
+    text: [
+      `Hello ${reviewerName},`,
+      "",
+      `${referredName} created an author account using your referral link.`,
+      "",
+      `Referral Centre: ${referralCentreUrl}`,
+    ].join("\n"),
+
+    html: emailLayout({
+      heading: "New referral registration",
+      content: `
+        <p>Hello ${safeReviewerName},</p>
+
+        <p>
+          <strong>${safeReferredName}</strong> created an author
+          account through your referral link.
+        </p>
+
+        ${emailButton({
+        url: referralCentreUrl,
+        label: "Open Referral Centre",
+      })}
+      `,
+    }),
+  };
+}
+
+export function referralSubmittedEmail({
+  reviewerName,
+  manuscriptTitle,
+  referralCentreUrl,
+}: {
+  reviewerName: string;
+  manuscriptTitle: string;
+  referralCentreUrl: string;
+}) {
+  const safeReviewerName = escapeHtml(reviewerName);
+  const safeManuscriptTitle = escapeHtml(manuscriptTitle);
+
+  return {
+    subject: `${journalShortName}: A referred manuscript was submitted`,
+
+    text: [
+      `Hello ${reviewerName},`,
+      "",
+      `A manuscript titled "${manuscriptTitle}" was submitted through your referral link.`,
+      "",
+      `Referral Centre: ${referralCentreUrl}`,
+    ].join("\n"),
+
+    html: emailLayout({
+      heading: "A referred manuscript was submitted",
+      content: `
+        <p>Hello ${safeReviewerName},</p>
+
+        <p>
+          A manuscript titled <strong>${safeManuscriptTitle}</strong>
+          was submitted through your referral link.
+        </p>
+
+        ${emailButton({
+        url: referralCentreUrl,
+        label: "Open Referral Centre",
+      })}
+      `,
+    }),
+  };
+}
+
+export function referralPublishedEmail({
+  reviewerName,
+  manuscriptTitle,
+  referralCentreUrl,
+}: {
+  reviewerName: string;
+  manuscriptTitle: string;
+  referralCentreUrl: string;
+}) {
+  const safeReviewerName = escapeHtml(reviewerName);
+  const safeManuscriptTitle = escapeHtml(manuscriptTitle);
+
+  return {
+    subject: `${journalShortName}: A referred manuscript was published`,
+
+    text: [
+      `Hello ${reviewerName},`,
+      "",
+      `Great news — "${manuscriptTitle}", referred through your link, has been published.`,
+      "",
+      `Referral Centre: ${referralCentreUrl}`,
+    ].join("\n"),
+
+    html: emailLayout({
+      heading: "A referred manuscript was published",
+      content: `
+        <p>Hello ${safeReviewerName},</p>
+
+        <p>
+          Great news — <strong>${safeManuscriptTitle}</strong>, referred
+          through your link, has been published.
+        </p>
+
+        ${emailButton({
+        url: referralCentreUrl,
+        label: "Open Referral Centre",
+      })}
+      `,
+    }),
+  };
+}
+
+export function rewardEarnedEmail({
+  reviewerName,
+  description,
+  amount,
+  currency,
+  walletUrl,
+}: {
+  reviewerName: string;
+  description: string;
+  amount: string;
+  currency: string;
+  walletUrl: string;
+}) {
+  const safeReviewerName = escapeHtml(reviewerName);
+  const safeDescription = escapeHtml(description);
+
+  return {
+    subject: `${journalShortName}: You earned ${currency} ${amount}`,
+
+    text: [
+      `Hello ${reviewerName},`,
+      "",
+      `You earned ${currency} ${amount}: ${description}`,
+      "",
+      `Wallet: ${walletUrl}`,
+    ].join("\n"),
+
+    html: emailLayout({
+      heading: "You earned a reward",
+      content: `
+        <p>Hello ${safeReviewerName},</p>
+
+        ${informationBox({
+        title: `You earned ${escapeHtml(currency)} ${escapeHtml(amount)}`,
+        content: safeDescription,
+      })}
+
+        ${emailButton({
+        url: walletUrl,
+        label: "Open Wallet",
+      })}
+      `,
+    }),
+  };
+}
+
+export function ambassadorLevelUpEmail({
+  reviewerName,
+  levelLabel,
+  certificatesUrl,
+}: {
+  reviewerName: string;
+  levelLabel: string;
+  certificatesUrl: string;
+}) {
+  const safeReviewerName = escapeHtml(reviewerName);
+  const safeLevelLabel = escapeHtml(levelLabel);
+
+  return {
+    subject: `${journalShortName}: You reached ${levelLabel}`,
+
+    text: [
+      `Hello ${reviewerName},`,
+      "",
+      `Congratulations — you are now a ${levelLabel}. Your certificate is ready to download.`,
+      "",
+      `Certificates: ${certificatesUrl}`,
+    ].join("\n"),
+
+    html: emailLayout({
+      heading: "New ambassador level reached",
+      content: `
+        <p>Hello ${safeReviewerName},</p>
+
+        <p>
+          Congratulations — you are now a
+          <strong>${safeLevelLabel}</strong>. Your certificate is ready
+          to download.
+        </p>
+
+        ${emailButton({
+        url: certificatesUrl,
+        label: "Download Certificate",
+      })}
+      `,
+    }),
+  };
+}
+
+export function certificateIssuedEmail({
+  reviewerName,
+  certificateTitle,
+  certificatesUrl,
+}: {
+  reviewerName: string;
+  certificateTitle: string;
+  certificatesUrl: string;
+}) {
+  const safeReviewerName = escapeHtml(reviewerName);
+  const safeCertificateTitle = escapeHtml(certificateTitle);
+
+  return {
+    subject: `${journalShortName}: Your ${certificateTitle} is ready`,
+
+    text: [
+      `Hello ${reviewerName},`,
+      "",
+      `Your ${certificateTitle} is ready to download.`,
+      "",
+      `Certificates: ${certificatesUrl}`,
+    ].join("\n"),
+
+    html: emailLayout({
+      heading: "Certificate issued",
+      content: `
+        <p>Hello ${safeReviewerName},</p>
+
+        <p>
+          Your <strong>${safeCertificateTitle}</strong> is ready to
+          download.
+        </p>
+
+        ${emailButton({
+        url: certificatesUrl,
+        label: "Download Certificate",
+      })}
+      `,
+    }),
+  };
+}
+
+export function withdrawalApprovedEmail({
+  reviewerName,
+  amount,
+  currency,
+  walletUrl,
+}: {
+  reviewerName: string;
+  amount: string;
+  currency: string;
+  walletUrl: string;
+}) {
+  const safeReviewerName = escapeHtml(reviewerName);
+
+  return {
+    subject: `${journalShortName}: Your withdrawal was paid`,
+
+    text: [
+      `Hello ${reviewerName},`,
+      "",
+      `Your withdrawal of ${currency} ${amount} has been paid out to your bank account.`,
+      "",
+      `Wallet: ${walletUrl}`,
+    ].join("\n"),
+
+    html: emailLayout({
+      heading: "Withdrawal paid",
+      content: `
+        <p>Hello ${safeReviewerName},</p>
+
+        <p>
+          Your withdrawal of <strong>${escapeHtml(currency)} ${escapeHtml(amount)}</strong>
+          has been paid out to your bank account.
+        </p>
+
+        ${emailButton({
+        url: walletUrl,
+        label: "Open Wallet",
+      })}
+      `,
+    }),
+  };
+}
+
+export function withdrawalFailedEmail({
+  reviewerName,
+  reason,
+  walletUrl,
+}: {
+  reviewerName: string;
+  reason: string;
+  walletUrl: string;
+}) {
+  const safeReviewerName = escapeHtml(reviewerName);
+  const safeReason = escapeHtml(reason);
+
+  return {
+    subject: `${journalShortName}: Your withdrawal could not be completed`,
+
+    text: [
+      `Hello ${reviewerName},`,
+      "",
+      `Your withdrawal could not be completed: ${reason}`,
+      "The funds have been returned to your wallet balance.",
+      "",
+      `Wallet: ${walletUrl}`,
+    ].join("\n"),
+
+    html: emailLayout({
+      heading: "Withdrawal could not be completed",
+      content: `
+        <p>Hello ${safeReviewerName},</p>
+
+        ${informationBox({
+        title: "Reason",
+        content: safeReason,
+      })}
+
+        <p>The funds have been returned to your wallet balance.</p>
+
+        ${emailButton({
+        url: walletUrl,
+        label: "Open Wallet",
+      })}
+      `,
+    }),
+  };
+}

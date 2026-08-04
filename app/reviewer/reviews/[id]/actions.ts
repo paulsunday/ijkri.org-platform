@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 import { requireAnyActionRole } from "@/lib/auth/permissions";
 import { REVIEWER_ROLES } from "@/lib/auth/role-groups";
@@ -10,6 +10,12 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 import { validateFileSignature } from "@/lib/storage/file-signature";
 import { deleteJournalFile, uploadJournalFile } from "@/lib/storage/blob";
 import type { UploadResult } from "@/lib/storage/types";
+import { creditWallet } from "@/lib/ambassador/wallet";
+import { getRewardSettings } from "@/lib/ambassador/reward-settings";
+import { sendEmail } from "@/lib/email/send-email";
+import { rewardEarnedEmail } from "@/lib/email/templates";
+import { resolveActiveCampaignBonus } from "@/lib/campaigns/resolve-active-campaign";
+import { applyCampaignBonus } from "@/lib/campaigns/apply-campaign-bonus";
 
 const MAX_ATTACHMENTS = 5;
 const MAX_ATTACHMENT_SIZE = 20 * 1024 * 1024;
@@ -359,6 +365,7 @@ export async function submitReview(formData: FormData) {
           id: true,
           title: true,
           journalId: true,
+          manuscriptType: true,
 
           decisions: {
             orderBy: {
@@ -399,6 +406,8 @@ export async function submitReview(formData: FormData) {
   const editorId = assignment.submission.decisions[0]?.editorId;
 
   const uploadedAttachments: UploadResult[] = [];
+
+  let creditedReviewReward: { amount: number; currency: string } | null = null;
 
   try {
     /*
@@ -462,6 +471,64 @@ export async function submitReview(formData: FormData) {
             mimeType: attachment.mimeType || null,
             fileSize: attachment.size,
           })),
+        });
+      }
+
+      const ambassador = await tx.reviewerAmbassador.findUnique({
+        where: { userId: reviewer.id },
+        select: { wallet: { select: { id: true } } },
+      });
+
+      if (ambassador?.wallet) {
+        const rewardSettings = await getRewardSettings(
+          assignment.submission.journalId,
+        );
+
+        await creditWallet(tx, {
+          walletId: ambassador.wallet.id,
+          type: "REVIEW_REWARD",
+          amount: rewardSettings.reviewReward,
+          idempotencyKey: `REVIEW_REWARD:${assignmentId}`,
+          sourceType: "ReviewAssignment",
+          sourceId: assignmentId,
+          description: `Review completed for "${assignment.submission.title}"`,
+        });
+
+        if (rewardSettings.reviewReward > 0) {
+          creditedReviewReward = {
+            amount: rewardSettings.reviewReward,
+            currency: rewardSettings.currency,
+          };
+        }
+
+        const campaignBonus = await resolveActiveCampaignBonus({
+          journalId: assignment.submission.journalId,
+          rewardType: "REVIEW_REWARD",
+          baseAmount: rewardSettings.reviewReward,
+          manuscriptType: assignment.submission.manuscriptType,
+          referredCountry: reviewer.country,
+          referredAffiliation: reviewer.affiliation,
+        });
+
+        if (campaignBonus) {
+          await applyCampaignBonus(tx, {
+            walletId: ambassador.wallet.id,
+            walletTransactionType: "REVIEW_REWARD",
+            bonus: campaignBonus,
+            sourceType: "ReviewAssignment",
+            sourceId: assignmentId,
+            description: "Referral campaign bonus for this review",
+          });
+        }
+
+        await tx.notification.create({
+          data: {
+            userId: reviewer.id,
+            type: "PAYMENT",
+            title: "Review reward earned",
+            message: `You earned a review reward for completing your review of "${assignment.submission.title}".`,
+            link: "/reviewer/wallet",
+          },
         });
       }
 
@@ -551,4 +618,41 @@ export async function submitReview(formData: FormData) {
   }
 
   refreshReviewPages(assignmentId, assignment.submissionId);
+
+  revalidateTag("leaderboard", "minutes");
+
+  const reviewReward = creditedReviewReward as {
+    amount: number;
+    currency: string;
+  } | null;
+
+  if (reviewReward) {
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(
+      /\/+$/,
+      "",
+    );
+
+    const rewardEmailContent = rewardEarnedEmail({
+      reviewerName: reviewer.name,
+      description: `Review completed for "${assignment.submission.title}"`,
+      amount: reviewReward.amount.toFixed(2),
+      currency: reviewReward.currency,
+      walletUrl: `${appUrl}/reviewer/wallet`,
+    });
+
+    try {
+      await sendEmail({
+        to: reviewer.email,
+        subject: rewardEmailContent.subject,
+        html: rewardEmailContent.html,
+        text: rewardEmailContent.text,
+      });
+    } catch (error) {
+      logger.error("Review reward email failed", error, {
+        event: "REVIEW_REWARD_EMAIL_FAILED",
+        reviewerId: reviewer.id,
+        assignmentId,
+      });
+    }
+  }
 }

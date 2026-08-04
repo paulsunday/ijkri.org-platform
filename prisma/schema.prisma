@@ -213,10 +213,14 @@ model PaymentWebhookLog {
 
   payment Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
 
+  withdrawalRequestId String?
+  withdrawalRequest   WithdrawalRequest? @relation(fields: [withdrawalRequestId], references: [id], onDelete: SetNull)
+
   @@index([paymentId])
   @@index([eventType])
   @@index([processed])
   @@index([receivedAt])
+  @@index([withdrawalRequestId])
 }
 
 model User {
@@ -262,7 +266,32 @@ model User {
   processedRefunds             Refund[]               @relation("RefundProcessor")
   approvedInvoiceWaivers       Invoice[]              @relation("InvoiceWaiverApprover")
 
+  referredByReviewerId String?
+  referredByCode       String?
+  referredAt           DateTime?
+
+  ambassadorProfile            ReviewerAmbassador?       @relation("AmbassadorUser")
+  referredByReviewer           User?                     @relation("UserReferredBy", fields: [referredByReviewerId], references: [id], onDelete: SetNull)
+  referredUsers                User[]                    @relation("UserReferredBy")
+  referredSubmissions          Submission[]              @relation("SubmissionReferrer")
+  suspendedAmbassadors         ReviewerAmbassador[]      @relation("AmbassadorSuspendedBy")
+  walletTransactionsMade       WalletTransaction[]       @relation("WalletTransactionCreatedBy")
+  rewardSettingsUpdated        AmbassadorRewardSetting[] @relation("RewardSettingUpdatedBy")
+  withdrawalsReviewed          WithdrawalRequest[]       @relation("WithdrawalReviewedBy")
+  referralEventsAsReviewer     ReferralEvent[]           @relation("ReferralEventReviewer")
+  referralEventsAsReferredUser ReferralEvent[]           @relation("ReferralEventReferredUser")
+
+  conflictsAsReviewer ConflictOfInterestCheck[] @relation("ConflictReviewer")
+  conflictsOverridden ConflictOfInterestCheck[] @relation("ConflictOverriddenBy")
+  reviewRatingsGiven  ReviewAssignment[]        @relation("ReviewAssignmentRatedBy")
+  orcidProfile        OrcidProfileSnapshot?
+
+  scoringSettingsUpdated    ReviewerScoringSettings[] @relation("ScoringSettingsUpdatedBy")
+  marketingTemplatesCreated MarketingTemplate[]       @relation("MarketingTemplateCreatedBy")
+  campaignsCreated          ReferralCampaign[]        @relation("ReferralCampaignCreatedBy")
+
   @@index([email])
+  @@index([referredByReviewerId])
 }
 
 model PasswordResetToken {
@@ -321,6 +350,13 @@ model Journal {
   subscriptionAmount Decimal  @default(6.00) @db.Decimal(10, 2)
   articlePrice       Decimal  @default(2.00) @db.Decimal(10, 2)
   currency           Currency @default(USD)
+
+  ambassadors   ReviewerAmbassador[]
+  rewardSetting AmbassadorRewardSetting?
+
+  marketingTemplates MarketingTemplate[]
+  referralCampaigns  ReferralCampaign[]
+  scoringSettings    ReviewerScoringSettings?
 
   @@index([slug])
   @@index([tenantId])
@@ -447,9 +483,17 @@ model Submission {
   keywords              SubmissionKeyword[]
   versions              SubmissionVersion[]
 
+  referrerReviewerId String?
+  referrerAssignedAt DateTime?
+
+  referrerReviewer User?                     @relation("SubmissionReferrer", fields: [referrerReviewerId], references: [id], onDelete: SetNull)
+  referralEvents   ReferralEvent[]
+  conflictChecks   ConflictOfInterestCheck[]
+
   @@index([journalId])
   @@index([authorId])
   @@index([status])
+  @@index([referrerReviewerId])
 }
 
 model SubmissionAuthor {
@@ -557,12 +601,20 @@ model ReviewAssignment {
   submission          Submission         @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   submissionVersion   SubmissionVersion? @relation(fields: [submissionVersionId], references: [id])
 
+  editorialRating      Int?
+  editorialRatingNotes String?
+  editorialRatedById   String?
+  editorialRatedAt     DateTime?
+
+  editorialRatedBy User? @relation("ReviewAssignmentRatedBy", fields: [editorialRatedById], references: [id])
+
   @@unique([submissionId, reviewerId, reviewRound])
   @@index([reviewerId])
   @@index([submissionId])
   @@index([submissionVersionId])
   @@index([reviewRound])
   @@index([status])
+  @@index([editorialRatedById])
 }
 
 model Review {
@@ -907,6 +959,454 @@ model CareerApplication {
   @@index([position])
   @@index([status])
   @@index([reviewedById])
+}
+
+/// One row per reviewer who has been approved (created inside
+/// approveReviewerApplication's transaction). This is the ambassador
+/// "identity" record; referral FKs elsewhere point at User.id (not this
+/// id) to stay consistent with existing reviewerId conventions.
+model ReviewerAmbassador {
+  id                     String           @id @default(cuid())
+  userId                 String           @unique
+  journalId              String
+  referralCode           String           @unique
+  status                 AmbassadorStatus @default(ACTIVE)
+  level                  AmbassadorLevel  @default(NONE)
+  publishedReferralCount Int              @default(0)
+  totalReferralCount     Int              @default(0)
+  levelAchievedAt        DateTime?
+  suspendedAt            DateTime?
+  suspendedReason        String?
+  suspendedById          String?
+  regeneratedCount       Int              @default(0)
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+
+  slug                   String? @unique
+  isPublicProfileEnabled Boolean @default(false)
+  contactEnabled         Boolean @default(false)
+
+  user                 User                          @relation("AmbassadorUser", fields: [userId], references: [id], onDelete: Cascade)
+  journal              Journal                       @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  suspendedBy          User?                         @relation("AmbassadorSuspendedBy", fields: [suspendedById], references: [id])
+  wallet               AmbassadorWallet?
+  payoutAccount        AmbassadorPayoutAccount?
+  certificates         AmbassadorCertificate[]
+  withdrawals          WithdrawalRequest[]
+  performanceSnapshots ReviewerPerformanceSnapshot[]
+
+  @@index([journalId])
+  @@index([status])
+  @@index([level])
+}
+
+model AmbassadorWallet {
+  id               String   @id @default(cuid())
+  ambassadorId     String   @unique
+  currentBalance   Decimal  @default(0) @db.Decimal(12, 2)
+  pendingBalance   Decimal  @default(0) @db.Decimal(12, 2)
+  lifetimeEarnings Decimal  @default(0) @db.Decimal(12, 2)
+  totalWithdrawn   Decimal  @default(0) @db.Decimal(12, 2)
+  currency         Currency @default(USD)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  ambassador   ReviewerAmbassador  @relation(fields: [ambassadorId], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
+  withdrawals  WithdrawalRequest[]
+
+  @@index([ambassadorId])
+}
+
+/// Append-only ledger. idempotencyKey is the double-crediting guard.
+model WalletTransaction {
+  id             String                     @id @default(cuid())
+  walletId       String
+  type           WalletTransactionType
+  direction      WalletTransactionDirection
+  amount         Decimal                    @db.Decimal(12, 2)
+  currency       Currency                   @default(USD)
+  balanceAfter   Decimal                    @db.Decimal(12, 2)
+  status         WalletTransactionStatus    @default(COMPLETED)
+  idempotencyKey String                     @unique
+  sourceType     String?
+  sourceId       String?
+  description    String
+  createdById    String?
+  createdAt      DateTime                   @default(now())
+
+  wallet    AmbassadorWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  createdBy User?            @relation("WalletTransactionCreatedBy", fields: [createdById], references: [id])
+
+  @@index([walletId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+  @@index([sourceType, sourceId])
+}
+
+/// One settings row per journal — admin-configurable, never hardcoded.
+model AmbassadorRewardSetting {
+  id                String   @id @default(cuid())
+  journalId         String   @unique
+  reviewReward      Decimal  @default(0) @db.Decimal(12, 2)
+  submissionReward  Decimal  @default(0) @db.Decimal(12, 2)
+  publicationReward Decimal  @default(0) @db.Decimal(12, 2)
+  referralBonus     Decimal  @default(0) @db.Decimal(12, 2)
+  currency          Currency @default(USD)
+  updatedById       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  journal   Journal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  updatedBy User?   @relation("RewardSettingUpdatedBy", fields: [updatedById], references: [id])
+}
+
+model AmbassadorPayoutAccount {
+  id                    String    @id @default(cuid())
+  ambassadorId          String    @unique
+  bankCode              String
+  bankName              String
+  accountNumber         String
+  accountName           String
+  paystackRecipientCode String?   @unique
+  verifiedAt            DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  ambassador         ReviewerAmbassador  @relation(fields: [ambassadorId], references: [id], onDelete: Cascade)
+  withdrawalRequests WithdrawalRequest[]
+}
+
+model WithdrawalRequest {
+  id                   String           @id @default(cuid())
+  walletId             String
+  ambassadorId         String
+  payoutAccountId      String
+  amount               Decimal          @db.Decimal(12, 2)
+  currency             Currency         @default(USD)
+  status               WithdrawalStatus @default(PENDING)
+  internalReference    String           @unique
+  paystackTransferCode String?          @unique
+  paystackTransferId   String?          @unique
+  failureReason        String?
+  requestedAt          DateTime         @default(now())
+  reviewedById         String?
+  reviewedAt           DateTime?
+  reviewNotes          String?
+  paidAt               DateTime?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  wallet        AmbassadorWallet        @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  ambassador    ReviewerAmbassador      @relation(fields: [ambassadorId], references: [id], onDelete: Restrict)
+  payoutAccount AmbassadorPayoutAccount @relation(fields: [payoutAccountId], references: [id], onDelete: Restrict)
+  reviewedBy    User?                   @relation("WithdrawalReviewedBy", fields: [reviewedById], references: [id])
+  webhookLogs   PaymentWebhookLog[]
+
+  @@index([walletId])
+  @@index([ambassadorId])
+  @@index([status])
+  @@index([requestedAt])
+}
+
+model AmbassadorCertificate {
+  id                String          @id @default(cuid())
+  ambassadorId      String
+  type              CertificateType
+  title             String
+  certificateNumber String          @unique
+  periodLabel       String?
+  metadata          Json?
+  issuedAt          DateTime        @default(now())
+  revoked           Boolean         @default(false)
+
+  ambassador ReviewerAmbassador @relation(fields: [ambassadorId], references: [id], onDelete: Cascade)
+
+  @@unique([ambassadorId, type, periodLabel])
+  @@index([ambassadorId])
+  @@index([type])
+}
+
+/// Append-only referral timeline + "Recent Referral Activity" feed source.
+model ReferralEvent {
+  id             String        @id @default(cuid())
+  reviewerId     String
+  referredUserId String?
+  submissionId   String?
+  stage          ReferralStage
+  metadata       Json?
+  occurredAt     DateTime      @default(now())
+
+  reviewer     User        @relation("ReferralEventReviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+  referredUser User?       @relation("ReferralEventReferredUser", fields: [referredUserId], references: [id], onDelete: SetNull)
+  submission   Submission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+
+  @@index([reviewerId])
+  @@index([submissionId])
+  @@index([stage])
+  @@index([occurredAt])
+}
+
+/// Append-only, like WalletTransaction — "current score" = latest row,
+/// "score history" = the full table.
+model ReviewerPerformanceSnapshot {
+  id           String     @id @default(cuid())
+  ambassadorId String
+  overallScore Int
+  grade        ScoreGrade
+  trend        ScoreTrend @default(STABLE)
+  breakdown    Json
+  strengths    Json
+  improvements Json
+  calculatedAt DateTime   @default(now())
+
+  ambassador ReviewerAmbassador @relation(fields: [ambassadorId], references: [id], onDelete: Cascade)
+
+  @@index([ambassadorId, calculatedAt])
+}
+
+/// One row per journal. Super-Admin-configurable weights (must sum to
+/// 100 at the app layer; enforced in the update action, not the DB).
+model ReviewerScoringSettings {
+  id                           String   @id @default(cuid())
+  journalId                    String   @unique
+  reviewQualityWeight          Int      @default(20)
+  completionTimeWeight         Int      @default(15)
+  editorialRatingWeight        Int      @default(15)
+  completedReviewsWeight       Int      @default(10)
+  invitationAcceptanceWeight   Int      @default(10)
+  referralPublicationWeight    Int      @default(10)
+  latePenaltyWeight            Int      @default(10)
+  recommendationAccuracyWeight Int      @default(5)
+  withdrawalPenaltyWeight      Int      @default(5)
+  updatedById                  String?
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
+
+  journal   Journal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  updatedBy User?   @relation("ScoringSettingsUpdatedBy", fields: [updatedById], references: [id])
+}
+
+/// Admin-uploaded background per asset type; overlaid with the reviewer's
+/// name/code/QR at generation time (never pre-rendered per-reviewer).
+model MarketingTemplate {
+  id                 String             @id @default(cuid())
+  journalId          String
+  assetType          MarketingAssetType
+  backgroundImageUrl String
+  defaultCaption     String?
+  isActive           Boolean            @default(true)
+  createdById        String
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  journal   Journal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  createdBy User    @relation("MarketingTemplateCreatedBy", fields: [createdById], references: [id])
+
+  @@index([journalId, assetType])
+  @@index([journalId, assetType, isActive])
+}
+
+model ReferralCampaign {
+  id                String         @id @default(cuid())
+  journalId         String
+  name              String
+  description       String?
+  rewardMultiplier  Decimal        @default(1) @db.Decimal(4, 2)
+  reviewBonus       Decimal        @default(0) @db.Decimal(12, 2)
+  submissionBonus   Decimal        @default(0) @db.Decimal(12, 2)
+  publicationBonus  Decimal        @default(0) @db.Decimal(12, 2)
+  referralBonus     Decimal        @default(0) @db.Decimal(12, 2)
+  startDate         DateTime
+  endDate           DateTime
+  targetDiscipline  String?
+  targetCountry     String?
+  targetInstitution String?
+  maxBudget         Decimal?       @db.Decimal(12, 2)
+  spentBudget       Decimal        @default(0) @db.Decimal(12, 2)
+  bannerImageUrl    String?
+  status            CampaignStatus @default(DRAFT)
+  createdById       String
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  journal   Journal             @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  createdBy User                @relation("ReferralCampaignCreatedBy", fields: [createdById], references: [id])
+  rewards   CampaignRewardLog[]
+
+  @@index([journalId, status])
+  @@index([startDate, endDate])
+}
+
+/// Audit trail of every bonus a campaign paid out — drives spentBudget
+/// and gives Super Admin a per-campaign ledger.
+model CampaignRewardLog {
+  id                  String   @id @default(cuid())
+  campaignId          String
+  walletTransactionId String   @unique
+  submissionId        String?
+  amount              Decimal  @db.Decimal(12, 2)
+  appliedAt           DateTime @default(now())
+
+  campaign ReferralCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+}
+
+/// One row per detected conflict per submission+reviewer pair — both the
+/// live signal and the permanent audit record.
+model ConflictOfInterestCheck {
+  id             String           @id @default(cuid())
+  submissionId   String
+  reviewerId     String
+  conflictType   ConflictType
+  severity       ConflictSeverity
+  reason         String
+  recommendation String
+  blocked        Boolean          @default(false)
+  overriddenById String?
+  overriddenAt   DateTime?
+  overrideReason String?
+  detectedAt     DateTime         @default(now())
+
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  reviewer     User       @relation("ConflictReviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+  overriddenBy User?      @relation("ConflictOverriddenBy", fields: [overriddenById], references: [id])
+
+  @@index([submissionId])
+  @@index([reviewerId])
+  @@index([severity])
+}
+
+/// Public ORCID record data (NOT the OAuth identity link, which stays on
+/// User.orcid/orcidVerifiedAt). Refreshed on demand via ORCID's public API.
+model OrcidProfileSnapshot {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  biography        String?
+  employments      Json?
+  educations       Json?
+  keywords         Json?
+  worksCount       Int      @default(0)
+  publicProfileUrl String
+  syncedAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum ScoreGrade {
+  A_PLUS
+  A
+  B_PLUS
+  B
+  C
+}
+
+enum ScoreTrend {
+  UP
+  DOWN
+  STABLE
+}
+
+enum MarketingAssetType {
+  WHATSAPP_FLYER
+  FACEBOOK_FLYER
+  LINKEDIN_BANNER
+  INSTAGRAM_SQUARE
+  TWITTER_BANNER
+  A4_POSTER
+  QR_POSTER
+  BUSINESS_CARD
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum ConflictType {
+  SAME_INSTITUTION
+  SAME_DEPARTMENT
+  PREVIOUS_COAUTHOR
+  SAME_ORCID_COLLABORATION
+  SAME_EMAIL_DOMAIN
+  PREVIOUS_REVIEWER_OF_AUTHOR
+  PREVIOUS_EDITOR_OF_AUTHOR
+  REFERRAL_CONFLICT
+}
+
+enum ConflictSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum AmbassadorStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum AmbassadorLevel {
+  NONE
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+}
+
+enum WalletTransactionType {
+  REVIEW_REWARD
+  SUBMISSION_REWARD
+  PUBLICATION_REWARD
+  REFERRAL_BONUS
+  WITHDRAWAL
+  WITHDRAWAL_REVERSAL
+  ADMIN_ADJUSTMENT
+}
+
+enum WalletTransactionDirection {
+  CREDIT
+  DEBIT
+}
+
+enum WalletTransactionStatus {
+  PENDING
+  COMPLETED
+  REVERSED
+}
+
+enum WithdrawalStatus {
+  PENDING
+  APPROVED
+  PROCESSING
+  PAID
+  FAILED
+  REJECTED
+  CANCELLED
+}
+
+enum CertificateType {
+  OUTSTANDING_REVIEWER
+  BRONZE_AMBASSADOR
+  SILVER_AMBASSADOR
+  GOLD_AMBASSADOR
+  PLATINUM_AMBASSADOR
+  TOP_REVIEWER
+  TOP_AMBASSADOR
+}
+
+enum ReferralStage {
+  REGISTERED
+  SUBMITTED
+  DESK_REVIEW
+  PEER_REVIEW
+  REVISION_REQUIRED
+  ACCEPTED
+  PUBLISHED
+  REJECTED
 }
 
 enum UserRole {

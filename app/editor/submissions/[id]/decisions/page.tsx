@@ -9,6 +9,7 @@ import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 
 import { sendEditorialDecision } from "./actions";
+import { rateReviewQuality } from "./rate-review-actions";
 
 type PageProps = {
   params: Promise<{
@@ -539,6 +540,77 @@ export default async function EditorialDecisionPage({
                             .commentsToEditor ||
                             "No confidential comments provided."}
                         </div>
+                      </div>
+
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                        <h4 className="font-semibold">
+                          Rate this review&apos;s quality
+                        </h4>
+
+                        <p className="mt-1 text-sm text-slate-600">
+                          Feeds into this reviewer&apos;s performance score. Not
+                          visible to the author.
+                        </p>
+
+                        {assignment.editorialRating ? (
+                          <p className="mt-3 text-sm">
+                            Rated{" "}
+                            <strong>{assignment.editorialRating}/5</strong>
+                            {assignment.editorialRatingNotes
+                              ? ` — ${assignment.editorialRatingNotes}`
+                              : ""}
+                          </p>
+                        ) : (
+                          <form
+                            action={rateReviewQuality}
+                            className="mt-3 flex flex-wrap items-end gap-3"
+                          >
+                            <input
+                              type="hidden"
+                              name="assignmentId"
+                              value={assignment.id}
+                            />
+
+                            <div>
+                              <label
+                                htmlFor={`rating-${assignment.id}`}
+                                className="mb-1 block text-sm font-medium"
+                              >
+                                Rating (1-5)
+                              </label>
+
+                              <select
+                                id={`rating-${assignment.id}`}
+                                name="rating"
+                                required
+                                defaultValue=""
+                                className="rounded-lg border p-2 text-sm"
+                              >
+                                <option value="" disabled>
+                                  Select
+                                </option>
+                                {[1, 2, 3, 4, 5].map((value) => (
+                                  <option key={value} value={value}>
+                                    {value}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <input
+                              name="notes"
+                              placeholder="Optional note"
+                              className="rounded-lg border p-2 text-sm"
+                            />
+
+                            <button
+                              type="submit"
+                              className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                            >
+                              Submit Rating
+                            </button>
+                          </form>
+                        )}
                       </div>
                     </div>
                   )}
