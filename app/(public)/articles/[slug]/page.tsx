@@ -31,6 +31,20 @@ function formatDate(value: Date | null | undefined) {
   }).format(value);
 }
 
+function formatDoiStatus(status: string | undefined) {
+  switch (status) {
+    case "REGISTERED":
+      return "Registered";
+
+    case "FAILED":
+      return "Updating";
+
+    case "PENDING":
+    default:
+      return "Incoming";
+  }
+}
+
 function createDescription(abstract: string) {
   const cleaned = abstract.replace(/\s+/g, " ").trim();
 
@@ -883,7 +897,7 @@ export default async function PublicArticlePage({ params }: PageProps) {
 
                 <p>
                   <strong>DOI status:</strong>{" "}
-                  {article.doiRecord?.status || "Not registered"}
+                  {formatDoiStatus(article.doiRecord?.status)}
                 </p>
 
                 {article.category && (
