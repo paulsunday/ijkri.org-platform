@@ -286,6 +286,96 @@ export function registrationEmail({
   };
 }
 
+export function welcomeEmail({
+  name,
+  appUrl,
+}: {
+  name: string;
+  appUrl: string;
+}) {
+  const safeName = escapeHtml(name);
+
+  const links = [
+    { label: "About IJKRI", url: `${appUrl}/about` },
+    { label: "Author Guidelines", url: `${appUrl}/author-guidelines` },
+    { label: "Submit Manuscript", url: `${appUrl}/author/submit` },
+    { label: "Current Issue", url: `${appUrl}/current-issue` },
+    { label: "Reviewer Centre", url: `${appUrl}/reviewer/apply` },
+  ];
+
+  const linksListHtml = links
+    .map(
+      (link) => `
+        <li style="margin:0 0 10px;">
+          <a
+            href="${escapeHtml(link.url)}"
+            style="color:#2563eb;text-decoration:none;font-weight:600;"
+          >
+            ${escapeHtml(link.label)}
+          </a>
+        </li>
+      `,
+    )
+    .join("");
+
+  return {
+    subject: `Welcome to ${journalShortName}`,
+
+    text: [
+      `Hello ${name},`,
+      "",
+      `Welcome to the ${journalName} (${journalShortName}) — a multidisciplinary,`,
+      "peer-reviewed and open-access journal committed to advancing knowledge,",
+      "research and innovation.",
+      "",
+      "Your account is now active. A few places to get started:",
+      ...links.map((link) => `- ${link.label}: ${link.url}`),
+      "",
+      "If you have any questions, simply reply to this email and our",
+      "editorial team will be glad to help.",
+    ].join("\n"),
+
+    html: emailLayout({
+      heading: `Welcome to ${journalShortName}`,
+      content: `
+        <p>Hello ${safeName},</p>
+
+        <p>
+          Welcome to the <strong>${journalName}</strong>
+          (${journalShortName}) — a multidisciplinary,
+          peer-reviewed and open-access journal committed to
+          advancing knowledge, research and innovation.
+        </p>
+
+        <p>
+          Your account is now active. Whether you are here to
+          submit your own research, review the work of others, or
+          simply follow the latest issue, we are glad to have you
+          as part of our community.
+        </p>
+
+        ${emailButton({
+        url: appUrl,
+        label: "Explore IJKRI",
+      })}
+
+        <p style="margin-bottom:8px;">
+          <strong>A few places to get started:</strong>
+        </p>
+
+        <ul style="margin:0 0 20px;padding-left:20px;">
+          ${linksListHtml}
+        </ul>
+
+        <p>
+          If you have any questions, simply reply to this email
+          and our editorial team will be glad to help.
+        </p>
+      `,
+    }),
+  };
+}
+
 export function reviewerApplicationApprovedEmail({
   name,
   journalName: selectedJournalName,

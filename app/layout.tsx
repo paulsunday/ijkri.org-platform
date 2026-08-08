@@ -6,6 +6,7 @@ import OrganizationJsonLd from "@/components/seo/OrganizationJsonLd";
 import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
 import AuthProvider from "@/components/providers/session-provider";
+import { Toaster } from "@/components/ui/toast";
 
 import "./globals.css";
 
@@ -215,6 +216,8 @@ export default function RootLayout({
 
           <Footer />
         </AuthProvider>
+
+        <Toaster />
 
         <Analytics />
         <SpeedInsights />

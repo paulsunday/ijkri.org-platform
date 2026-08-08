@@ -3,17 +3,11 @@
 import { useState } from "react";
 
 type ArticleActionsProps = {
-    articleTitle: string;
-    articleUrl: string;
-    citation: string;
     doi?: string | null;
     pdfUrl?: string | null;
 };
 
 export default function ArticleActions({
-    articleTitle,
-    articleUrl,
-    citation,
     doi,
     pdfUrl,
 }: ArticleActionsProps) {
@@ -39,34 +33,6 @@ export default function ArticleActions({
         }
     }
 
-    async function shareArticle() {
-        try {
-            if (navigator.share) {
-                await navigator.share({
-                    title: articleTitle,
-                    text: articleTitle,
-                    url: articleUrl,
-                });
-
-                return;
-            }
-
-            await copyText(
-                articleUrl,
-                "Article link copied.",
-            );
-        } catch (error) {
-            if (
-                error instanceof DOMException &&
-                error.name === "AbortError"
-            ) {
-                return;
-            }
-
-            showMessage("Unable to share the article.");
-        }
-    }
-
     function scrollToCitation() {
         const citationSection =
             document.getElementById("how-to-cite");
@@ -78,7 +44,7 @@ export default function ArticleActions({
     }
 
     return (
-        <div className="mt-8 border-t pt-7">
+        <div className="mt-6 border-t pt-6">
             <div className="flex flex-wrap items-center gap-3">
                 {pdfUrl && (
                     <a
@@ -99,19 +65,6 @@ export default function ArticleActions({
                     Cite
                 </button>
 
-                <button
-                    type="button"
-                    onClick={() =>
-                        copyText(
-                            citation,
-                            "Citation copied.",
-                        )
-                    }
-                    className="inline-flex min-h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-800 transition hover:border-blue-700 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
-                >
-                    Copy Citation
-                </button>
-
                 {doi && (
                     <button
                         type="button"
@@ -126,14 +79,6 @@ export default function ArticleActions({
                         Copy DOI
                     </button>
                 )}
-
-                <button
-                    type="button"
-                    onClick={shareArticle}
-                    className="inline-flex min-h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-800 transition hover:border-blue-700 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
-                >
-                    Share
-                </button>
 
                 {doi && (
                     <a

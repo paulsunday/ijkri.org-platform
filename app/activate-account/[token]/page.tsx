@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { redirect } from "next/navigation";
 
+import { sendEmail } from "@/lib/email/send-email";
+import { welcomeEmail } from "@/lib/email/templates";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { enforceRateLimit } from "@/lib/rate-limit";
@@ -75,10 +77,10 @@ export default async function ActivateAccountPage({ params }: Props) {
         });
 
         if (claimedToken.count !== 1) {
-            return false;
+            return null;
         }
 
-        await tx.user.update({
+        const activatedUser = await tx.user.update({
             where: {
                 id: activation.userId,
             },
@@ -87,6 +89,11 @@ export default async function ActivateAccountPage({ params }: Props) {
                 isActive: true,
                 failedLoginAttempts: 0,
                 lockedUntil: null,
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
             },
         });
 
@@ -102,11 +109,41 @@ export default async function ActivateAccountPage({ params }: Props) {
             },
         });
 
-        return true;
+        return activatedUser;
     });
 
     if (!activated) {
         redirect("/login?error=activationExpired");
+    }
+
+    /*
+     * The token claim above is atomic (updateMany on usedAt: null), so
+     * this branch runs at most once per account — no separate
+     * "welcome email sent" flag is needed to avoid duplicates.
+     */
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(
+        /\/+$/,
+        "",
+    );
+
+    const welcomeEmailContent = welcomeEmail({
+        name: activated.name,
+        appUrl,
+    });
+
+    try {
+        await sendEmail({
+            to: activated.email,
+            subject: welcomeEmailContent.subject,
+            html: welcomeEmailContent.html,
+            text: welcomeEmailContent.text,
+        });
+    } catch (error) {
+        logger.error("Welcome email failed", error, {
+            event: "WELCOME_EMAIL_FAILED",
+            userId: activated.id,
+            email: activated.email,
+        });
     }
 
     redirect("/login?accountActivated=true");

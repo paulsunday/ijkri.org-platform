@@ -5,6 +5,9 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import ArticleSidebar from "@/components/articles/article-sidebar";
 import ArticleActions from "@/components/articles/article-actions";
+import ShareArticle from "@/components/articles/share-article";
+import CiteArticle from "@/components/articles/cite-article";
+import type { ArticleCitationData } from "@/lib/citations";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://ijkri.org";
@@ -13,10 +16,6 @@ type PageProps = {
   params: Promise<{
     slug: string;
   }>;
-};
-
-type CitationAuthor = {
-  fullName: string;
 };
 
 function formatDate(value: Date | null | undefined) {
@@ -53,86 +52,6 @@ function createDescription(abstract: string) {
   }
 
   return `${cleaned.slice(0, 157).trim()}...`;
-}
-
-/*
- * Converts a stored full name into an APA-style name.
- *
- * This journal currently stores names in surname-first order:
- * Kala-Dokubo Esther Boma
- * becomes:
- * Kala-Dokubo, E. B.
- */
-function formatApaAuthorName(fullName: string) {
-  const nameParts = fullName.trim().split(/\s+/).filter(Boolean);
-
-  if (nameParts.length === 0) {
-    return "";
-  }
-
-  if (nameParts.length === 1) {
-    return nameParts[0];
-  }
-
-  const surname = nameParts[0];
-
-  const initials = nameParts
-    .slice(1)
-    .map((namePart) => {
-      const firstCharacter = namePart.charAt(0).toUpperCase();
-
-      return firstCharacter ? `${firstCharacter}.` : "";
-    })
-    .filter(Boolean)
-    .join(" ");
-
-  return initials ? `${surname}, ${initials}` : surname;
-}
-
-/*
- * Produces an APA-style author list.
- *
- * One author:
- * Kala-Dokubo, E. B.
- *
- * Two authors:
- * Kala-Dokubo, E. B., & Agbaeze, E. K.
- *
- * Three or more authors:
- * Author, A. A., Author, B. B., & Author, C. C.
- */
-function formatCitationAuthors(authors: CitationAuthor[]) {
-  const formattedAuthors = authors
-    .map((author) => formatApaAuthorName(author.fullName))
-    .filter(Boolean);
-
-  if (formattedAuthors.length === 0) {
-    return "Author information unavailable";
-  }
-
-  if (formattedAuthors.length === 1) {
-    return formattedAuthors[0];
-  }
-
-  if (formattedAuthors.length === 2) {
-    return `${formattedAuthors[0]}, & ${formattedAuthors[1]}`;
-  }
-
-  const authorsBeforeLast = formattedAuthors.slice(0, -1).join(", ");
-
-  const finalAuthor = formattedAuthors[formattedAuthors.length - 1];
-
-  return `${authorsBeforeLast}, & ${finalAuthor}`;
-}
-
-function sentenceCaseTitle(value: string) {
-  const cleaned = value.trim();
-
-  if (!cleaned) {
-    return "";
-  }
-
-  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
 
 async function getPublishedArticle(slug: string) {
@@ -403,32 +322,26 @@ export default async function PublicArticlePage({ params }: PageProps) {
   const canonicalUrl = `${siteUrl}/articles/${article.slug}`;
 
   /*
-   * Step 6.4:
-   * Generate a complete citation using every
-   * ArticleAuthor record in sort order.
+   * Normalized citation input for lib/citations — built from real
+   * ArticleAuthor rows (in sort order) and article/journal fields only.
+   * No fallback/fabricated year: an article with no publishedAt yields
+   * "n.d." in every format rather than a misleading current-year guess.
    */
-  const publicationYear =
-    article.publishedAt?.getFullYear() || new Date().getFullYear();
-
-  const citationAuthors = formatCitationAuthors(article.authors);
-
-  const citationDestination = article.doi
-    ? `https://doi.org/${article.doi}`
-    : canonicalUrl;
-
-  const volumeIssue = article.issue
-    ? `${article.issue.volume.number}(${article.issue.number})`
-    : "";
-
-  const citation = [
-    `${citationAuthors} (${publicationYear}).`,
-    `${sentenceCaseTitle(article.title)}.`,
-    article.journal.name,
-    volumeIssue ? `${volumeIssue}.` : "",
-    citationDestination,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const citationData: ArticleCitationData = {
+    title: article.title,
+    authors: article.authors.map((author) => ({
+      fullName: author.fullName,
+    })),
+    journal: article.journal.name,
+    volume: article.issue?.volume.number ?? null,
+    issue: article.issue?.number ?? null,
+    year: article.publishedAt?.getFullYear() ?? null,
+    startPage: article.startPage,
+    endPage: article.endPage,
+    doi: article.doi,
+    url: canonicalUrl,
+    publisher: article.journal.publisher?.name || article.journal.name,
+  };
 
   const publicPdfUrl = finalPdf
     ? finalPdf.startsWith("http")
@@ -671,10 +584,20 @@ export default async function PublicArticlePage({ params }: PageProps) {
                   )}
                 </div>
 
+                <div className="mt-6 border-t pt-6">
+                  <p className="mb-3 text-sm font-semibold text-slate-900">
+                    Share this article
+                  </p>
+
+                  <ShareArticle
+                    articleTitle={article.title}
+                    articleUrl={canonicalUrl}
+                    journalName={article.journal.name}
+                    doi={article.doi}
+                  />
+                </div>
+
                 <ArticleActions
-                  articleTitle={article.title}
-                  articleUrl={canonicalUrl}
-                  citation={citation}
                   doi={article.doi}
                   pdfUrl={finalPdf}
                 />
@@ -819,17 +742,21 @@ export default async function PublicArticlePage({ params }: PageProps) {
               </section>
             )}
 
-            {/* Step 6.5: Corrected citation output */}
             <section
               id="how-to-cite"
               className="scroll-mt-28 rounded-xl border bg-white p-6 shadow-sm"
             >
-              <h2 className="text-2xl font-semibold">How to Cite</h2>
+              <h2 className="text-2xl font-semibold">Cite This Article</h2>
 
-              <p className="mt-2 text-sm text-gray-600">APA 7th edition</p>
+              <p className="mt-2 text-sm text-gray-600">
+                Select a citation format.
+              </p>
 
-              <div className="mt-5 rounded-lg bg-gray-50 p-5">
-                <p className="break-words leading-7 text-gray-800">{citation}</p>
+              <div className="mt-5">
+                <CiteArticle
+                  citationData={citationData}
+                  fileBaseName={article.slug}
+                />
               </div>
             </section>
 
