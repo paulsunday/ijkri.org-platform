@@ -4,6 +4,7 @@ const {
   requireAnyActionRoleMock,
   isSuperAdminMock,
   userFindUniqueMock,
+  userJournalRoleFindFirstMock,
   submissionFindUniqueMock,
   reviewAssignmentFindUniqueMock,
   reviewAssignmentCountMock,
@@ -15,6 +16,7 @@ const {
   requireAnyActionRoleMock: vi.fn(),
   isSuperAdminMock: vi.fn(() => true),
   userFindUniqueMock: vi.fn(),
+  userJournalRoleFindFirstMock: vi.fn(),
   submissionFindUniqueMock: vi.fn(),
   reviewAssignmentFindUniqueMock: vi.fn(),
   reviewAssignmentCountMock: vi.fn(),
@@ -60,6 +62,7 @@ vi.mock("next/cache", () => ({
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: { findUnique: userFindUniqueMock },
+    userJournalRole: { findFirst: userJournalRoleFindFirstMock },
     submission: { findUnique: submissionFindUniqueMock },
     reviewAssignment: {
       findUnique: reviewAssignmentFindUniqueMock,
@@ -96,6 +99,10 @@ beforeEach(() => {
     roles: [{ role: "EDITOR_IN_CHIEF", journalId: "journal_1" }],
   });
 
+  // Default: editor holds a real journal role, for tests that flip
+  // isSuperAdminMock to false to exercise the non-super-admin path.
+  userJournalRoleFindFirstMock.mockResolvedValue({ id: "editor_role_1" });
+
   // Defaults for the COI engine's own lookups (Phase 2) — no conflicts found.
   reviewAssignmentCountMock.mockResolvedValue(0);
   reviewerApplicationFindFirstMock.mockResolvedValue(null);
@@ -105,6 +112,8 @@ beforeEach(() => {
 
 describe("assignReviewer — conflict of interest", () => {
   it("rejects assigning the reviewer who referred the manuscript's author", async () => {
+    isSuperAdminMock.mockReturnValue(false);
+
     submissionFindUniqueMock.mockResolvedValue({
       id: "submission_1",
       title: "A referred manuscript",
@@ -199,10 +208,77 @@ describe("assignReviewer — conflict of interest", () => {
     await expect(assignReviewer(formData)).resolves.toBeUndefined();
     expect(transactionMock).toHaveBeenCalledTimes(1);
   });
+
+  it("allows a super admin to assign the reviewer who referred the manuscript's author", async () => {
+    isSuperAdminMock.mockReturnValue(true);
+
+    submissionFindUniqueMock.mockResolvedValue({
+      id: "submission_1",
+      title: "A referred manuscript",
+      journalId: "journal_1",
+      status: "UNDER_INITIAL_REVIEW",
+      currentReviewRound: 1,
+      referrerReviewerId: REFERRING_REVIEWER_ID,
+      journal: { id: "journal_1", name: "IJKRI", shortName: "IJKRI" },
+      versions: [],
+      // Read by detectConflicts' own internal submission lookup.
+      authorId: "author_1",
+      author: {
+        id: "author_1",
+        name: "Some Author",
+        email: "author@author-university.edu",
+        affiliation: "Author University",
+        orcid: null,
+      },
+    });
+
+    userFindUniqueMock.mockResolvedValue({
+      id: REFERRING_REVIEWER_ID,
+      name: "Referring Reviewer",
+      email: "referrer@example.com",
+      isActive: true,
+      roles: [{ id: "role_1" }],
+      // Read by detectConflicts' own internal reviewer lookup.
+      affiliation: "Referring Reviewer Institute",
+      orcid: null,
+    });
+
+    reviewAssignmentFindUniqueMock.mockResolvedValue(null);
+
+    transactionMock.mockImplementation(async (callback) =>
+      callback({
+        reviewAssignment: {
+          create: vi.fn().mockResolvedValue({
+            id: "assignment_1",
+            submissionId: "submission_1",
+            reviewerId: REFERRING_REVIEWER_ID,
+            reviewRound: 1,
+            invitedAt: new Date(),
+            dueDate: null,
+            status: "INVITED",
+          }),
+        },
+        submission: { update: vi.fn() },
+        notification: { create: vi.fn() },
+        activityLog: { create: vi.fn() },
+        conflictOfInterestCheck: { create: vi.fn() },
+      }),
+    );
+
+    const formData = buildFormData({
+      submissionId: "submission_1",
+      reviewerId: REFERRING_REVIEWER_ID,
+    });
+
+    await expect(assignReviewer(formData)).resolves.toBeUndefined();
+    expect(transactionMock).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("reassignReviewer — conflict of interest", () => {
   it("rejects reassigning to the reviewer who referred the manuscript's author", async () => {
+    isSuperAdminMock.mockReturnValue(false);
+
     reviewAssignmentFindUniqueMock.mockResolvedValue({
       id: "assignment_1",
       status: "INVITED",

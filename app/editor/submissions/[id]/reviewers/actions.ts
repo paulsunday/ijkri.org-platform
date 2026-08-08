@@ -18,6 +18,10 @@ import type { Prisma } from "@/lib/generated/prisma";
  * Throws if any HIGH finding is present. For MEDIUM/LOW findings, the
  * caller must have already collected the editor's acknowledgement
  * (defense in depth mirrors the Phase 1 referral-conflict guard).
+ *
+ * Super admins are exempt from the block (bypassBlock: true): findings
+ * are still detected and persisted for audit purposes, but they never
+ * prevent the assignment — a super admin is trusted to make that call.
  */
 async function enforceConflictOfInterest(
   tx: Prisma.TransactionClient,
@@ -25,6 +29,7 @@ async function enforceConflictOfInterest(
     submissionId: string;
     reviewerId: string;
     acknowledgedConflicts: boolean;
+    bypassBlock?: boolean;
   },
 ): Promise<void> {
   const report = await detectConflicts({
@@ -41,11 +46,15 @@ async function enforceConflictOfInterest(
         severity: finding.severity,
         reason: finding.reason,
         recommendation: finding.recommendation,
-        blocked: finding.severity === "HIGH",
+        blocked: finding.severity === "HIGH" && !input.bypassBlock,
       },
     });
 
   await Promise.all(report.findings.map(persistFinding));
+
+  if (input.bypassBlock) {
+    return;
+  }
 
   if (report.highestSeverity === "HIGH") {
     throw new Error(
@@ -277,6 +286,8 @@ export async function reassignReviewer(formData: FormData) {
 
   await verifyEditorialPermission(editor, assignment.submission.journalId);
 
+  const bypassConflicts = isSuperAdmin(editor);
+
   if (
     !REASSIGNABLE_STATUSES.includes(
       assignment.status as (typeof REASSIGNABLE_STATUSES)[number],
@@ -293,7 +304,10 @@ export async function reassignReviewer(formData: FormData) {
     );
   }
 
-  if (newReviewerId === assignment.submission.referrerReviewerId) {
+  if (
+    newReviewerId === assignment.submission.referrerReviewerId &&
+    !bypassConflicts
+  ) {
     throw new Error(
       "This reviewer referred this manuscript's author and cannot be assigned to review it.",
     );
@@ -364,6 +378,7 @@ export async function reassignReviewer(formData: FormData) {
       submissionId: assignment.submissionId,
       reviewerId: newReviewerId,
       acknowledgedConflicts,
+      bypassBlock: bypassConflicts,
     });
 
     const cancelResult = await tx.reviewAssignment.updateMany({
@@ -557,6 +572,8 @@ export async function assignReviewer(formData: FormData) {
 
   await verifyEditorialPermission(editor, submission.journalId);
 
+  const bypassConflicts = isSuperAdmin(editor);
+
   const blockedStatuses = [
     "ACCEPTED",
     "REJECTED",
@@ -616,7 +633,7 @@ export async function assignReviewer(formData: FormData) {
     );
   }
 
-  if (reviewerId === submission.referrerReviewerId) {
+  if (reviewerId === submission.referrerReviewerId && !bypassConflicts) {
     throw new Error(
       "This reviewer referred this manuscript's author and cannot be assigned to review it.",
     );
@@ -666,6 +683,7 @@ export async function assignReviewer(formData: FormData) {
       submissionId,
       reviewerId,
       acknowledgedConflicts,
+      bypassBlock: bypassConflicts,
     });
 
     const createdAssignment = await tx.reviewAssignment.create({

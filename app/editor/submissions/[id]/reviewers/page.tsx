@@ -90,6 +90,8 @@ export default async function AssignReviewersPage({
       notFound();
     }
   }
+  const editorIsSuperAdmin = isSuperAdmin(editor);
+
   const currentReviewRound =
     submission.currentReviewRound || 1;
 
@@ -123,10 +125,12 @@ export default async function AssignReviewersPage({
         },
         /*
          * Conflict of interest: a reviewer who referred this
-         * manuscript's author must never appear as an assignable
-         * reviewer for it.
+         * manuscript's author is excluded from the assignable list
+         * for regular editors. Super admins are trusted to make this
+         * call themselves, so they see the full candidate list (with
+         * the conflict still flagged for visibility).
          */
-        ...(submission.referrerReviewerId
+        ...(submission.referrerReviewerId && !editorIsSuperAdmin
           ? { id: { not: submission.referrerReviewerId } }
           : {}),
       },
@@ -157,9 +161,17 @@ export default async function AssignReviewersPage({
     ),
   );
 
-  const assignableReviewers = reviewers.filter(
-    (reviewer) => reviewerConflicts.get(reviewer.id)?.highestSeverity !== "HIGH",
-  );
+  /*
+   * HIGH-severity findings remove a reviewer from the assignable list
+   * for regular editors. Super admins can see and select every
+   * candidate regardless of severity — the flagged conflict is still
+   * shown so the decision is informed, but it no longer blocks them.
+   */
+  const assignableReviewers = editorIsSuperAdmin
+    ? reviewers
+    : reviewers.filter(
+      (reviewer) => reviewerConflicts.get(reviewer.id)?.highestSeverity !== "HIGH",
+    );
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-12">
@@ -357,8 +369,9 @@ export default async function AssignReviewersPage({
 
         {submission.referrerReviewerId && (
           <p className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-            This manuscript was referred by a reviewer. That reviewer is
-            excluded from this list to avoid a conflict of interest.
+            {editorIsSuperAdmin
+              ? "This manuscript was referred by a reviewer. That reviewer is flagged as a conflict of interest below but is still selectable, since you are signed in as a super admin."
+              : "This manuscript was referred by a reviewer. That reviewer is excluded from this list to avoid a conflict of interest."}
           </p>
         )}
 
@@ -455,7 +468,8 @@ export default async function AssignReviewersPage({
                           type="checkbox"
                           name="acknowledgedConflicts"
                           value="true"
-                          required
+                          required={!editorIsSuperAdmin}
+                          defaultChecked={editorIsSuperAdmin}
                         />
                         I acknowledge the flagged conflict(s) above
                       </label>
