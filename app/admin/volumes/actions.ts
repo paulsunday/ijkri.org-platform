@@ -194,6 +194,14 @@ export async function updateVolume(
         formData.get("volumeId") || "",
     ).trim();
 
+    const number = Number(
+        formData.get("number"),
+    );
+
+    const year = Number(
+        formData.get("year"),
+    );
+
     const title = String(
         formData.get("title") || "",
     ).trim();
@@ -206,6 +214,20 @@ export async function updateVolume(
         throw new Error("Volume ID is missing.");
     }
 
+    if (!Number.isInteger(number) || number < 1) {
+        throw new Error(
+            "Volume number must be a positive whole number.",
+        );
+    }
+
+    if (
+        !Number.isInteger(year) ||
+        year < 1900 ||
+        year > 2200
+    ) {
+        throw new Error("Enter a valid volume year.");
+    }
+
     const volume = await prisma.volume.findUnique({
         where: {
             id: volumeId,
@@ -213,6 +235,8 @@ export async function updateVolume(
         select: {
             id: true,
             journalId: true,
+            number: true,
+            year: true,
             title: true,
             description: true,
         },
@@ -227,12 +251,42 @@ export async function updateVolume(
         volume.journalId,
     );
 
+    if (
+        number !== volume.number ||
+        year !== volume.year
+    ) {
+        const existingVolume =
+            await prisma.volume.findUnique({
+                where: {
+                    journalId_number_year: {
+                        journalId: volume.journalId,
+                        number,
+                        year,
+                    },
+                },
+                select: {
+                    id: true,
+                },
+            });
+
+        if (
+            existingVolume &&
+            existingVolume.id !== volumeId
+        ) {
+            throw new Error(
+                `Volume ${number} for ${year} already exists.`,
+            );
+        }
+    }
+
     await prisma.$transaction(async (tx) => {
         await tx.volume.update({
             where: {
                 id: volumeId,
             },
             data: {
+                number,
+                year,
                 title: title || null,
                 description: description || null,
             },
@@ -247,6 +301,10 @@ export async function updateVolume(
                 metadata: {
                     event: "VOLUME_UPDATED",
                     journalId: volume.journalId,
+                    previousNumber: volume.number,
+                    number,
+                    previousYear: volume.year,
+                    year,
                     previousTitle: volume.title,
                     title: title || null,
                     previousDescription:

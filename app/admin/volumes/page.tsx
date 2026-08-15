@@ -305,6 +305,45 @@ export default async function AdminVolumesPage() {
                       value={volume.id}
                     />
 
+                    <div>
+                      <label
+                        htmlFor={`number-${volume.id}`}
+                        className="mb-2 block text-sm font-semibold"
+                      >
+                        Volume Number
+                      </label>
+
+                      <input
+                        id={`number-${volume.id}`}
+                        name="number"
+                        type="number"
+                        min={1}
+                        required
+                        defaultValue={volume.number}
+                        className="w-full rounded-lg border p-3"
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor={`year-${volume.id}`}
+                        className="mb-2 block text-sm font-semibold"
+                      >
+                        Year
+                      </label>
+
+                      <input
+                        id={`year-${volume.id}`}
+                        name="year"
+                        type="number"
+                        min={1900}
+                        max={2200}
+                        required
+                        defaultValue={volume.year}
+                        className="w-full rounded-lg border p-3"
+                      />
+                    </div>
+
                     <input
                       name="title"
                       defaultValue={volume.title || ""}
