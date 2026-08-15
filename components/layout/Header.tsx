@@ -37,6 +37,14 @@ const navigation = [
     href: "/author-guidelines",
   },
   {
+    label: "Research Resources",
+    href: "/resources",
+  },
+  {
+    label: "Events",
+    href: "/events",
+  },
+  {
     label: "Careers",
     href: "/careers",
   },

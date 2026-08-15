@@ -26,6 +26,33 @@ export default async function SearchPage({
   const { q = "" } = await searchParams;
   const query = q.trim();
 
+  const topicKeywords = !query
+    ? await prisma.keyword.findMany({
+      where: {
+        articles: {
+          some: {
+            article: { status: "PUBLISHED" },
+          },
+        },
+      },
+
+      select: {
+        id: true,
+        name: true,
+
+        _count: {
+          select: { articles: true },
+        },
+      },
+
+      orderBy: {
+        articles: { _count: "desc" },
+      },
+
+      take: 24,
+    })
+    : [];
+
   const articles = query
     ? await prisma.article.findMany({
       where: {
@@ -163,16 +190,47 @@ export default async function SearchPage({
       </form>
 
       {!query ? (
-        <section className="rounded-xl border border-blue-200 bg-blue-50 p-8">
-          <h2 className="text-xl font-semibold text-blue-900">
-            Start your search
-          </h2>
+        <>
+          <section className="rounded-xl border border-blue-200 bg-blue-50 p-8">
+            <h2 className="text-xl font-semibold text-blue-900">
+              Start your search
+            </h2>
 
-          <p className="mt-2 text-blue-800">
-            Enter a research topic, author, article title,
-            keyword or DOI.
-          </p>
-        </section>
+            <p className="mt-2 text-blue-800">
+              Enter a research topic, author, article title,
+              keyword or DOI.
+            </p>
+          </section>
+
+          {topicKeywords.length > 0 && (
+            <section className="rounded-xl border bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Browse by Research Topic
+              </h2>
+
+              <p className="mt-2 text-gray-600">
+                Keywords used most often across published articles.
+              </p>
+
+              <div className="mt-5 flex flex-wrap gap-2">
+                {topicKeywords.map((keyword) => (
+                  <Link
+                    key={keyword.id}
+                    href={`/search?q=${encodeURIComponent(
+                      keyword.name,
+                    )}`}
+                    className="rounded-full bg-blue-50 px-4 py-2 text-sm font-medium text-blue-800 hover:bg-blue-100"
+                  >
+                    {keyword.name}
+                    <span className="ml-1.5 text-blue-500">
+                      {keyword._count.articles}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+        </>
       ) : articles.length === 0 ? (
         <section className="rounded-xl border border-yellow-300 bg-yellow-50 p-8">
           <h2 className="text-xl font-semibold text-yellow-900">

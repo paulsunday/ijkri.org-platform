@@ -58,6 +58,34 @@ const ethicsPolicies = [
   },
 ];
 
+const trustPolicies = [
+  {
+    title: "Editorial Independence",
+    description:
+      "Editorial decisions are based solely on academic merit, peer-review outcomes, and journal policy. Commercial or publisher interests do not influence acceptance or rejection decisions.",
+  },
+  {
+    title: "Complaints & Appeals",
+    description:
+      "Authors, reviewers, or readers may raise a reasoned complaint or appeal regarding an editorial decision or process by contacting the editorial office. Each case is reviewed on its merits; disagreement alone does not guarantee reconsideration.",
+  },
+  {
+    title: "Data Availability",
+    description:
+      "Authors are expected to include a data-availability statement describing whether underlying research data are publicly available, restricted, or available on reasonable request.",
+  },
+  {
+    title: "Archiving",
+    description:
+      "Published articles are retained on the journal platform for permanent online access, with their assigned DOI providing a stable, citable link to the published version of record.",
+  },
+  {
+    title: "Copyright & Licensing",
+    description:
+      "Authors must own or have permission to use all submitted material. The publication agreement states the rights retained by authors and the licence applied to the final published article.",
+  },
+];
+
 export default function PublicationEthicsPage() {
   return (
     <main className="bg-slate-50">
@@ -242,6 +270,39 @@ export default function PublicationEthicsPage() {
               </p>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section className="bg-slate-100 py-16">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="max-w-3xl">
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-amber-700">
+              Trust &amp; Transparency
+            </p>
+
+            <h2 className="mt-3 text-3xl font-bold text-slate-950">
+              How the journal is governed and how the record is protected
+            </h2>
+          </div>
+
+          <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {trustPolicies.map((policy) => (
+              <article
+                key={policy.title}
+                className="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm"
+              >
+                <div className="h-1 w-14 rounded-full bg-amber-500" />
+
+                <h3 className="mt-5 text-xl font-bold">
+                  {policy.title}
+                </h3>
+
+                <p className="mt-3 leading-7 text-slate-600">
+                  {policy.description}
+                </p>
+              </article>
+            ))}
+          </div>
         </div>
       </section>
 

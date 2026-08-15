@@ -1,6 +1,8 @@
 ﻿import Image from "next/image";
 import Link from "next/link";
 
+import NewsletterSignup from "@/components/layout/NewsletterSignup";
+
 const journalLinks = [
   {
     label: "About the Journal",
@@ -21,6 +23,14 @@ const journalLinks = [
   {
     label: "Publication Ethics",
     href: "/publication-ethics",
+  },
+  {
+    label: "Why Publish With IJKRI",
+    href: "/why-ijkri",
+  },
+  {
+    label: "FAQ",
+    href: "/faq",
   },
 ];
 
@@ -45,6 +55,10 @@ const authorLinks = [
     label: "Call for Papers",
     href: "/call-for-papers",
   },
+  {
+    label: "Research Resources",
+    href: "/resources",
+  },
 ];
 
 const opportunityLinks = [
@@ -55,6 +69,18 @@ const opportunityLinks = [
   {
     label: "Careers and Opportunities",
     href: "/careers",
+  },
+  {
+    label: "Research Insights",
+    href: "/insights",
+  },
+  {
+    label: "Academic Events",
+    href: "/events",
+  },
+  {
+    label: "Researcher Community",
+    href: "/community",
   },
   {
     label: "Register",
@@ -124,6 +150,20 @@ export default function Footer() {
               </strong>{" "}
               Open access
             </p>
+          </div>
+
+          <div className="mt-8">
+            <h2 className="text-sm font-bold uppercase tracking-[0.18em] text-amber-400">
+              Research Update
+            </h2>
+
+            <p className="mt-3 text-sm leading-6 text-slate-300">
+              Publication alerts and calls for papers, occasionally.
+            </p>
+
+            <div className="mt-4 max-w-sm">
+              <NewsletterSignup variant="footer" />
+            </div>
           </div>
         </div>
 
@@ -212,6 +252,13 @@ export default function Footer() {
               className="hover:text-white"
             >
               Privacy
+            </Link>
+
+            <Link
+              href="/terms"
+              className="hover:text-white"
+            >
+              Terms
             </Link>
           </div>
         </div>

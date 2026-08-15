@@ -11,15 +11,23 @@ const PUBLIC_ROUTES = [
   "/author-guidelines",
   "/call-for-papers",
   "/careers",
+  "/community",
   "/contact",
   "/current-issue",
+  "/editorial-board",
+  "/events",
+  "/faq",
+  "/insights",
   "/issues",
   "/peer-review",
   "/privacy",
   "/publication-ethics",
+  "/resources",
   "/reviewer-centre",
   "/search",
   "/terms",
+  "/unsubscribe",
+  "/why-ijkri",
 ];
 
 const AUTH_ROUTES = [

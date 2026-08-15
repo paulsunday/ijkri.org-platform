@@ -16,5 +16,9 @@ export const ADMIN_NAV_LINKS = [
   ["Career Applications", "/admin/career-applications"],
   ["Payments", "/admin/payments"],
   ["DOI Records", "/admin/doi-records"],
+  ["Research Resources", "/admin/resources"],
+  ["Research Insights", "/admin/insights"],
+  ["Academic Events", "/admin/events"],
+  ["Newsletter", "/admin/newsletter"],
   ["Settings", "/admin/settings"],
 ] as const;

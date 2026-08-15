@@ -3,10 +3,12 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import OrganizationJsonLd from "@/components/seo/OrganizationJsonLd";
+import CallForPapersPopup from "@/components/layout/CallForPapersPopup";
 import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
 import AuthProvider from "@/components/providers/session-provider";
 import { Toaster } from "@/components/ui/toast";
+import { prisma } from "@/lib/prisma";
 
 import "./globals.css";
 
@@ -193,11 +195,66 @@ export const viewport: Viewport = {
   colorScheme: "light dark",
 };
 
-export default function RootLayout({
+async function getCallForPapersAdvert() {
+  const journal = await prisma.journal.findFirst({
+    where: {
+      isActive: true,
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+    select: {
+      id: true,
+      settings: {
+        select: {
+          cfpEnabled: true,
+          cfpTitle: true,
+          cfpMessage: true,
+          cfpButtonText: true,
+          cfpButtonUrl: true,
+          cfpDeadline: true,
+          updatedAt: true,
+        },
+      },
+    },
+  });
+
+  const settings = journal?.settings;
+
+  if (
+    !journal ||
+    !settings?.cfpEnabled ||
+    !settings.cfpTitle ||
+    !settings.cfpMessage ||
+    !settings.cfpButtonText ||
+    !settings.cfpButtonUrl
+  ) {
+    return null;
+  }
+
+  return {
+    dismissKey: `cfp-popup-${journal.id}-${settings.updatedAt.getTime()}`,
+    title: settings.cfpTitle,
+    message: settings.cfpMessage,
+    buttonText: settings.cfpButtonText,
+    buttonUrl: settings.cfpButtonUrl,
+    deadlineLabel: settings.cfpDeadline
+      ? settings.cfpDeadline.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })
+      : null,
+  };
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const callForPapersAdvert = await getCallForPapersAdvert();
+
   return (
     <html
       lang="en"
@@ -216,6 +273,10 @@ export default function RootLayout({
 
           <Footer />
         </AuthProvider>
+
+        {callForPapersAdvert && (
+          <CallForPapersPopup {...callForPapersAdvert} />
+        )}
 
         <Toaster />
 

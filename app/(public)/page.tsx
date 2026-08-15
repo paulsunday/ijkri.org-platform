@@ -1,7 +1,31 @@
 ﻿import Image from "next/image";
 import Link from "next/link";
 
+import NewsletterSignup from "@/components/layout/NewsletterSignup";
 import { prisma } from "@/lib/prisma";
+
+const researcherPathways = [
+  {
+    title: "Publish",
+    description: "Submit your manuscript for editorial consideration.",
+    href: "/author/submit",
+  },
+  {
+    title: "Review",
+    description: "Join the reviewer pool and support peer review.",
+    href: "/reviewer/apply",
+  },
+  {
+    title: "Learn",
+    description: "Practical guidance on methods, writing, and publishing.",
+    href: "/insights",
+  },
+  {
+    title: "Discover",
+    description: "Methodology and academic writing resources.",
+    href: "/resources",
+  },
+];
 
 const journalFacts = [
   {
@@ -600,6 +624,50 @@ export default async function PublicHomePage() {
               })}
             </div>
           )}
+        </div>
+      </section>
+
+      <section className="border-t border-slate-200 bg-slate-50 py-16">
+        <div className="mx-auto max-w-7xl px-6">
+          <p className="text-sm font-bold uppercase tracking-[0.2em] text-amber-700">
+            For Researchers
+          </p>
+
+          <h2 className="mt-3 text-3xl font-bold">
+            Whatever stage you&apos;re at, there&apos;s a way in
+          </h2>
+
+          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {researcherPathways.map((pathway) => (
+              <Link
+                key={pathway.title}
+                href={pathway.href}
+                className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+              >
+                <h3 className="text-lg font-bold text-slate-950">
+                  {pathway.title}
+                </h3>
+
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {pathway.description}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-3xl px-6 py-16 text-center">
+        <p className="text-sm font-bold uppercase tracking-[0.2em] text-amber-700">
+          IJKRI Research Update
+        </p>
+
+        <h2 className="mx-auto mt-3 max-w-xl text-2xl font-bold sm:text-3xl">
+          Publication alerts, calls for papers, and publishing guidance
+        </h2>
+
+        <div className="mx-auto mt-6 max-w-sm">
+          <NewsletterSignup variant="inline" />
         </div>
       </section>
 

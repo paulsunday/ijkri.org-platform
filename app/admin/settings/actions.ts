@@ -151,6 +151,59 @@ function optionalUrl(
     return value;
 }
 
+function optionalLinkUrl(
+    formData: FormData,
+    field: string,
+    label: string,
+): string | null {
+    const value = optionalText(formData, field);
+
+    if (!value) {
+        return null;
+    }
+
+    if (value.startsWith("/")) {
+        return value;
+    }
+
+    try {
+        const parsed = new URL(value);
+
+        if (
+            parsed.protocol !== "http:" &&
+            parsed.protocol !== "https:"
+        ) {
+            throw new Error("invalid protocol");
+        }
+    } catch {
+        throw new Error(
+            `${label} must be a relative path (starting with /) or a valid URL starting with http:// or https://.`,
+        );
+    }
+
+    return value;
+}
+
+function optionalDate(
+    formData: FormData,
+    field: string,
+    label: string,
+): Date | null {
+    const value = optionalText(formData, field);
+
+    if (!value) {
+        return null;
+    }
+
+    const parsed = new Date(value);
+
+    if (Number.isNaN(parsed.getTime())) {
+        throw new Error(`${label} must be a valid date.`);
+    }
+
+    return parsed;
+}
+
 function nonNegativeAmount(
     formData: FormData,
     field: string,
@@ -365,6 +418,45 @@ export async function updateJournalSettings(
         "theme",
     );
 
+    const cfpEnabled =
+        formData.get("cfpEnabled") === "on";
+
+    const cfpTitle = optionalText(formData, "cfpTitle");
+
+    const cfpMessage = optionalText(
+        formData,
+        "cfpMessage",
+    );
+
+    const cfpButtonText = optionalText(
+        formData,
+        "cfpButtonText",
+    );
+
+    const cfpButtonUrl = optionalLinkUrl(
+        formData,
+        "cfpButtonUrl",
+        "Button link",
+    );
+
+    const cfpDeadline = optionalDate(
+        formData,
+        "cfpDeadline",
+        "Submission deadline",
+    );
+
+    if (
+        cfpEnabled &&
+        (!cfpTitle ||
+            !cfpMessage ||
+            !cfpButtonText ||
+            !cfpButtonUrl)
+    ) {
+        throw new Error(
+            "Headline, message, button text, and button link are required to show the call for papers pop-up.",
+        );
+    }
+
     await prisma.$transaction(async (tx) => {
         await tx.journal.update({
             where: {
@@ -403,6 +495,12 @@ export async function updateJournalSettings(
                 license,
                 footerText,
                 theme,
+                cfpEnabled,
+                cfpTitle,
+                cfpMessage,
+                cfpButtonText,
+                cfpButtonUrl,
+                cfpDeadline,
             },
             update: {
                 submissionOpen,
@@ -415,6 +513,12 @@ export async function updateJournalSettings(
                 license,
                 footerText,
                 theme,
+                cfpEnabled,
+                cfpTitle,
+                cfpMessage,
+                cfpButtonText,
+                cfpButtonUrl,
+                cfpDeadline,
             },
         });
 

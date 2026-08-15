@@ -358,6 +358,11 @@ model Journal {
   referralCampaigns  ReferralCampaign[]
   scoringSettings    ReviewerScoringSettings?
 
+  resourceGuides        ResourceGuide[]
+  insights              Insight[]
+  newsletterSubscribers NewsletterSubscriber[]
+  events                Event[]
+
   @@index([slug])
   @@index([tenantId])
   @@index([publisherId])
@@ -376,9 +381,136 @@ model JournalSettings {
   copyrightPolicy     String?
   license             String?
   footerText          String?
+  cfpEnabled          Boolean  @default(false)
+  cfpTitle            String?
+  cfpMessage          String?
+  cfpButtonText       String?
+  cfpButtonUrl        String?
+  cfpDeadline         DateTime?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   journal             Journal  @relation(fields: [journalId], references: [id], onDelete: Cascade)
+}
+
+enum ResourceCategory {
+  RESEARCH_METHODOLOGY
+  DATA_ANALYSIS
+  ACADEMIC_WRITING
+  PUBLISHING
+}
+
+enum ResourceFormat {
+  ARTICLE
+  GUIDE
+  TEMPLATE
+  VIDEO
+}
+
+model ResourceGuide {
+  id          String            @id @default(cuid())
+  journalId   String
+  category    ResourceCategory
+  format      ResourceFormat    @default(GUIDE)
+  title       String
+  slug        String
+  summary     String
+  body        String?
+  externalUrl String?
+  isPublished Boolean           @default(false)
+  publishedAt DateTime?
+  sortOrder   Int               @default(0)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  journal     Journal           @relation(fields: [journalId], references: [id], onDelete: Cascade)
+
+  @@unique([journalId, slug])
+  @@index([journalId])
+  @@index([category])
+}
+
+enum InsightCategory {
+  RESEARCH_METHODS
+  ACADEMIC_WRITING
+  STATISTICS
+  PUBLISHING
+  RESEARCH_ETHICS
+  INNOVATION
+  MANAGEMENT
+  BUSINESS
+  TECHNOLOGY
+}
+
+model Insight {
+  id          String           @id @default(cuid())
+  journalId   String
+  category    InsightCategory
+  title       String
+  slug        String
+  excerpt     String
+  body        String
+  authorName  String?
+  coverImage  String?
+  isPublished Boolean          @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  journal     Journal          @relation(fields: [journalId], references: [id], onDelete: Cascade)
+
+  @@unique([journalId, slug])
+  @@index([journalId])
+  @@index([category])
+}
+
+model NewsletterSubscriber {
+  id               String    @id @default(cuid())
+  journalId        String
+  email            String
+  unsubscribeToken String    @unique @default(cuid())
+  subscribedAt     DateTime  @default(now())
+  unsubscribedAt   DateTime?
+  journal          Journal   @relation(fields: [journalId], references: [id], onDelete: Cascade)
+
+  @@unique([journalId, email])
+  @@index([journalId])
+}
+
+enum EventType {
+  SEMINAR
+  WEBINAR
+  WORKSHOP
+  CONFERENCE
+  EDITORIAL_SESSION
+}
+
+enum EventStatus {
+  UPCOMING
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+model Event {
+  id              String      @id @default(cuid())
+  journalId       String
+  title           String
+  slug            String
+  description     String
+  eventType       EventType   @default(WEBINAR)
+  startsAt        DateTime
+  endsAt          DateTime?
+  speakerName     String?
+  speakerTitle    String?
+  registrationUrl String?
+  recordingUrl    String?
+  status          EventStatus @default(UPCOMING)
+  isPublished     Boolean     @default(false)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  journal         Journal     @relation(fields: [journalId], references: [id], onDelete: Cascade)
+
+  @@unique([journalId, slug])
+  @@index([journalId])
+  @@index([status])
 }
 
 model UserJournalRole {

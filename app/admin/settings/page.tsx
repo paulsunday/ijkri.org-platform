@@ -617,6 +617,132 @@ export default async function AdminSettingsPage({
           </div>
         </section>
 
+        <section className="rounded-xl border bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-bold">
+            Call for Papers Advert
+          </h2>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Shown as a pop-up to visitors on the homepage and
+            across the site. Editing and saving will show it
+            again even to visitors who previously dismissed
+            it.
+          </p>
+
+          <label className="mt-5 flex items-center gap-2.5 text-sm font-medium text-slate-700">
+            <input
+              type="checkbox"
+              name="cfpEnabled"
+              defaultChecked={
+                settings?.cfpEnabled ?? false
+              }
+              className="h-4 w-4 rounded border-slate-300"
+            />
+            Show the call for papers pop-up
+          </label>
+
+          <div className="mt-5 grid gap-5 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <label
+                htmlFor="cfpTitle"
+                className="mb-1.5 block text-sm font-semibold text-slate-700"
+              >
+                Headline
+              </label>
+
+              <input
+                id="cfpTitle"
+                name="cfpTitle"
+                type="text"
+                placeholder="e.g. Submit your research for our upcoming issue"
+                defaultValue={settings?.cfpTitle ?? ""}
+                className="w-full rounded-lg border px-3 py-2.5 text-sm"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label
+                htmlFor="cfpMessage"
+                className="mb-1.5 block text-sm font-semibold text-slate-700"
+              >
+                Message
+              </label>
+
+              <textarea
+                id="cfpMessage"
+                name="cfpMessage"
+                rows={3}
+                placeholder="Briefly describe the call for papers and who should submit."
+                defaultValue={settings?.cfpMessage ?? ""}
+                className="w-full rounded-lg border px-3 py-2.5 text-sm"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="cfpButtonText"
+                className="mb-1.5 block text-sm font-semibold text-slate-700"
+              >
+                Button text
+              </label>
+
+              <input
+                id="cfpButtonText"
+                name="cfpButtonText"
+                type="text"
+                placeholder="e.g. Submit Manuscript"
+                defaultValue={
+                  settings?.cfpButtonText ?? ""
+                }
+                className="w-full rounded-lg border px-3 py-2.5 text-sm"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="cfpButtonUrl"
+                className="mb-1.5 block text-sm font-semibold text-slate-700"
+              >
+                Button link
+              </label>
+
+              <input
+                id="cfpButtonUrl"
+                name="cfpButtonUrl"
+                type="text"
+                placeholder="/call-for-papers or https://"
+                defaultValue={
+                  settings?.cfpButtonUrl ?? ""
+                }
+                className="w-full rounded-lg border px-3 py-2.5 text-sm"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="cfpDeadline"
+                className="mb-1.5 block text-sm font-semibold text-slate-700"
+              >
+                Submission deadline (optional)
+              </label>
+
+              <input
+                id="cfpDeadline"
+                name="cfpDeadline"
+                type="date"
+                defaultValue={
+                  settings?.cfpDeadline
+                    ? settings.cfpDeadline
+                        .toISOString()
+                        .slice(0, 10)
+                    : ""
+                }
+                className="w-full rounded-lg border px-3 py-2.5 text-sm"
+              />
+            </div>
+          </div>
+        </section>
+
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="submit"

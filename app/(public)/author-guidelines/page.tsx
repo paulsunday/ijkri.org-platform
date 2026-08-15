@@ -472,6 +472,10 @@ export default function AuthorGuidelinesPage() {
             Formatting
           </a>
 
+          <a href="#journey" className="hover:text-amber-700">
+            Publication Journey
+          </a>
+
           <a href="#references" className="hover:text-amber-700">
             References
           </a>
@@ -1089,20 +1093,28 @@ export default function AuthorGuidelinesPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-6 py-20">
+      <section id="journey" className="mx-auto max-w-7xl px-6 py-20">
         <div className="max-w-3xl">
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-amber-700">
-            Peer Review and Revision
+            Publication Journey
           </p>
 
           <h2 className="mt-4 text-3xl font-bold sm:text-4xl">
-            What happens after submission
+            Prepare → Submit → Peer Review → Revise → Accept → Production → Publish
           </h2>
 
           <p className="mt-5 text-lg leading-8 text-slate-700">
             IJKRI follows a structured editorial process designed to
             support independent assessment, constructive revision and
-            accountable publication decisions.
+            accountable publication decisions. You can track exactly
+            where your manuscript stands from your{" "}
+            <Link
+              href="/author/dashboard"
+              className="font-semibold text-amber-700 hover:underline"
+            >
+              author dashboard
+            </Link>{" "}
+            at any point in this process.
           </p>
         </div>
 

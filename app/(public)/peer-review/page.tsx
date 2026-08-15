@@ -51,6 +51,39 @@ const reviewStages = [
   },
 ];
 
+const reviewCriteria = [
+  {
+    title: "Originality and contribution",
+    description:
+      "Does the manuscript add something meaningful to existing knowledge, rather than repeating already-published work?",
+  },
+  {
+    title: "Methodological rigour",
+    description:
+      "Is the research design, sample, data collection and analysis appropriate and clearly justified for the questions being asked?",
+  },
+  {
+    title: "Engagement with literature",
+    description:
+      "Does the manuscript critically engage with relevant, current scholarship rather than listing sources without synthesis?",
+  },
+  {
+    title: "Clarity and structure",
+    description:
+      "Is the argument easy to follow, with a logical structure from introduction through to conclusion?",
+  },
+  {
+    title: "Evidence and interpretation",
+    description:
+      "Are claims and conclusions properly supported by the data or analysis presented, without overreach?",
+  },
+  {
+    title: "Ethical compliance",
+    description:
+      "Where applicable, is there evidence of appropriate ethical approval, informed consent, and honest reporting of methods and data?",
+  },
+];
+
 const decisionTypes = [
   {
     title: "Accept",
@@ -308,6 +341,109 @@ export default function PeerReviewPage() {
             reconsideration.
           </p>
         </article>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-6 py-20">
+        <div className="max-w-3xl">
+          <p className="text-sm font-bold uppercase tracking-[0.18em] text-amber-700">
+            Review Criteria
+          </p>
+
+          <h2 className="mt-4 text-3xl font-bold sm:text-4xl">
+            What reviewers assess
+          </h2>
+
+          <p className="mt-5 text-lg leading-8 text-slate-700">
+            Reviewers are asked to evaluate each manuscript against the
+            following criteria when forming a recommendation.
+          </p>
+        </div>
+
+        <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {reviewCriteria.map((criterion) => (
+            <article
+              key={criterion.title}
+              className="rounded-2xl border bg-white p-7 shadow-sm"
+            >
+              <h3 className="text-xl font-bold">
+                {criterion.title}
+              </h3>
+
+              <p className="mt-4 leading-7 text-slate-700">
+                {criterion.description}
+              </p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="bg-slate-50">
+        <div className="mx-auto max-w-7xl px-6 py-20">
+          <div className="max-w-3xl">
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-amber-700">
+              Reviewer Recognition
+            </p>
+
+            <h2 className="mt-4 text-3xl font-bold sm:text-4xl">
+              How the journal recognises reviewers
+            </h2>
+
+            <p className="mt-5 text-lg leading-8 text-slate-700">
+              Reviewing is a scholarly contribution in its own right.
+              IJKRI recognises reviewers in several ways.
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-6 md:grid-cols-3">
+            <article className="rounded-2xl border bg-white p-7 shadow-sm">
+              <h3 className="text-xl font-bold">
+                Digital certificates
+              </h3>
+
+              <p className="mt-4 leading-7 text-slate-700">
+                Reviewers can generate a certificate for each completed
+                review from their reviewer dashboard.
+              </p>
+            </article>
+
+            <article className="rounded-2xl border bg-white p-7 shadow-sm">
+              <h3 className="text-xl font-bold">
+                Reviewer Ambassador Programme
+              </h3>
+
+              <p className="mt-4 leading-7 text-slate-700">
+                Active reviewers can take part in the journal&apos;s
+                referral programme and track their standing on the
+                public{" "}
+                <Link
+                  href="/leaderboard"
+                  className="font-semibold text-amber-700 hover:underline"
+                >
+                  reviewer leaderboard
+                </Link>
+                .
+              </p>
+            </article>
+
+            <article className="rounded-2xl border bg-white p-7 shadow-sm">
+              <h3 className="text-xl font-bold">
+                Reviewer profile
+              </h3>
+
+              <p className="mt-4 leading-7 text-slate-700">
+                Consistent, high-quality reviewers can track their
+                performance and standing from their{" "}
+                <Link
+                  href="/reviewer/performance"
+                  className="font-semibold text-amber-700 hover:underline"
+                >
+                  reviewer performance dashboard
+                </Link>
+                .
+              </p>
+            </article>
+          </div>
+        </div>
       </section>
 
       <section className="bg-amber-50">
