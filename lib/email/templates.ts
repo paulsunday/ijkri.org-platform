@@ -1756,3 +1756,112 @@ export function withdrawalFailedEmail({
     }),
   };
 }
+
+export function eventRegistrationConfirmedEmail({
+  name,
+  eventTitle,
+  scheduleText,
+  speakerText,
+  eventUrl,
+}: {
+  name: string;
+  eventTitle: string;
+  scheduleText: string;
+  speakerText: string | null;
+  eventUrl: string;
+}) {
+  const safeName = escapeHtml(name);
+  const safeEventTitle = escapeHtml(eventTitle);
+  const safeScheduleText = escapeHtml(scheduleText);
+  const safeSpeakerText = speakerText
+    ? escapeHtml(speakerText)
+    : null;
+
+  return {
+    subject: `${journalShortName}: You're registered for "${eventTitle}"`,
+
+    text: [
+      `Hello ${name},`,
+      "",
+      `You're confirmed for "${eventTitle}".`,
+      `When: ${scheduleText}`,
+      ...(safeSpeakerText ? [`Speaker: ${speakerText}`] : []),
+      "",
+      `Event details: ${eventUrl}`,
+    ].join("\n"),
+
+    html: emailLayout({
+      heading: "You're registered!",
+      content: `
+        <p>Hello ${safeName},</p>
+
+        <p>
+          You're confirmed for
+          <strong>${safeEventTitle}</strong>.
+        </p>
+
+        ${informationBox({
+        title: "When",
+        content: safeScheduleText,
+      })}
+
+        ${safeSpeakerText
+          ? informationBox({
+            title: "Speaker",
+            content: safeSpeakerText,
+          })
+          : ""
+        }
+
+        <p>We look forward to seeing you there.</p>
+
+        ${emailButton({
+        url: eventUrl,
+        label: "View Event Details",
+      })}
+      `,
+    }),
+  };
+}
+
+export function eventRegistrationNotificationEmail({
+  name,
+  email,
+  eventTitle,
+  scheduleText,
+}: {
+  name: string;
+  email: string;
+  eventTitle: string;
+  scheduleText: string;
+}) {
+  const safeName = escapeHtml(name);
+  const safeEmail = escapeHtml(email);
+  const safeEventTitle = escapeHtml(eventTitle);
+  const safeScheduleText = escapeHtml(scheduleText);
+
+  return {
+    subject: `${journalShortName}: New registration for "${eventTitle}"`,
+
+    text: [
+      `${name} (${email}) just registered for "${eventTitle}".`,
+      `When: ${scheduleText}`,
+    ].join("\n"),
+
+    html: emailLayout({
+      heading: "New event registration",
+      content: `
+        <p>
+          <strong>${safeName}</strong> (${safeEmail})
+          just registered for
+          <strong>${safeEventTitle}</strong>.
+        </p>
+
+        ${informationBox({
+        title: "When",
+        content: safeScheduleText,
+      })}
+      `,
+    }),
+  };
+}

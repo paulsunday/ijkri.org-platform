@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 
+import { registerForEvent } from "./actions";
+
 const TYPE_LABELS: Record<string, string> = {
   SEMINAR: "Seminar",
   WEBINAR: "Webinar",
@@ -32,6 +34,7 @@ function formatDateTime(value: Date) {
 
 type EventPageProps = {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ registered?: string }>;
 };
 
 async function getEvent(slug: string) {
@@ -82,8 +85,10 @@ export async function generateMetadata({
 
 export default async function EventDetailPage({
   params,
+  searchParams,
 }: EventPageProps) {
   const { slug } = await params;
+  const { registered } = await searchParams;
   const event = await getEvent(slug);
 
   if (!event) {
@@ -163,6 +168,68 @@ export default async function EventDetailPage({
             </a>
           )}
         </div>
+
+        {!event.registrationUrl && !hasCompleted && (
+          <div className="mt-10 rounded-xl border border-slate-200 bg-slate-50 p-6">
+            {registered === "true" ? (
+              <p className="font-semibold text-slate-900">
+                You&apos;re registered! Check your inbox for a
+                confirmation email.
+              </p>
+            ) : (
+              <>
+                <h2 className="text-lg font-bold text-slate-950">
+                  Register for this event
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-600">
+                  Enter your details below to reserve your spot.
+                  It&apos;s free.
+                </p>
+
+                <form
+                  action={registerForEvent}
+                  className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end"
+                >
+                  <input
+                    type="hidden"
+                    name="slug"
+                    value={event.slug}
+                  />
+
+                  <label className="flex-1 text-sm font-semibold text-slate-800">
+                    Full name
+                    <input
+                      type="text"
+                      name="name"
+                      required
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal text-slate-950 focus:border-slate-950 focus:outline-none"
+                      placeholder="Jane Doe"
+                    />
+                  </label>
+
+                  <label className="flex-1 text-sm font-semibold text-slate-800">
+                    Email address
+                    <input
+                      type="email"
+                      name="email"
+                      required
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal text-slate-950 focus:border-slate-950 focus:outline-none"
+                      placeholder="jane@example.com"
+                    />
+                  </label>
+
+                  <button
+                    type="submit"
+                    className="rounded-lg bg-amber-500 px-6 py-3 font-semibold text-slate-950 transition hover:bg-amber-400"
+                  >
+                    Register →
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
+        )}
       </section>
     </main>
   );
