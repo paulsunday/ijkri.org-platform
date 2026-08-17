@@ -171,11 +171,6 @@ export default async function PublicIssuePage({
             <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-600">
               <span>Published {formatDate(issue.publishedAt)}</span>
 
-              <span>
-                {issue.articles.length} article
-                {issue.articles.length === 1 ? "" : "s"}
-              </span>
-
               {issue.journal.issnPrint && (
                 <span>Print ISSN: {issue.journal.issnPrint}</span>
               )}
