@@ -16,6 +16,8 @@ const VALID_ARTICLE_STATUSES = [
     "ARCHIVED",
 ] as const;
 
+const ISSN_PATTERN = /^\d{4}-\d{3}[\dX]$/;
+
 type ArticleStatusValue =
     (typeof VALID_ARTICLE_STATUSES)[number];
 
@@ -33,6 +35,7 @@ function refreshArticlePages(articleSlug?: string) {
     revalidatePath("/archives");
     revalidatePath("/search");
     revalidatePath("/sitemap.xml");
+    revalidatePath("/author/dashboard");
 
     if (articleSlug) {
         revalidatePath(`/articles/${articleSlug}`);
@@ -110,6 +113,10 @@ export async function updateArticle(
         formData.get("doi") || "",
     ).trim();
 
+    const issn = String(
+        formData.get("issn") || "",
+    ).trim();
+
     const pdfUrl = String(
         formData.get("pdfUrl") || "",
     ).trim();
@@ -144,7 +151,9 @@ export async function updateArticle(
             title: true,
             slug: true,
             doi: true,
+            issn: true,
             status: true,
+            submissionId: true,
         },
     });
 
@@ -156,6 +165,12 @@ export async function updateArticle(
         administrator.id,
         article.journalId,
     );
+
+    if (issn && !ISSN_PATTERN.test(issn)) {
+        throw new Error(
+            "The article ISSN must be in the format 0000-000X.",
+        );
+    }
 
     let issueId: string | null = null;
 
@@ -292,6 +307,7 @@ export async function updateArticle(
                     abstract,
                     issueId,
                     doi: doi || null,
+                    issn: issn || null,
                     pdfUrl: pdfUrl || null,
                     publishedAt,
                     accessType:
@@ -359,6 +375,8 @@ export async function updateArticle(
                         issueId,
                         previousDoi: article.doi,
                         doi: doi || null,
+                        previousIssn: article.issn,
+                        issn: issn || null,
                         publishedAt:
                             publishedAt?.toISOString() || null,
                     },
@@ -369,6 +387,12 @@ export async function updateArticle(
         });
 
     refreshArticlePages(article.slug);
+
+    if (article.submissionId) {
+        revalidatePath(
+            `/author/submissions/${article.submissionId}`,
+        );
+    }
 
     if (updatedArticle.slug !== article.slug) {
         refreshArticlePages(updatedArticle.slug);

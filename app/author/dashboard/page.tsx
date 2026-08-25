@@ -3,16 +3,13 @@ import Link from "next/link";
 import LogoutButton from "@/components/auth/logout-button";
 import { requireAnyRole } from "@/lib/auth/permissions";
 import { AUTHOR_ROLES } from "@/lib/auth/role-groups";
+import {
+    authorStatusBadgeClass,
+    formatAuthorStatusLabel,
+    getAuthorFacingStatus,
+    isAuthorFacingPublished,
+} from "@/lib/manuscripts/author-status";
 import { prisma } from "@/lib/prisma";
-
-function formatStatus(value: string) {
-    return value
-        .replaceAll("_", " ")
-        .toLowerCase()
-        .replace(/\b\w/g, (character) =>
-            character.toUpperCase(),
-        );
-}
 
 function formatDate(
     value: Date | null | undefined,
@@ -26,48 +23,6 @@ function formatDate(
         month: "short",
         year: "numeric",
     }).format(value);
-}
-
-function statusClass(status: string) {
-    switch (status) {
-        case "DRAFT":
-            return "bg-gray-100 text-gray-700";
-
-        case "SUBMITTED":
-        case "UNDER_INITIAL_REVIEW":
-            return "bg-blue-100 text-blue-800";
-
-        case "UNDER_PEER_REVIEW":
-            return "bg-purple-100 text-purple-800";
-
-        case "REVISION_REQUIRED":
-            return "bg-orange-100 text-orange-800";
-
-        case "ACCEPTED":
-            return "bg-green-100 text-green-800";
-
-        case "COPYEDITING":
-        case "TYPESETTING":
-            return "bg-indigo-100 text-indigo-800";
-
-        case "PROOFREADING":
-            return "bg-amber-100 text-amber-800";
-
-        case "AUTHOR_PROOF_APPROVAL":
-            return "bg-violet-100 text-violet-800";
-
-        case "READY_FOR_PUBLICATION":
-            return "bg-emerald-100 text-emerald-800";
-
-        case "PUBLISHED":
-            return "bg-green-100 text-green-800";
-
-        case "REJECTED":
-            return "bg-red-100 text-red-800";
-
-        default:
-            return "bg-gray-100 text-gray-700";
-    }
 }
 
 export default async function AuthorDashboardPage() {
@@ -87,12 +42,28 @@ export default async function AuthorDashboardPage() {
                         name: true,
                     },
                 },
+
+                article: {
+                    select: {
+                        issn: true,
+                    },
+                },
             },
 
             orderBy: {
                 updatedAt: "desc",
             },
         });
+
+    const authorStatuses = new Map(
+        submissions.map((submission) => [
+            submission.id,
+            getAuthorFacingStatus(
+                submission.status,
+                submission.article,
+            ),
+        ]),
+    );
 
     const proofApprovals =
         submissions.filter(
@@ -109,9 +80,10 @@ export default async function AuthorDashboardPage() {
         );
 
     const publishedCount =
-        submissions.filter(
-            (submission) =>
-                submission.status === "PUBLISHED",
+        submissions.filter((submission) =>
+            isAuthorFacingPublished(
+                authorStatuses.get(submission.id)!,
+            ),
         ).length;
 
     return (
@@ -335,12 +307,16 @@ export default async function AuthorDashboardPage() {
 
                                             <td className="px-4 py-4">
                                                 <span
-                                                    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusClass(
-                                                        submission.status,
+                                                    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${authorStatusBadgeClass(
+                                                        authorStatuses.get(
+                                                            submission.id,
+                                                        )!,
                                                     )}`}
                                                 >
-                                                    {formatStatus(
-                                                        submission.status,
+                                                    {formatAuthorStatusLabel(
+                                                        authorStatuses.get(
+                                                            submission.id,
+                                                        )!,
                                                     )}
                                                 </span>
                                             </td>

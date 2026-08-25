@@ -3,6 +3,12 @@ import { notFound } from "next/navigation";
 
 import { requireAnyRole } from "@/lib/auth/permissions";
 import { AUTHOR_ROLES } from "@/lib/auth/role-groups";
+import {
+  authorStatusBadgeClass,
+  formatAuthorStatusLabel,
+  getAuthorFacingStatus,
+  isAuthorFacingPublished,
+} from "@/lib/manuscripts/author-status";
 import { prisma } from "@/lib/prisma";
 
 type PageProps = {
@@ -36,52 +42,6 @@ function formatDate(
   }).format(value);
 }
 
-function statusClass(status: string) {
-  switch (status) {
-    case "DRAFT":
-      return "bg-gray-100 text-gray-700";
-
-    case "SUBMITTED":
-      return "bg-blue-100 text-blue-800";
-
-    case "UNDER_INITIAL_REVIEW":
-      return "bg-cyan-100 text-cyan-800";
-
-    case "UNDER_PEER_REVIEW":
-      return "bg-purple-100 text-purple-800";
-
-    case "REVISION_REQUIRED":
-      return "bg-orange-100 text-orange-800";
-
-    case "ACCEPTED":
-      return "bg-green-100 text-green-800";
-
-    case "COPYEDITING":
-      return "bg-indigo-100 text-indigo-800";
-
-    case "TYPESETTING":
-      return "bg-violet-100 text-violet-800";
-
-    case "PROOFREADING":
-      return "bg-amber-100 text-amber-800";
-
-    case "AUTHOR_PROOF_APPROVAL":
-      return "bg-indigo-100 text-indigo-800";
-
-    case "READY_FOR_PUBLICATION":
-      return "bg-emerald-100 text-emerald-800";
-
-    case "PUBLISHED":
-      return "bg-green-100 text-green-800";
-
-    case "REJECTED":
-      return "bg-red-100 text-red-800";
-
-    default:
-      return "bg-gray-100 text-gray-700";
-  }
-}
-
 export default async function AuthorSubmissionDetailsPage({
   params,
 }: PageProps) {
@@ -99,6 +59,12 @@ export default async function AuthorSubmissionDetailsPage({
       include: {
         journal: true,
         author: true,
+
+        article: {
+          select: {
+            issn: true,
+          },
+        },
 
         files: {
           orderBy: {
@@ -151,8 +117,17 @@ export default async function AuthorSubmissionDetailsPage({
     submission.status ===
     "READY_FOR_PUBLICATION";
 
-  const isPublished =
-    submission.status === "PUBLISHED";
+  const authorStatus = getAuthorFacingStatus(
+    submission.status,
+    submission.article,
+  );
+
+  const isPublished = isAuthorFacingPublished(
+    authorStatus,
+  );
+
+  const isPendingIssn =
+    authorStatus === "PENDING_ISSN";
 
   return (
     <main className="mx-auto max-w-6xl space-y-8 px-6 py-12">
@@ -253,6 +228,25 @@ export default async function AuthorSubmissionDetailsPage({
         </section>
       )}
 
+      {isPendingIssn && (
+        <section className="rounded-xl border border-blue-300 bg-blue-50 p-6 shadow-sm">
+          <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
+            Under Review
+          </p>
+
+          <h2 className="mt-2 text-2xl font-bold text-blue-950">
+            Your manuscript is finishing production
+          </h2>
+
+          <p className="mt-2 max-w-3xl text-sm text-blue-800">
+            Your manuscript has been assigned to an
+            issue and is in the final production
+            stage. It will show as Published here
+            once an ISSN has been assigned to it.
+          </p>
+        </section>
+      )}
+
       {isPublished && (
         <section className="rounded-xl border border-green-300 bg-green-50 p-6 shadow-sm">
           <p className="text-sm font-semibold uppercase tracking-wide text-green-700">
@@ -279,12 +273,12 @@ export default async function AuthorSubmissionDetailsPage({
           </h2>
 
           <span
-            className={`rounded-full px-4 py-2 text-sm font-semibold ${statusClass(
-              submission.status,
+            className={`rounded-full px-4 py-2 text-sm font-semibold ${authorStatusBadgeClass(
+              authorStatus,
             )}`}
           >
-            {formatStatus(
-              submission.status,
+            {formatAuthorStatusLabel(
+              authorStatus,
             )}
           </span>
         </div>
@@ -326,8 +320,8 @@ export default async function AuthorSubmissionDetailsPage({
             </p>
 
             <p className="font-medium">
-              {formatStatus(
-                submission.status,
+              {formatAuthorStatusLabel(
+                authorStatus,
               )}
             </p>
           </div>

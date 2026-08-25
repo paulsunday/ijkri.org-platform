@@ -2,6 +2,10 @@
 import { prisma } from "@/lib/prisma";
 import { requireAnyRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
+import {
+  formatAuthorStatusLabel,
+  getAuthorFacingStatus,
+} from "@/lib/manuscripts/author-status";
 
 import {
   changeArticleStatus,
@@ -342,6 +346,33 @@ export default async function AdminArticlesPage() {
                           "Not linked"}
                       </p>
                     </div>
+
+                    <div>
+                      <p className="text-sm text-gray-500">
+                        Article ISSN
+                      </p>
+
+                      <p className="break-all font-medium">
+                        {article.issn || "Not assigned"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-sm text-gray-500">
+                        Author Dashboard Shows
+                      </p>
+
+                      <p className="font-medium">
+                        {article.submission
+                          ? formatAuthorStatusLabel(
+                              getAuthorFacingStatus(
+                                article.submission.status,
+                                { issn: article.issn },
+                              ),
+                            )
+                          : "Not linked"}
+                      </p>
+                    </div>
                   </div>
 
                   <form
@@ -476,6 +507,30 @@ export default async function AdminArticlesPage() {
                           className="w-full rounded-lg border bg-white p-3"
                         />
                       </div>
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor={`issn-${article.id}`}
+                        className="mb-2 block font-semibold"
+                      >
+                        Article ISSN
+                      </label>
+
+                      <input
+                        id={`issn-${article.id}`}
+                        name="issn"
+                        defaultValue={article.issn || ""}
+                        placeholder="0000-000X"
+                        className="w-full rounded-lg border bg-white p-3"
+                      />
+
+                      <p className="mt-2 text-sm text-gray-500">
+                        Until this article has an ISSN, it stays
+                        visible as published on the public website
+                        but continues to show as &quot;Under
+                        Review&quot; on the author&apos;s dashboard.
+                      </p>
                     </div>
 
                     <div>

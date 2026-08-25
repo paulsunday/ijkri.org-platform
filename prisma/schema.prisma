@@ -804,6 +804,7 @@ model Article {
   body         String?
   pdfUrl       String?
   doi          String?
+  issn         String?
   startPage    Int?
   endPage      Int?
   status       ArticleStatus     @default(DRAFT)
