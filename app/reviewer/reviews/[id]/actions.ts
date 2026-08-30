@@ -29,6 +29,27 @@ const ALLOWED_ATTACHMENT_TYPES = new Set([
 
 const ALLOWED_ATTACHMENT_EXTENSIONS = new Set(["pdf", "doc", "docx"]);
 
+/**
+ * An `<input type="file" multiple>` control that has no files selected
+ * still produces one FormData entry for the "attachments" field. That
+ * placeholder is a zero-byte File. Depending on the browser/runtime it
+ * shows up with an empty name, or — per the Fetch spec's multipart/
+ * form-data encoding algorithm, which names a bare Blob "blob" when it
+ * has no File.name — with the literal generic name "blob". Either way it
+ * is not a real attachment the reviewer selected and must not be treated
+ * as one (it would otherwise fail the size check below on every review
+ * submitted without an attachment).
+ *
+ * A genuinely empty file the reviewer actually picked keeps its real
+ * filename (e.g. "notes.pdf"), so it is not mistaken for this
+ * placeholder and still triggers the "is empty and cannot be uploaded"
+ * validation error further down.
+ */
+function isPlaceholderFileEntry(file: File): boolean {
+  const name = file.name.trim().toLowerCase();
+  return file.size === 0 && (name.length === 0 || name === "blob");
+}
+
 function getFileExtension(fileName: string): string {
   const normalizedName = fileName.trim().toLowerCase();
   const lastDotIndex = normalizedName.lastIndexOf(".");
@@ -268,7 +289,7 @@ export async function submitReview(formData: FormData) {
 
   const attachmentFiles = attachmentEntries.filter(
     (entry): entry is File =>
-      entry instanceof File && entry.name.trim().length > 0,
+      entry instanceof File && !isPlaceholderFileEntry(entry),
   );
 
   if (!assignmentId) {

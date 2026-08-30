@@ -662,7 +662,7 @@ export default async function ReviewerReviewPage({
                 name="attachments"
                 type="file"
                 multiple
-                accept=".pdf,.doc,.docx,.zip"
+                accept=".pdf,.doc,.docx"
                 className="block w-full rounded-lg border p-3"
               />
 
