@@ -403,12 +403,40 @@ export async function sendEditorialDecision(formData: FormData) {
   }
 
   if (decision === "ACCEPTED") {
+    const acceptedInvoice = await prisma.invoice.findUnique({
+      where: {
+        submissionId,
+      },
+      select: {
+        id: true,
+        invoiceNumber: true,
+        amount: true,
+        currency: true,
+        dueAt: true,
+      },
+    });
+
     const emailContent = manuscriptAcceptedEmail({
       authorName: submission.author.name,
       journalName: submission.journal.name,
       manuscriptTitle: submission.title,
       decisionComments: comments,
       submissionUrl,
+      apc: acceptedInvoice
+        ? {
+          invoiceNumber: acceptedInvoice.invoiceNumber,
+          amount: acceptedInvoice.amount.toFixed(2),
+          currency: acceptedInvoice.currency,
+          dueDate: acceptedInvoice.dueAt
+            ? acceptedInvoice.dueAt.toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })
+            : null,
+          invoiceUrl: `${appUrl}/author/invoices/${acceptedInvoice.id}`,
+        }
+        : null,
     });
 
     await deliverDecisionEmail({

@@ -105,6 +105,13 @@ export async function publishSubmission(
                         createdAt: "desc",
                     },
                 },
+
+                invoice: {
+                    select: {
+                        invoiceNumber: true,
+                        status: true,
+                    },
+                },
             },
         });
 
@@ -120,6 +127,32 @@ export async function publishSubmission(
     ) {
         throw new Error(
             "Only a submission ready for publication can be published.",
+        );
+    }
+
+    /*
+     * A submission with no invoice at all was never charged an
+     * APC (e.g. the journal's APC amount was unset) and is not
+     * blocked. A submission with an invoice must have it fully
+     * paid or fully waived before the article can go live.
+     *
+     * PARTIALLY_WAIVED does NOT count as settled: the schema has
+     * no field tracking the remaining outstanding balance for a
+     * partial waiver, and completePayment() refuses to accept a
+     * payment against a partially waived invoice (it requires
+     * administrative review). Treating it as settled here would
+     * let an article publish with an unresolved balance.
+     */
+    const apcSettled =
+        !submission.invoice ||
+        submission.invoice.status === "PAID" ||
+        submission.invoice.status === "WAIVED";
+
+    if (!apcSettled) {
+        throw new Error(
+            `This article cannot be published until its APC invoice (${submission.invoice?.invoiceNumber}) is paid or waived. Current status: ${submission.invoice?.status
+                .replaceAll("_", " ")
+                .toLowerCase()}.`,
         );
     }
 

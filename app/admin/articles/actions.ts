@@ -544,6 +544,16 @@ export async function changeArticleStatus(
             publishedAt: true,
             status: true,
             slug: true,
+            submission: {
+                select: {
+                    invoice: {
+                        select: {
+                            invoiceNumber: true,
+                            status: true,
+                        },
+                    },
+                },
+            },
         },
     });
 
@@ -560,6 +570,30 @@ export async function changeArticleStatus(
         throw new Error(
             "Assign the article to an issue before publishing it.",
         );
+    }
+
+    if (status === "PUBLISHED") {
+        const invoice = article.submission?.invoice;
+
+        /*
+         * PARTIALLY_WAIVED is intentionally excluded: it does not
+         * mean the outstanding balance is zero, and this schema
+         * has no field tracking what remains owed on a partial
+         * waiver. See the matching comment in
+         * editor/submissions/[id]/publication/actions.ts.
+         */
+        const apcSettled =
+            !invoice ||
+            invoice.status === "PAID" ||
+            invoice.status === "WAIVED";
+
+        if (!apcSettled) {
+            throw new Error(
+                `This article cannot be published until its APC invoice (${invoice?.invoiceNumber}) is paid or waived. Current status: ${invoice?.status
+                    .replaceAll("_", " ")
+                    .toLowerCase()}.`,
+            );
+        }
     }
 
     const nextPublishedAt =

@@ -17,6 +17,29 @@ type PageProps = {
   }>;
 };
 
+function invoiceStatusBadgeClass(status: string) {
+  switch (status) {
+    case "PAID":
+      return "bg-green-100 text-green-800";
+
+    case "WAIVED":
+      return "bg-blue-100 text-blue-800";
+
+    case "PARTIALLY_WAIVED":
+      return "bg-purple-100 text-purple-800";
+
+    case "OVERDUE":
+      return "bg-red-100 text-red-800";
+
+    case "VOID":
+      return "bg-gray-200 text-gray-700";
+
+    case "PENDING":
+    default:
+      return "bg-yellow-100 text-yellow-800";
+  }
+}
+
 function formatStatus(value: string) {
   return value
     .replaceAll("_", " ")
@@ -91,6 +114,8 @@ export default async function AuthorSubmissionDetailsPage({
             createdAt: "desc",
           },
         },
+
+        invoice: true,
       },
     });
 
@@ -204,6 +229,61 @@ export default async function AuthorSubmissionDetailsPage({
             >
               Review Final Proof
             </Link>
+          </div>
+        </section>
+      )}
+
+      {submission.invoice && (
+        <section
+          className={`rounded-xl border p-6 shadow-sm ${
+            submission.invoice.status === "PENDING" ||
+            submission.invoice.status === "OVERDUE"
+              ? "border-amber-300 bg-amber-50"
+              : "bg-white"
+          }`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-6">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+                Article Processing Charge
+              </p>
+
+              <h2 className="mt-2 text-2xl font-bold">
+                {submission.invoice.currency}{" "}
+                {submission.invoice.amount.toFixed(2)}
+              </h2>
+
+              <p className="mt-2 text-sm text-gray-600">
+                Invoice {submission.invoice.invoiceNumber}
+                {(submission.invoice.status === "PENDING" ||
+                  submission.invoice.status === "OVERDUE") &&
+                  submission.invoice.dueAt && (
+                    <> · Due {formatDate(submission.invoice.dueAt)}</>
+                  )}
+              </p>
+            </div>
+
+            <div className="flex flex-col items-end gap-3">
+              <span
+                className={`rounded-full px-4 py-2 text-sm font-semibold ${invoiceStatusBadgeClass(
+                  submission.invoice.status,
+                )}`}
+              >
+                {formatStatus(submission.invoice.status)}
+              </span>
+
+              <Link
+                href={`/author/invoices/${submission.invoice.id}`}
+                className="rounded-lg bg-black px-5 py-2.5 font-semibold text-white hover:bg-gray-800"
+              >
+                {submission.invoice.status === "PAID"
+                  ? "View Receipt"
+                  : submission.invoice.status === "WAIVED" ||
+                    submission.invoice.status === "PARTIALLY_WAIVED"
+                  ? "View Invoice"
+                  : "Pay APC Now"}
+              </Link>
+            </div>
           </div>
         </section>
       )}

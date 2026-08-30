@@ -1149,12 +1149,20 @@ export function manuscriptAcceptedEmail({
   manuscriptTitle,
   decisionComments,
   submissionUrl,
+  apc,
 }: {
   authorName: string;
   journalName: string;
   manuscriptTitle: string;
   decisionComments: string;
   submissionUrl: string;
+  apc?: {
+    invoiceNumber: string;
+    amount: string;
+    currency: string;
+    dueDate: string | null;
+    invoiceUrl: string;
+  } | null;
 }) {
   const safeAuthorName = escapeHtml(authorName);
   const safeJournalName = escapeHtml(
@@ -1166,6 +1174,16 @@ export function manuscriptAcceptedEmail({
   const safeComments = escapeHtml(
     decisionComments,
   ).replaceAll("\n", "<br />");
+
+  const apcTextLines = apc
+    ? [
+      "",
+      "Article Processing Charge:",
+      `Invoice ${apc.invoiceNumber} — ${apc.currency} ${apc.amount}`,
+      apc.dueDate ? `Due by ${apc.dueDate}` : "",
+      `Pay your invoice: ${apc.invoiceUrl}`,
+    ].filter(Boolean)
+    : [];
 
   return {
     subject: `${journalShortName}: Your manuscript has been accepted`,
@@ -1179,6 +1197,7 @@ export function manuscriptAcceptedEmail({
       "",
       "Editorial comments:",
       decisionComments,
+      ...apcTextLines,
       "",
       "The manuscript will now proceed to the production workflow.",
       `Open your submission: ${submissionUrl}`,
@@ -1204,6 +1223,28 @@ export function manuscriptAcceptedEmail({
         title: "Editorial decision letter",
         content: safeComments,
       })}
+
+        ${apc
+          ? informationBox({
+            title: "Article Processing Charge",
+            content:
+              `Invoice ${escapeHtml(apc.invoiceNumber)}: ` +
+              `<strong>${escapeHtml(apc.currency)} ${escapeHtml(apc.amount)}</strong>` +
+              (apc.dueDate
+                ? ` — due by ${escapeHtml(apc.dueDate)}`
+                : "") +
+              `<br />Please pay this invoice from your author dashboard so your article can proceed to publication.`,
+          })
+          : ""
+        }
+
+        ${apc
+          ? emailButton({
+            url: apc.invoiceUrl,
+            label: "Pay APC Invoice",
+          })
+          : ""
+        }
 
         <p>
           The manuscript will now proceed through copyediting,

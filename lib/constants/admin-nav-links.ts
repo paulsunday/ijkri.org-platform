@@ -15,6 +15,7 @@ export const ADMIN_NAV_LINKS = [
   ["COI Audit", "/admin/coi-audit"],
   ["Career Applications", "/admin/career-applications"],
   ["Payments", "/admin/payments"],
+  ["APC Invoices", "/admin/invoices"],
   ["DOI Records", "/admin/doi-records"],
   ["Research Resources", "/admin/resources"],
   ["Research Insights", "/admin/insights"],

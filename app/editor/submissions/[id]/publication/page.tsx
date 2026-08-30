@@ -50,6 +50,15 @@ export default async function PublicationPage({
             include: {
                 author: true,
                 journal: true,
+                invoice: {
+                    select: {
+                        id: true,
+                        invoiceNumber: true,
+                        status: true,
+                        amount: true,
+                        currency: true,
+                    },
+                },
             },
         });
 
@@ -96,9 +105,10 @@ export default async function PublicationPage({
         ],
     });
 
-    const canPublish =
-        submission.status ===
-        "READY_FOR_PUBLICATION";
+    const apcSettled =
+        !submission.invoice ||
+        submission.invoice.status === "PAID" ||
+        submission.invoice.status === "WAIVED";
 
     return (
         <main className="mx-auto max-w-5xl space-y-8 p-8">
@@ -145,7 +155,8 @@ export default async function PublicationPage({
                 </div>
             </section>
 
-            {!canPublish ? (
+            {submission.status !==
+                "READY_FOR_PUBLICATION" ? (
                 <section className="rounded-xl border border-yellow-300 bg-yellow-50 p-6">
                     <h2 className="font-semibold text-yellow-900">
                         Publication unavailable
@@ -155,6 +166,29 @@ export default async function PublicationPage({
                         This manuscript must have the status Ready
                         for Publication before it can be published.
                     </p>
+                </section>
+            ) : !apcSettled && submission.invoice ? (
+                <section className="rounded-xl border border-amber-300 bg-amber-50 p-6">
+                    <h2 className="font-semibold text-amber-900">
+                        APC payment required
+                    </h2>
+
+                    <p className="mt-2 text-sm text-amber-800">
+                        Invoice {submission.invoice.invoiceNumber}{" "}
+                        ({submission.invoice.currency}{" "}
+                        {submission.invoice.amount.toFixed(2)}) has
+                        not been paid or waived. This article
+                        cannot be published until the author pays
+                        the APC, or an administrator grants a
+                        waiver.
+                    </p>
+
+                    <Link
+                        href="/admin/invoices"
+                        className="mt-4 inline-block rounded-lg border border-amber-700 px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-100"
+                    >
+                        Manage APC Invoice
+                    </Link>
                 </section>
             ) : issues.length === 0 ? (
                 <section className="rounded-xl border border-yellow-300 bg-yellow-50 p-6">
