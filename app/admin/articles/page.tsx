@@ -11,6 +11,7 @@ import {
   changeArticleStatus,
   deleteArticle,
   updateArticle,
+  updateCorrespondingAuthor,
 } from "./actions";
 
 function formatDate(
@@ -580,6 +581,68 @@ export default async function AdminArticlesPage() {
                       Save Article Changes
                     </button>
                   </form>
+
+                  {article.authors.length > 0 && (
+                    <form
+                      action={updateCorrespondingAuthor}
+                      className="mt-5 flex flex-wrap items-end gap-4 rounded-xl bg-amber-50 p-5"
+                    >
+                      <input
+                        type="hidden"
+                        name="articleId"
+                        value={article.id}
+                      />
+
+                      <div className="min-w-[240px] flex-1">
+                        <label
+                          htmlFor={`corresponding-author-${article.id}`}
+                          className="mb-2 block font-semibold"
+                        >
+                          Corresponding Author
+                        </label>
+
+                        <select
+                          id={`corresponding-author-${article.id}`}
+                          name="authorId"
+                          defaultValue={
+                            article.authors.find(
+                              (author) => author.isCorresponding,
+                            )?.id || ""
+                          }
+                          className="w-full rounded-lg border bg-white p-3"
+                        >
+                          <option value="">
+                            None assigned
+                          </option>
+
+                          {article.authors.map((author) => (
+                            <option
+                              key={author.id}
+                              value={author.id}
+                            >
+                              {author.fullName}
+                              {author.email
+                                ? ` (${author.email})`
+                                : ""}
+                            </option>
+                          ))}
+                        </select>
+
+                        <p className="mt-2 text-sm text-amber-800">
+                          Shown to readers on the published article
+                          page. Change this if an author requests to
+                          be listed as the corresponding author.
+                        </p>
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="rounded-lg bg-amber-700 px-6 py-3 font-semibold text-white hover:bg-amber-800"
+                      >
+                        Update Corresponding Author
+                      </button>
+                    </form>
+                  )}
 
                   <div className="mt-6 flex flex-wrap gap-3">
                     {article.status !== "PUBLISHED" && (

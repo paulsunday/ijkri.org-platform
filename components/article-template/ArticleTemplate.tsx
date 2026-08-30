@@ -206,6 +206,21 @@ export function ArticleTemplate({
                     </p>
                 )}
 
+                {content.authors.some(
+                    (author) => author.isCorresponding,
+                ) && (
+                    <p className="corresponding-line">
+                        *Corresponding author:{" "}
+                        {content.authors
+                            .filter(
+                                (author) =>
+                                    author.isCorresponding,
+                            )
+                            .map((author) => author.fullName)
+                            .join(", ")}
+                    </p>
+                )}
+
                 <p className="doi-line">
                     DOI: {doiText} &nbsp;•&nbsp; Pages:{" "}
                     {pageRangeText(
@@ -430,6 +445,12 @@ const TEMPLATE_STYLES = `
 
 .affiliations p {
   margin: 1pt 0;
+}
+
+.corresponding-line {
+  font-size: 8.5pt;
+  color: #444;
+  margin-top: 4pt;
 }
 
 .doi-line {

@@ -306,6 +306,9 @@ export default async function PublicArticlePage({ params }: PageProps) {
     article.authors.map((author) => normalizeOrcid(author.orcid)),
   );
 
+  const correspondingAuthor =
+    article.authors.find((author) => author.isCorresponding) ?? null;
+
   const productionFile = article.submission?.productionFiles.find(
     (file) =>
       file.fileType === "FINAL_PUBLICATION_FILE" ||
@@ -537,6 +540,7 @@ export default async function PublicArticlePage({ params }: PageProps) {
 
                         <sup className="ml-1 text-xs font-bold text-slate-500">
                           {index + 1}
+                          {author.isCorresponding ? "*" : ""}
                         </sup>
 
                         {index < article.authors.length - 1 && (
@@ -548,6 +552,26 @@ export default async function PublicArticlePage({ params }: PageProps) {
                 ) : (
                   <p className="mt-7 text-lg text-slate-600">
                     Author information unavailable
+                  </p>
+                )}
+
+                {correspondingAuthor && (
+                  <p className="mt-3 text-sm text-slate-600">
+                    <span className="font-bold text-slate-900">*</span>{" "}
+                    Corresponding author: {correspondingAuthor.fullName}
+                    {correspondingAuthor.email && (
+                      <>
+                        {" "}
+                        (
+                        <a
+                          href={`mailto:${correspondingAuthor.email}`}
+                          className="font-medium text-blue-700 hover:underline"
+                        >
+                          {correspondingAuthor.email}
+                        </a>
+                        )
+                      </>
+                    )}
                   </p>
                 )}
 
@@ -657,6 +681,12 @@ export default async function PublicArticlePage({ params }: PageProps) {
                                 First Author
                               </span>
                             )}
+
+                            {author.isCorresponding && (
+                              <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
+                                Corresponding Author
+                              </span>
+                            )}
                           </div>
 
                           <div className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
@@ -675,6 +705,20 @@ export default async function PublicArticlePage({ params }: PageProps) {
                                   Country:
                                 </span>{" "}
                                 {author.country}
+                              </p>
+                            )}
+
+                            {author.isCorresponding && author.email && (
+                              <p>
+                                <span className="font-semibold text-slate-800">
+                                  Correspondence:
+                                </span>{" "}
+                                <a
+                                  href={`mailto:${author.email}`}
+                                  className="font-medium text-blue-700 hover:underline"
+                                >
+                                  {author.email}
+                                </a>
                               </p>
                             )}
 
@@ -701,7 +745,8 @@ export default async function PublicArticlePage({ params }: PageProps) {
 
                             {!author.affiliation &&
                               !author.country &&
-                              !cleanOrcid && (
+                              !cleanOrcid &&
+                              !(author.isCorresponding && author.email) && (
                                 <p className="text-slate-500">
                                   No additional author information is available.
                                 </p>

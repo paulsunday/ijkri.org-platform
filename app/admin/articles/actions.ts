@@ -399,6 +399,110 @@ export async function updateArticle(
     }
 }
 
+export async function updateCorrespondingAuthor(
+    formData: FormData,
+) {
+    const administrator =
+        await requireAnyActionRole(ADMIN_ROLES);
+
+    const articleId = String(
+        formData.get("articleId") || "",
+    ).trim();
+
+    const authorId = String(
+        formData.get("authorId") || "",
+    ).trim();
+
+    if (!articleId) {
+        throw new Error("Article ID is missing.");
+    }
+
+    const article = await prisma.article.findUnique({
+        where: {
+            id: articleId,
+        },
+        select: {
+            id: true,
+            journalId: true,
+            slug: true,
+            authors: {
+                select: {
+                    id: true,
+                    fullName: true,
+                    isCorresponding: true,
+                },
+            },
+        },
+    });
+
+    if (!article) {
+        throw new Error("Article not found.");
+    }
+
+    await verifyArticleAdminPermission(
+        administrator.id,
+        article.journalId,
+    );
+
+    if (authorId) {
+        const selectedAuthor = article.authors.find(
+            (author) => author.id === authorId,
+        );
+
+        if (!selectedAuthor) {
+            throw new Error(
+                "The selected author does not belong to this article.",
+            );
+        }
+    }
+
+    const previousCorrespondingAuthor = article.authors.find(
+        (author) => author.isCorresponding,
+    );
+
+    await prisma.$transaction(async (tx) => {
+        await tx.articleAuthor.updateMany({
+            where: {
+                articleId,
+                isCorresponding: true,
+            },
+            data: {
+                isCorresponding: false,
+            },
+        });
+
+        if (authorId) {
+            await tx.articleAuthor.update({
+                where: {
+                    id: authorId,
+                },
+                data: {
+                    isCorresponding: true,
+                },
+            });
+        }
+
+        await tx.activityLog.create({
+            data: {
+                userId: administrator.id,
+                action: "UPDATE",
+                entity: "Article",
+                entityId: articleId,
+                metadata: {
+                    event: "ARTICLE_CORRESPONDING_AUTHOR_CHANGED",
+                    previousCorrespondingAuthorId:
+                        previousCorrespondingAuthor?.id || null,
+                    previousCorrespondingAuthorName:
+                        previousCorrespondingAuthor?.fullName || null,
+                    newCorrespondingAuthorId: authorId || null,
+                },
+            },
+        });
+    });
+
+    refreshArticlePages(article.slug);
+}
+
 export async function changeArticleStatus(
     formData: FormData,
 ) {
