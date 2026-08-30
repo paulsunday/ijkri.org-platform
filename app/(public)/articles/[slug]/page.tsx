@@ -39,8 +39,10 @@ function formatDoiStatus(status: string | undefined) {
       return "Updating";
 
     case "PENDING":
-    default:
       return "Incoming";
+
+    default:
+      return "Not Available";
   }
 }
 

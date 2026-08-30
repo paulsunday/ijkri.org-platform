@@ -38,6 +38,22 @@ function displayDate(
   }).format(value);
 }
 
+function formatDoiStatus(status: string | undefined) {
+  switch (status) {
+    case "REGISTERED":
+      return "Registered";
+
+    case "FAILED":
+      return "Updating";
+
+    case "PENDING":
+      return "Incoming";
+
+    default:
+      return "Not Available";
+  }
+}
+
 function formatAccessType(accessType: string) {
   switch (accessType) {
     case "OPEN_ACCESS":
@@ -332,8 +348,9 @@ export default async function AdminArticlesPage() {
                       </p>
 
                       <p className="font-medium">
-                        {article.doiRecord?.status ||
-                          "No record"}
+                        {formatDoiStatus(
+                          article.doiRecord?.status,
+                        )}
                       </p>
                     </div>
 
