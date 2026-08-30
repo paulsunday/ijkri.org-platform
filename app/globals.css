@@ -128,3 +128,113 @@
     @apply font-sans;
   }
 }
+
+/*
+ * Shared styling for rich text produced by the production/typesetting
+ * editor (components/production/RichTextEditor.tsx) — used both while
+ * editing and when the resulting HTML is rendered on the public
+ * article page (Article.abstract / Article.body).
+ */
+.rich-text-editor-content,
+.article-body-content {
+  line-height: 1.75;
+}
+
+.rich-text-editor-content h1,
+.article-body-content h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 1.25rem 0 0.75rem;
+}
+
+.rich-text-editor-content h2,
+.article-body-content h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 1.1rem 0 0.6rem;
+}
+
+.rich-text-editor-content h3,
+.article-body-content h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-style: italic;
+  margin: 1rem 0 0.5rem;
+}
+
+.rich-text-editor-content p,
+.article-body-content p {
+  margin: 0 0 0.85rem;
+}
+
+.rich-text-editor-content ul,
+.article-body-content ul {
+  list-style: disc;
+  margin: 0 0 0.85rem;
+  padding-left: 1.5rem;
+}
+
+.rich-text-editor-content ol,
+.article-body-content ol {
+  list-style: decimal;
+  margin: 0 0 0.85rem;
+  padding-left: 1.5rem;
+}
+
+.rich-text-editor-content li,
+.article-body-content li {
+  margin: 0 0 0.3rem;
+}
+
+.rich-text-editor-content blockquote,
+.article-body-content blockquote {
+  margin: 0.75rem 0;
+  padding: 0.25rem 0.9rem;
+  border-left: 3px solid #cbd5e1;
+  color: #475569;
+  font-style: italic;
+}
+
+.rich-text-editor-content a,
+.article-body-content a {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+.rich-text-editor-content table,
+.article-body-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.9rem 0;
+  font-size: 0.9rem;
+}
+
+.rich-text-editor-content th,
+.article-body-content th {
+  background: #f1f5f9;
+  font-weight: 700;
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #cbd5e1;
+}
+
+.rich-text-editor-content td,
+.article-body-content td {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #e2e8f0;
+}
+
+.rich-text-editor-content img,
+.article-body-content img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0.9rem auto;
+}
+
+.rich-text-editor-content sup,
+.article-body-content sup,
+.rich-text-editor-content sub,
+.article-body-content sub {
+  font-size: 0.75em;
+}

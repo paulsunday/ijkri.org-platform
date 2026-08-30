@@ -47,13 +47,33 @@ function formatDoiStatus(status: string | undefined) {
 }
 
 function createDescription(abstract: string) {
-  const cleaned = abstract.replace(/\s+/g, " ").trim();
+  const cleaned = stripHtmlTags(abstract)
+    .replace(/\s+/g, " ")
+    .trim();
 
   if (cleaned.length <= 160) {
     return cleaned;
   }
 
   return `${cleaned.slice(0, 157).trim()}...`;
+}
+
+/**
+ * Article.abstract/Article.body may contain rich HTML produced by the
+ * in-journal production editor, or plain text from the legacy
+ * submission-derived flow. There is no separate flag distinguishing
+ * the two, so this checks for a leading "<" — TipTap always wraps its
+ * output in a block element, while plain submitted text essentially
+ * never begins with a literal "<". Used to decide safe rendering
+ * (rich HTML vs. escaped plain text) and to strip markup for
+ * SEO/description contexts either way.
+ */
+function isHtmlContent(value: string): boolean {
+  return /^\s*</.test(value);
+}
+
+function stripHtmlTags(value: string): string {
+  return value.replace(/<[^>]*>/g, " ");
 }
 
 async function getPublishedArticle(slug: string) {
@@ -361,7 +381,7 @@ export default async function PublicArticlePage({ params }: PageProps) {
 
     headline: article.title,
 
-    description: article.abstract,
+    description: stripHtmlTags(article.abstract),
 
     url: canonicalUrl,
 
@@ -633,9 +653,16 @@ export default async function PublicArticlePage({ params }: PageProps) {
             <section className="rounded-xl border bg-white p-6 shadow-sm">
               <h2 className="text-2xl font-semibold">Abstract</h2>
 
-              <div className="mt-4 whitespace-pre-wrap break-words leading-7 text-gray-700">
-                {article.abstract}
-              </div>
+              {isHtmlContent(article.abstract) ? (
+                <div
+                  className="article-body-content mt-4 break-words text-gray-700"
+                  dangerouslySetInnerHTML={{ __html: article.abstract }}
+                />
+              ) : (
+                <div className="mt-4 whitespace-pre-wrap break-words leading-7 text-gray-700">
+                  {article.abstract}
+                </div>
+              )}
             </section>
 
             {article.authors.length > 0 && (
@@ -783,9 +810,16 @@ export default async function PublicArticlePage({ params }: PageProps) {
               <section className="rounded-xl border bg-white p-6 shadow-sm">
                 <h2 className="text-2xl font-semibold">Article</h2>
 
-                <div className="mt-5 whitespace-pre-wrap break-words leading-7 text-gray-700">
-                  {article.body}
-                </div>
+                {isHtmlContent(article.body) ? (
+                  <div
+                    className="article-body-content mt-5 break-words leading-7 text-gray-700"
+                    dangerouslySetInnerHTML={{ __html: article.body }}
+                  />
+                ) : (
+                  <div className="mt-5 whitespace-pre-wrap break-words leading-7 text-gray-700">
+                    {article.body}
+                  </div>
+                )}
               </section>
             )}
 

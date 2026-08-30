@@ -546,6 +546,7 @@ export async function changeArticleStatus(
             slug: true,
             submission: {
                 select: {
+                    status: true,
                     invoice: {
                         select: {
                             invoiceNumber: true,
@@ -569,6 +570,26 @@ export async function changeArticleStatus(
     if (status === "PUBLISHED" && !article.issueId) {
         throw new Error(
             "Assign the article to an issue before publishing it.",
+        );
+    }
+
+    /*
+     * An Article row can now exist before the submission has
+     * finished editorial/production review (the in-journal
+     * production editor creates one as a working draft). Only
+     * allow this action to publish it once the submission has
+     * actually completed that workflow at least once — either it
+     * is READY_FOR_PUBLICATION now, or it was already PUBLISHED
+     * before (re-publishing an archived article).
+     */
+    if (
+        status === "PUBLISHED" &&
+        article.submission &&
+        article.submission.status !== "READY_FOR_PUBLICATION" &&
+        article.submission.status !== "PUBLISHED"
+    ) {
+        throw new Error(
+            "This submission has not completed the editorial and production workflow yet. Publish it from the submission's Publication page once it reaches Ready for Publication.",
         );
     }
 

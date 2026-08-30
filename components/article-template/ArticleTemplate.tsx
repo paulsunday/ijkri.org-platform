@@ -233,9 +233,18 @@ export function ArticleTemplate({
             <section className="abstract-box">
                 <p className="abstract-label">Abstract</p>
 
-                <p className="abstract-body">
-                    {content.abstract}
-                </p>
+                {content.abstractHtml ? (
+                    <div
+                        className="abstract-body rich-body"
+                        dangerouslySetInnerHTML={{
+                            __html: content.abstractHtml,
+                        }}
+                    />
+                ) : (
+                    <p className="abstract-body">
+                        {content.abstract}
+                    </p>
+                )}
 
                 {content.keywords.length > 0 && (
                     <p className="keywords-line">
@@ -248,37 +257,46 @@ export function ArticleTemplate({
             </section>
 
             <div className="two-column-body">
-                {numberedSections.map((section, index) => {
-                    return (
-                        <div
-                            key={`${section.heading}-${index}`}
-                            className="section"
-                        >
-                            {section.level === 1 ? (
-                                <h2 className="h1-heading">
-                                    {section.numberedHeading}
-                                </h2>
-                            ) : (
-                                <h3 className="h2-heading">
-                                    {section.numberedHeading}
-                                </h3>
-                            )}
+                {content.bodyHtml ? (
+                    <div
+                        className="rich-body"
+                        dangerouslySetInnerHTML={{
+                            __html: content.bodyHtml,
+                        }}
+                    />
+                ) : (
+                    numberedSections.map((section, index) => {
+                        return (
+                            <div
+                                key={`${section.heading}-${index}`}
+                                className="section"
+                            >
+                                {section.level === 1 ? (
+                                    <h2 className="h1-heading">
+                                        {section.numberedHeading}
+                                    </h2>
+                                ) : (
+                                    <h3 className="h2-heading">
+                                        {section.numberedHeading}
+                                    </h3>
+                                )}
 
-                            {section.paragraphs.map(
-                                (paragraph, paragraphIndex) => (
-                                    <p
-                                        key={paragraphIndex}
-                                        className="body-paragraph"
-                                    >
-                                        {paragraph}
-                                    </p>
-                                ),
-                            )}
-                        </div>
-                    );
-                })}
+                                {section.paragraphs.map(
+                                    (paragraph, paragraphIndex) => (
+                                        <p
+                                            key={paragraphIndex}
+                                            className="body-paragraph"
+                                        >
+                                            {paragraph}
+                                        </p>
+                                    ),
+                                )}
+                            </div>
+                        );
+                    })
+                )}
 
-                {content.tables.map((table, index) => (
+                {!content.bodyHtml && content.tables.map((table, index) => (
                     <div
                         key={`table-${index}`}
                         className="table-band"
@@ -328,7 +346,7 @@ export function ArticleTemplate({
                     </div>
                 ))}
 
-                {content.figures.map((figure, index) => (
+                {!content.bodyHtml && content.figures.map((figure, index) => (
                     <div
                         key={`figure-${index}`}
                         className="figure-block"
@@ -515,6 +533,115 @@ const TEMPLATE_STYLES = `
 .body-paragraph {
   text-align: justify;
   margin: 0 0 8pt;
+}
+
+.rich-body {
+  break-inside: auto;
+}
+
+.rich-body h1,
+.rich-body h2 {
+  color: ${ACCENT_COLOR};
+  font-size: 12pt;
+  font-weight: 700;
+  border-bottom: 1.5pt solid ${ACCENT_COLOR};
+  padding-bottom: 3pt;
+  margin: 14pt 0 8pt;
+  break-after: avoid;
+  break-inside: avoid;
+}
+
+.rich-body h3,
+.rich-body h4 {
+  font-weight: 700;
+  font-style: italic;
+  font-size: 10.5pt;
+  margin: 10pt 0 6pt;
+  break-after: avoid;
+  break-inside: avoid;
+}
+
+.rich-body p {
+  text-align: justify;
+  margin: 0 0 8pt;
+}
+
+.rich-body ul,
+.rich-body ol {
+  margin: 0 0 8pt;
+  padding-left: 1.4em;
+}
+
+.rich-body li {
+  margin: 0 0 3pt;
+}
+
+.rich-body blockquote {
+  margin: 8pt 0;
+  padding: 4pt 10pt;
+  border-left: 2.5pt solid ${ACCENT_COLOR};
+  color: #333;
+  font-style: italic;
+}
+
+.rich-body a {
+  color: ${ACCENT_COLOR};
+}
+
+.rich-body sup,
+.rich-body sub {
+  font-size: 0.75em;
+}
+
+.rich-body table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9pt;
+  margin: 10pt 0;
+  break-inside: avoid;
+  column-span: all;
+  border-top: 1.5pt solid ${ACCENT_COLOR};
+  border-bottom: 1.5pt solid ${ACCENT_COLOR};
+}
+
+.rich-body th {
+  background: ${ACCENT_COLOR};
+  color: #ffffff;
+  font-weight: 700;
+  text-align: left;
+  padding: 5pt 7pt;
+  border: 0.5pt solid ${ACCENT_COLOR};
+}
+
+.rich-body td {
+  padding: 5pt 7pt;
+  border: 0.5pt solid #d5dbe1;
+}
+
+.rich-body tr:nth-child(even) td {
+  background: #f4f6f8;
+}
+
+.rich-body img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 10pt auto;
+  break-inside: avoid;
+  column-span: all;
+}
+
+.rich-body figure {
+  margin: 10pt 0;
+  break-inside: avoid;
+  column-span: all;
+}
+
+.rich-body figcaption {
+  font-weight: 700;
+  font-size: 9pt;
+  text-align: center;
+  margin-top: 4pt;
 }
 
 .table-band,

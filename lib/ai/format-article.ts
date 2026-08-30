@@ -37,6 +37,19 @@ export type FormattedArticleContent = {
     tables: FormattedArticleTable[];
     figures: FormattedArticleFigure[];
     references: string[];
+
+    /**
+     * Rich-HTML alternative to `abstract`/`sections`+`tables`+`figures`,
+     * produced by the in-journal production editor (see
+     * app/typesetter/assignments/[id]/production-editor) rather than the
+     * AI formatter. When set, ArticleTemplate renders these directly
+     * instead of the plain-text/structured fields above, preserving the
+     * typesetter's own formatting (headings, lists, tables, images,
+     * superscript/subscript, etc.) instead of forcing it through the
+     * AI tool's plain-paragraph section model.
+     */
+    abstractHtml?: string;
+    bodyHtml?: string;
 };
 
 export type RawArticleAuthorInput = {
