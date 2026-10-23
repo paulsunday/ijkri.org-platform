@@ -384,12 +384,17 @@ export async function sendEditorialDecision(formData: FormData) {
 
   const contactUrl = `${appUrl}/contact`;
 
+  const reviewerComments = submittedReviews
+    .map((assignment) => assignment.review?.commentsToAuthor)
+    .filter((comment): comment is string => Boolean(comment && comment.trim()));
+
   if (decision === "REVISION_REQUIRED" && revisionDeadline) {
     const emailContent = revisionRequestedEmail({
       authorName: submission.author.name,
       journalName: submission.journal.name,
       manuscriptTitle: submission.title,
       decisionComments: comments,
+      reviewerComments,
       revisionDeadline,
       submissionUrl,
     });
@@ -421,6 +426,7 @@ export async function sendEditorialDecision(formData: FormData) {
       journalName: submission.journal.name,
       manuscriptTitle: submission.title,
       decisionComments: comments,
+      reviewerComments,
       submissionUrl,
       apc: acceptedInvoice
         ? {
@@ -453,6 +459,7 @@ export async function sendEditorialDecision(formData: FormData) {
       journalName: submission.journal.name,
       manuscriptTitle: submission.title,
       decisionComments: comments,
+      reviewerComments,
       submissionUrl,
       contactUrl,
     });

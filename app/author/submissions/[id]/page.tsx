@@ -559,9 +559,7 @@ export default async function AuthorSubmissionDetailsPage({
 
                   <div className="flex flex-wrap gap-3">
                     <a
-                      href={
-                        version.manuscriptFileUrl
-                      }
+                      href={`/api/submission-versions/${version.id}/download`}
                       target="_blank"
                       rel="noreferrer"
                       className="text-sm font-semibold text-blue-700 hover:underline"
@@ -571,9 +569,7 @@ export default async function AuthorSubmissionDetailsPage({
 
                     {version.responseFileUrl && (
                       <a
-                        href={
-                          version.responseFileUrl
-                        }
+                        href={`/api/submission-versions/${version.id}/download?file=response`}
                         target="_blank"
                         rel="noreferrer"
                         className="text-sm font-semibold text-blue-700 hover:underline"
@@ -656,7 +652,7 @@ export default async function AuthorSubmissionDetailsPage({
                       </div>
 
                       <a
-                        href={file.fileUrl}
+                        href={`/api/submission-files/${file.id}/download`}
                         target="_blank"
                         rel="noreferrer"
                         className="text-sm font-semibold text-blue-700 hover:underline"

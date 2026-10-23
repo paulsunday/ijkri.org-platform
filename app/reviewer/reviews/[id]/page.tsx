@@ -267,10 +267,7 @@ export default async function ReviewerReviewPage({
               </div>
 
               <a
-                href={
-                  assignment.submissionVersion
-                    .manuscriptFileUrl
-                }
+                href={`/api/submission-versions/${assignment.submissionVersion.id}/download`}
                 target="_blank"
                 rel="noreferrer"
                 className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
@@ -295,10 +292,7 @@ export default async function ReviewerReviewPage({
                   </div>
 
                   <a
-                    href={
-                      assignment.submissionVersion
-                        .responseFileUrl
-                    }
+                    href={`/api/submission-versions/${assignment.submissionVersion.id}/download?file=response`}
                     target="_blank"
                     rel="noreferrer"
                     className="rounded-lg border border-blue-700 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"
@@ -366,7 +360,7 @@ export default async function ReviewerReviewPage({
                   </div>
 
                   <a
-                    href={file.fileUrl}
+                    href={`/api/submission-files/${file.id}/download`}
                     target="_blank"
                     rel="noreferrer"
                     className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
@@ -470,7 +464,7 @@ export default async function ReviewerReviewPage({
                                 (attachment) => (
                                   <a
                                     key={attachment.id}
-                                    href={attachment.fileUrl}
+                                    href={`/api/review-attachments/${attachment.id}/download`}
                                     target="_blank"
                                     rel="noreferrer"
                                     className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-white p-3 text-sm hover:bg-gray-50"
@@ -743,7 +737,7 @@ export default async function ReviewerReviewPage({
                       (attachment) => (
                         <a
                           key={attachment.id}
-                          href={attachment.fileUrl}
+                          href={`/api/review-attachments/${attachment.id}/download`}
                           target="_blank"
                           rel="noreferrer"
                           className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-white p-3"

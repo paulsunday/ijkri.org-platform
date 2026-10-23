@@ -276,7 +276,7 @@ export default async function EditorRevisionHistoryPage({
 
                             <div className="flex flex-wrap gap-3">
                                 <a
-                                    href={newestVersion.manuscriptFileUrl}
+                                    href={`/api/submission-versions/${newestVersion.id}/download`}
                                     target="_blank"
                                     rel="noreferrer"
                                     className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
@@ -286,7 +286,7 @@ export default async function EditorRevisionHistoryPage({
 
                                 {newestVersion.responseFileUrl && (
                                     <a
-                                        href={newestVersion.responseFileUrl}
+                                        href={`/api/submission-versions/${newestVersion.id}/download?file=response`}
                                         target="_blank"
                                         rel="noreferrer"
                                         className="rounded-lg border border-blue-700 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100"
@@ -372,7 +372,7 @@ export default async function EditorRevisionHistoryPage({
 
                                 <div className="flex flex-wrap gap-3">
                                     <a
-                                        href={version.manuscriptFileUrl}
+                                        href={`/api/submission-versions/${version.id}/download`}
                                         target="_blank"
                                         rel="noreferrer"
                                         className="text-sm font-semibold text-blue-700 hover:underline"
@@ -382,7 +382,7 @@ export default async function EditorRevisionHistoryPage({
 
                                     {version.responseFileUrl && (
                                         <a
-                                            href={version.responseFileUrl}
+                                            href={`/api/submission-versions/${version.id}/download?file=response`}
                                             target="_blank"
                                             rel="noreferrer"
                                             className="text-sm font-semibold text-blue-700 hover:underline"
@@ -460,7 +460,7 @@ export default async function EditorRevisionHistoryPage({
                                         </div>
 
                                         <a
-                                            href={file.fileUrl}
+                                            href={`/api/submission-files/${file.id}/download`}
                                             target="_blank"
                                             rel="noreferrer"
                                             className="text-sm font-semibold text-blue-700 hover:underline"

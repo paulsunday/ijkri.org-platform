@@ -355,9 +355,7 @@ export default async function StartNewReviewRoundPage({
 
                             <div className="flex flex-wrap gap-3">
                                 <a
-                                    href={
-                                        latestVersion.manuscriptFileUrl
-                                    }
+                                    href={`/api/submission-versions/${latestVersion.id}/download`}
                                     target="_blank"
                                     rel="noreferrer"
                                     className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
@@ -367,9 +365,7 @@ export default async function StartNewReviewRoundPage({
 
                                 {latestVersion.responseFileUrl && (
                                     <a
-                                        href={
-                                            latestVersion.responseFileUrl
-                                        }
+                                        href={`/api/submission-versions/${latestVersion.id}/download?file=response`}
                                         target="_blank"
                                         rel="noreferrer"
                                         className="rounded-lg border border-blue-700 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100"

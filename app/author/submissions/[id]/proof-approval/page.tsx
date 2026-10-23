@@ -325,7 +325,7 @@ export default async function AuthorProofApprovalPage({
                             </div>
 
                             <a
-                                href={finalProofFile.fileUrl}
+                                href={`/api/production-files/${finalProofFile.id}/download`}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"

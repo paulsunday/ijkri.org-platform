@@ -303,7 +303,7 @@ export default async function TypesetterWorkspace({
                                 </div>
 
                                 <a
-                                    href={file.fileUrl}
+                                    href={`/api/production-files/${file.id}/download`}
                                     target="_blank"
                                     rel="noreferrer"
                                     className="rounded bg-blue-700 px-4 py-2 text-white hover:bg-blue-800"

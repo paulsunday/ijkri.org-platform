@@ -1043,11 +1043,51 @@ export function reviewerInvitationEmail({
     }),
   };
 }
+function formatReviewerCommentsText(
+  reviewerComments?: (string | null | undefined)[],
+) {
+  const nonEmptyComments = (reviewerComments ?? []).filter(
+    (comment): comment is string => Boolean(comment && comment.trim()),
+  );
+
+  if (nonEmptyComments.length === 0) {
+    return [];
+  }
+
+  return [
+    "",
+    "Reviewer comments:",
+    ...nonEmptyComments.flatMap((comment, index) => [
+      `Reviewer ${index + 1}:`,
+      comment.trim(),
+      "",
+    ]),
+  ];
+}
+
+function reviewerCommentsHtml(
+  reviewerComments?: (string | null | undefined)[],
+) {
+  const nonEmptyComments = (reviewerComments ?? []).filter(
+    (comment): comment is string => Boolean(comment && comment.trim()),
+  );
+
+  return nonEmptyComments
+    .map((comment, index) =>
+      informationBox({
+        title: `Reviewer ${index + 1} comments`,
+        content: escapeHtml(comment.trim()).replaceAll("\n", "<br />"),
+      }),
+    )
+    .join("");
+}
+
 export function revisionRequestedEmail({
   authorName,
   journalName: selectedJournalName,
   manuscriptTitle,
   decisionComments,
+  reviewerComments,
   revisionDeadline,
   submissionUrl,
 }: {
@@ -1055,6 +1095,7 @@ export function revisionRequestedEmail({
   journalName: string;
   manuscriptTitle: string;
   decisionComments: string;
+  reviewerComments?: (string | null | undefined)[];
   revisionDeadline: Date;
   submissionUrl: string;
 }) {
@@ -1093,6 +1134,7 @@ export function revisionRequestedEmail({
       "",
       "Editorial comments:",
       decisionComments,
+      ...formatReviewerCommentsText(reviewerComments),
       "",
       `Open your submission: ${submissionUrl}`,
     ].join("\n"),
@@ -1122,6 +1164,8 @@ export function revisionRequestedEmail({
         content: safeComments,
       })}
 
+        ${reviewerCommentsHtml(reviewerComments)}
+
         <p>
           Please prepare a revised manuscript and a clear
           point-by-point response explaining how each editorial
@@ -1148,6 +1192,7 @@ export function manuscriptAcceptedEmail({
   journalName: selectedJournalName,
   manuscriptTitle,
   decisionComments,
+  reviewerComments,
   submissionUrl,
   apc,
 }: {
@@ -1155,6 +1200,7 @@ export function manuscriptAcceptedEmail({
   journalName: string;
   manuscriptTitle: string;
   decisionComments: string;
+  reviewerComments?: (string | null | undefined)[];
   submissionUrl: string;
   apc?: {
     invoiceNumber: string;
@@ -1197,6 +1243,7 @@ export function manuscriptAcceptedEmail({
       "",
       "Editorial comments:",
       decisionComments,
+      ...formatReviewerCommentsText(reviewerComments),
       ...apcTextLines,
       "",
       "The manuscript will now proceed to the production workflow.",
@@ -1223,6 +1270,8 @@ export function manuscriptAcceptedEmail({
         title: "Editorial decision letter",
         content: safeComments,
       })}
+
+        ${reviewerCommentsHtml(reviewerComments)}
 
         ${apc
           ? informationBox({
@@ -1272,6 +1321,7 @@ export function manuscriptRejectedEmail({
   journalName: selectedJournalName,
   manuscriptTitle,
   decisionComments,
+  reviewerComments,
   submissionUrl,
   contactUrl,
 }: {
@@ -1279,6 +1329,7 @@ export function manuscriptRejectedEmail({
   journalName: string;
   manuscriptTitle: string;
   decisionComments: string;
+  reviewerComments?: (string | null | undefined)[];
   submissionUrl: string;
   contactUrl: string;
 }) {
@@ -1305,6 +1356,7 @@ export function manuscriptRejectedEmail({
       "",
       "Editorial comments:",
       decisionComments,
+      ...formatReviewerCommentsText(reviewerComments),
       "",
       `View your submission: ${submissionUrl}`,
       `Contact the editorial office: ${contactUrl}`,
@@ -1336,6 +1388,8 @@ export function manuscriptRejectedEmail({
         title: "Editorial decision letter",
         content: safeComments,
       })}
+
+        ${reviewerCommentsHtml(reviewerComments)}
 
         <p>
           The comments are provided to explain the decision
