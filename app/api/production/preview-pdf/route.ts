@@ -10,6 +10,7 @@ import { buildFormattedContent } from "@/app/typesetter/assignments/[id]/product
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /**
  * Renders a live, unsaved preview of the production article as a PDF

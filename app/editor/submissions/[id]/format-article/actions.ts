@@ -12,6 +12,7 @@ import {
     type RawArticleFormattingInput,
 } from "@/lib/ai/format-article";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 import { uploadJournalFile } from "@/lib/storage/blob";
 
 import { renderArticlePdf } from "./render";
@@ -181,29 +182,42 @@ export async function approveFormattedArticle({
 
     const volume = submission.article?.issue?.volume;
 
-    const pdfBytes = await renderArticlePdf({
-        content,
-        metadata: {
-            journalName: submission.journal.name,
-            journalShortName:
-                submission.journal.shortName,
-            volumeNumber: volume?.number ?? 0,
-            issueNumber:
-                submission.article?.issue?.number ?? 0,
-            year:
-                volume?.year ?? new Date().getFullYear(),
-            startPage:
-                submission.article?.startPage ?? null,
-            endPage: submission.article?.endPage ?? null,
-            doi: submission.article?.doi ?? null,
-            copyrightPolicy:
-                submission.journal.settings
-                    ?.copyrightPolicy ?? null,
-            license:
-                submission.journal.settings?.license ??
-                null,
-        },
-    });
+    let pdfBytes: Uint8Array;
+
+    try {
+        pdfBytes = await renderArticlePdf({
+            content,
+            metadata: {
+                journalName: submission.journal.name,
+                journalShortName:
+                    submission.journal.shortName,
+                volumeNumber: volume?.number ?? 0,
+                issueNumber:
+                    submission.article?.issue?.number ?? 0,
+                year:
+                    volume?.year ?? new Date().getFullYear(),
+                startPage:
+                    submission.article?.startPage ?? null,
+                endPage: submission.article?.endPage ?? null,
+                doi: submission.article?.doi ?? null,
+                copyrightPolicy:
+                    submission.journal.settings
+                        ?.copyrightPolicy ?? null,
+                license:
+                    submission.journal.settings?.license ??
+                    null,
+            },
+        });
+    } catch (error) {
+        logger.error("Formatted article PDF generation failed", error, {
+            event: "FORMATTED_ARTICLE_PDF_GENERATION_FAILED",
+            submissionId,
+        });
+
+        throw new Error(
+            "The PDF could not be generated. Please try again.",
+        );
+    }
 
     const file = new File(
         [pdfBytes as BlobPart],

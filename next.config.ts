@@ -55,6 +55,17 @@ const nextConfig: NextConfig = {
 
   poweredByHeader: false,
 
+  /*
+   * @sparticuz/chromium ships its Chromium binary as brotli-compressed
+   * binary assets, not plain JS. Letting webpack/Turbopack bundle it
+   * can silently drop those asset files from the deployed serverless
+   * function, which then fails at runtime trying to launch a
+   * Chromium executable that was never included. Marking it (and
+   * puppeteer-core, which resolves it) external makes Vercel's own
+   * file tracing responsible for including every file instead.
+   */
+  serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core"],
+
   images: {
     remotePatterns: [
       {

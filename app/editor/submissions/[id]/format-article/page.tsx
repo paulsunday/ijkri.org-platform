@@ -9,6 +9,13 @@ import { prisma } from "@/lib/prisma";
 
 import FormatArticleWorkspace from "./FormatArticleWorkspace";
 
+/*
+ * PDF generation here launches headless Chromium, which routinely
+ * exceeds the platform's default serverless function duration.
+ * Server Actions invoked from this page inherit this limit.
+ */
+export const maxDuration = 60;
+
 type PageProps = {
     params: Promise<{
         id: string;
