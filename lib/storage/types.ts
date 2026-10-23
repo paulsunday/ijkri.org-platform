@@ -34,7 +34,8 @@ export type FileCategory =
   | "XML_GALLEY"
   | "ISSUE_COVER"
   | "MARKETING_TEMPLATE"
-  | "CAMPAIGN_BANNER";
+  | "CAMPAIGN_BANNER"
+  | "BOARD_MEMBER_PHOTO";
 
 /**
  * Storage visibility.

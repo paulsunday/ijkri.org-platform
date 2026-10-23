@@ -8,6 +8,7 @@ import {
     requireAnyActionRole,
 } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
+import { uploadJournalFile } from "@/lib/storage/blob";
 
 const MANAGER_ROLES = [
     "SUPER_ADMIN",
@@ -72,6 +73,31 @@ function normalize(
 
         sortOrder: formData.get("sortOrder"),
     });
+}
+
+async function uploadBoardMemberPhotoIfProvided({
+    formData,
+    journalId,
+}: {
+    formData: FormData;
+    journalId: string;
+}): Promise<string | null> {
+    const photoFile = formData.get("photoFile");
+
+    if (!(photoFile instanceof File) || photoFile.size === 0) {
+        return null;
+    }
+
+    const uploadResult = await uploadJournalFile({
+        file: photoFile,
+        category: "BOARD_MEMBER_PHOTO",
+        metadata: {
+            journalId,
+            category: "BOARD_MEMBER_PHOTO",
+        },
+    });
+
+    return uploadResult.url;
 }
 
 async function ensureJournalManager(
@@ -141,18 +167,26 @@ export async function createEditorialBoardMember(
     const normalizedEmail =
         data.email?.trim().toLowerCase() || null;
 
-    const normalizedPhotoUrl =
+    const uploadedPhotoUrl = await uploadBoardMemberPhotoIfProvided({
+        formData,
+        journalId: data.journalId,
+    });
+
+    const manualPhotoUrl =
         data.photoUrl?.trim() || null;
 
-    if (normalizedPhotoUrl) {
+    if (manualPhotoUrl) {
         try {
-            new URL(normalizedPhotoUrl);
+            new URL(manualPhotoUrl);
         } catch {
             throw new Error(
                 "Enter a valid photo URL.",
             );
         }
     }
+
+    const normalizedPhotoUrl =
+        uploadedPhotoUrl || manualPhotoUrl;
 
     const duplicateMember =
         await prisma.editorialBoardMember.findFirst({
@@ -296,18 +330,26 @@ export async function updateEditorialBoardMember(
     const normalizedEmail =
         data.email?.trim().toLowerCase() || null;
 
-    const normalizedPhotoUrl =
+    const uploadedPhotoUrl = await uploadBoardMemberPhotoIfProvided({
+        formData,
+        journalId: data.journalId,
+    });
+
+    const manualPhotoUrl =
         data.photoUrl?.trim() || null;
 
-    if (normalizedPhotoUrl) {
+    if (manualPhotoUrl) {
         try {
-            new URL(normalizedPhotoUrl);
+            new URL(manualPhotoUrl);
         } catch {
             throw new Error(
                 "Enter a valid photo URL.",
             );
         }
     }
+
+    const normalizedPhotoUrl =
+        uploadedPhotoUrl || manualPhotoUrl;
 
     const duplicateMember =
         await prisma.editorialBoardMember.findFirst({

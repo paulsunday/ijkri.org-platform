@@ -21,6 +21,7 @@ export const MAX_FILE_SIZE = {
     ISSUE_COVER: 5 * MB,
     MARKETING_TEMPLATE: 10 * MB,
     CAMPAIGN_BANNER: 5 * MB,
+    BOARD_MEMBER_PHOTO: 5 * MB,
 } as const;
 
 /**
@@ -37,6 +38,7 @@ export const STORAGE_FOLDERS = {
     SUPPLEMENTARY: "supplementary",
     COVERS: "covers",
     MARKETING: "marketing",
+    BOARD_MEMBERS: "board-members",
 } as const;
 
 /**
@@ -103,6 +105,12 @@ export const ALLOWED_EXTENSIONS = {
         "jpg",
         "jpeg",
         "webp",
+    ],
+
+    BOARD_MEMBER_PHOTO: [
+        "png",
+        "jpg",
+        "jpeg",
     ],
 } as const;
 
@@ -184,6 +192,7 @@ export const PUBLIC_FILE_TYPES = [
     "ISSUE_COVER",
     "MARKETING_TEMPLATE",
     "CAMPAIGN_BANNER",
+    "BOARD_MEMBER_PHOTO",
 ] as const;
 
 /**

@@ -454,7 +454,7 @@ export default async function EditorialBoardAdminPage({
                                         label="Photo URL"
                                         name="photoUrl"
                                         type="url"
-                                        placeholder="https://..."
+                                        placeholder="https://... (optional if uploading below)"
                                     />
 
                                     <FormInput
@@ -463,6 +463,28 @@ export default async function EditorialBoardAdminPage({
                                         type="number"
                                         defaultValue="0"
                                     />
+                                </div>
+
+                                <div>
+                                    <label
+                                        htmlFor="photoFile"
+                                        className="mb-2 block font-semibold"
+                                    >
+                                        Upload profile picture
+                                    </label>
+
+                                    <input
+                                        id="photoFile"
+                                        name="photoFile"
+                                        type="file"
+                                        accept="image/png,image/jpeg"
+                                        className="w-full rounded-lg border border-amber-200 bg-white px-4 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
+                                    />
+
+                                    <p className="mt-2 text-sm text-amber-800">
+                                        PNG or JPEG, up to 5 MB. Uploading a
+                                        photo replaces the Photo URL above.
+                                    </p>
                                 </div>
 
                                 <div>
@@ -723,6 +745,29 @@ export default async function EditorialBoardAdminPage({
                                                                     member.sortOrder,
                                                                 )}
                                                             />
+                                                        </div>
+
+                                                        <div>
+                                                            <label
+                                                                htmlFor={`photoFile-${member.id}`}
+                                                                className="mb-2 block font-semibold"
+                                                            >
+                                                                Replace profile picture
+                                                            </label>
+
+                                                            <input
+                                                                id={`photoFile-${member.id}`}
+                                                                name="photoFile"
+                                                                type="file"
+                                                                accept="image/png,image/jpeg"
+                                                                className="w-full rounded-lg border border-slate-300 px-4 py-3"
+                                                            />
+
+                                                            <p className="mt-2 text-sm text-slate-500">
+                                                                PNG or JPEG, up to 5 MB.
+                                                                Uploading a photo replaces
+                                                                the Photo URL above.
+                                                            </p>
                                                         </div>
 
                                                         <div>
