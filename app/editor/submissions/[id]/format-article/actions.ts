@@ -317,3 +317,139 @@ export async function approveFormattedArticle({
         productionFileId: productionFile.id,
     };
 }
+
+export async function uploadFinalGalleyPdf(
+    formData: FormData,
+): Promise<{ productionFileId: string }> {
+    const editor = await requireAnyActionRole([
+        ...PUBLICATION_ROLES,
+    ]);
+
+    const submissionId = String(
+        formData.get("submissionId") || "",
+    ).trim();
+
+    if (!submissionId) {
+        throw new Error("Submission ID is missing.");
+    }
+
+    const submission =
+        await loadSubmissionForFormatting(submissionId);
+
+    await verifyFormattingPermission(
+        editor.id,
+        submission.journalId,
+    );
+
+    const file = formData.get("file");
+
+    if (!(file instanceof File) || file.size === 0) {
+        throw new Error(
+            "Please select a PDF file to upload.",
+        );
+    }
+
+    const latestFile = await prisma.productionFile.findFirst(
+        {
+            where: {
+                submissionId,
+                fileType: "PDF_GALLEY",
+            },
+            orderBy: {
+                versionNumber: "desc",
+            },
+            select: {
+                versionNumber: true,
+            },
+        },
+    );
+
+    const nextVersionNumber =
+        (latestFile?.versionNumber || 0) + 1;
+
+    let upload;
+
+    try {
+        upload = await uploadJournalFile({
+            file,
+            category: "PDF_GALLEY",
+            visibility: "private",
+
+            metadata: {
+                category: "PDF_GALLEY",
+                journalId: submission.journalId,
+                submissionId,
+                versionNumber: nextVersionNumber,
+            },
+        });
+    } catch (error) {
+        logger.error("Final galley PDF upload failed", error, {
+            event: "FINAL_GALLEY_PDF_UPLOAD_FAILED",
+            submissionId,
+        });
+
+        throw error instanceof Error
+            ? error
+            : new Error(
+                  "The PDF could not be uploaded. Please try again.",
+              );
+    }
+
+    const productionFile =
+        await prisma.$transaction(async (tx) => {
+            const created = await tx.productionFile.create(
+                {
+                    data: {
+                        submissionId,
+                        uploadedById: editor.id,
+                        fileType: "PDF_GALLEY",
+                        fileName: upload.originalFilename,
+                        fileUrl: upload.url,
+                        mimeType:
+                            upload.mimeType || null,
+                        fileSize: upload.size,
+                        versionNumber: nextVersionNumber,
+                        description:
+                            "Editor-uploaded final galley PDF",
+                        isFinal: true,
+                    },
+                },
+            );
+
+            await tx.activityLog.create({
+                data: {
+                    userId: editor.id,
+                    action: "CREATE",
+                    entity: "ProductionFile",
+                    entityId: created.id,
+                    metadata: {
+                        event:
+                            "FINAL_GALLEY_PDF_UPLOADED",
+                        submissionId,
+                        versionNumber:
+                            nextVersionNumber,
+                        fileName:
+                            upload.originalFilename,
+                    },
+                },
+            });
+
+            return created;
+        });
+
+    revalidatePath(
+        `/editor/submissions/${submissionId}`,
+    );
+
+    revalidatePath(
+        `/editor/submissions/${submissionId}/format-article`,
+    );
+
+    revalidatePath(
+        `/editor/submissions/${submissionId}/publication`,
+    );
+
+    return {
+        productionFileId: productionFile.id,
+    };
+}

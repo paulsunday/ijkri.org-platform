@@ -8,6 +8,7 @@ import {
 import { prisma } from "@/lib/prisma";
 
 import FormatArticleWorkspace from "./FormatArticleWorkspace";
+import UploadFinalGalleyForm from "./UploadFinalGalleyForm";
 
 /*
  * PDF generation here launches headless Chromium, which routinely
@@ -204,6 +205,17 @@ export default async function FormatArticlePage({
                     </p>
                 </section>
             ) : (
+                <>
+                <UploadFinalGalleyForm
+                    submissionId={submission.id}
+                />
+
+                <div className="flex items-center gap-4 text-sm font-semibold uppercase tracking-wider text-gray-400">
+                    <span className="h-px flex-1 bg-gray-200" />
+                    Or use the formatting tool
+                    <span className="h-px flex-1 bg-gray-200" />
+                </div>
+
                 <FormatArticleWorkspace
                     submissionId={submission.id}
                     hasExistingArticle={Boolean(
@@ -248,6 +260,7 @@ export default async function FormatArticlePage({
                                 ?.license ?? null,
                     }}
                 />
+                </>
             )}
         </main>
     );
