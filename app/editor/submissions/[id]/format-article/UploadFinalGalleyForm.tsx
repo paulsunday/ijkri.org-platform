@@ -25,18 +25,25 @@ export default function UploadFinalGalleyForm({
     ) {
         event.preventDefault();
 
+        /*
+         * React nulls out `event.currentTarget` once this handler's
+         * synchronous portion finishes, so it must be captured before
+         * the `await` below rather than read again afterward.
+         */
+        const formElement = event.currentTarget;
+
         setError(null);
         setIsUploading(true);
 
         try {
-            const formData = new FormData(event.currentTarget);
+            const formData = new FormData(formElement);
 
             const result = await uploadFinalGalleyPdf(
                 formData,
             );
 
             setUploadedFileId(result.productionFileId);
-            event.currentTarget.reset();
+            formElement.reset();
             setFileName(null);
         } catch (caught) {
             setError(
