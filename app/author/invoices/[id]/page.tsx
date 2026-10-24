@@ -252,19 +252,19 @@ export default async function InvoiceDetailsPage({
                             </form>
                         )}
 
-                    <button
-                        disabled
-                        className="rounded-lg bg-slate-200 px-6 py-3 font-semibold text-slate-500"
+                    <a
+                        href={`/api/invoices/${invoice.id}/download?format=pdf`}
+                        className="rounded-lg border border-slate-300 px-6 py-3 font-semibold text-slate-800 transition hover:border-slate-950 hover:bg-slate-50"
                     >
-                        Download Invoice
-                    </button>
+                        Download Invoice (PDF)
+                    </a>
 
-                    <button
-                        disabled
-                        className="rounded-lg bg-slate-200 px-6 py-3 font-semibold text-slate-500"
+                    <a
+                        href={`/api/invoices/${invoice.id}/download?format=png`}
+                        className="rounded-lg border border-slate-300 px-6 py-3 font-semibold text-slate-800 transition hover:border-slate-950 hover:bg-slate-50"
                     >
-                        Download Receipt
-                    </button>
+                        Download Invoice (Image)
+                    </a>
                 </div>
             </div>
         </main>
