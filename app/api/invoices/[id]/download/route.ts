@@ -154,27 +154,38 @@ export async function GET(request: Request, { params }: RouteContext) {
     `invoice-${invoice.invoiceNumber}.${format}`,
   );
 
-  if (format === "png") {
-    const image = await renderInvoiceImage(data);
+  try {
+    if (format === "png") {
+      const image = await renderInvoiceImage(data);
 
-    return new Response(Buffer.from(image), {
+      return new Response(Buffer.from(image), {
+        status: 200,
+        headers: {
+          "Content-Type": "image/png",
+          "Content-Disposition": `attachment; filename="${fileName}"`,
+          "Content-Length": String(image.byteLength),
+        },
+      });
+    }
+
+    const pdf = await renderInvoicePdf(data);
+
+    return new Response(Buffer.from(pdf), {
       status: 200,
       headers: {
-        "Content-Type": "image/png",
+        "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${fileName}"`,
-        "Content-Length": String(image.byteLength),
+        "Content-Length": String(pdf.byteLength),
       },
     });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        message: "DEBUG_RENDER_FAILED",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : null,
+      },
+      { status: 500 },
+    );
   }
-
-  const pdf = await renderInvoicePdf(data);
-
-  return new Response(Buffer.from(pdf), {
-    status: 200,
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${fileName}"`,
-      "Content-Length": String(pdf.byteLength),
-    },
-  });
 }
