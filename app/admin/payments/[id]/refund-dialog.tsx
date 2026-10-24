@@ -64,9 +64,7 @@ export function RefundDialog({
         "FULL" | "PARTIAL"
     >("FULL");
 
-    const [amount, setAmount] = useState(
-        refundableAmount.toFixed(2),
-    );
+    const [partialAmount, setPartialAmount] = useState("");
 
     const [state, formAction, pending] =
         useActionState(
@@ -84,18 +82,10 @@ export function RefundDialog({
         [refundableAmount],
     );
 
-    useEffect(() => {
-        if (refundType === "FULL") {
-            setAmount(maximumRefund.toFixed(2));
-        }
-    }, [refundType, maximumRefund]);
-
-    useEffect(() => {
-        if (!open) {
-            setRefundType("FULL");
-            setAmount(maximumRefund.toFixed(2));
-        }
-    }, [open, maximumRefund]);
+    const amount =
+        refundType === "FULL"
+            ? maximumRefund.toFixed(2)
+            : partialAmount;
 
     useEffect(() => {
         if (!state.success) {
@@ -131,10 +121,8 @@ export function RefundDialog({
     ) {
         setRefundType(type);
 
-        if (type === "FULL") {
-            setAmount(maximumRefund.toFixed(2));
-        } else {
-            setAmount("");
+        if (type === "PARTIAL") {
+            setPartialAmount("");
         }
     }
 
@@ -146,6 +134,11 @@ export function RefundDialog({
         }
 
         setOpen(nextOpen);
+
+        if (!nextOpen) {
+            setRefundType("FULL");
+            setPartialAmount("");
+        }
     }
 
     return (
@@ -282,7 +275,7 @@ export function RefundDialog({
                                 step="0.01"
                                 value={amount}
                                 onChange={(event) =>
-                                    setAmount(
+                                    setPartialAmount(
                                         event.target.value,
                                     )
                                 }
@@ -392,7 +385,7 @@ export function RefundDialog({
                             type="button"
                             variant="outline"
                             onClick={() =>
-                                setOpen(false)
+                                handleOpenChange(false)
                             }
                             disabled={pending}
                         >

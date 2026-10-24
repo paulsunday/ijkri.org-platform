@@ -47,3 +47,13 @@ next-env.d.ts
 .env.sentry-build-plugin
 
 .env*
+
+# User-submitted files are stored in Vercel Blob, never locally/in git
+/public/uploads/
+
+# Local database backups/snapshots (may contain user PII)
+/backups/
+
+# Ad-hoc debug/audit dumps
+dev-error.txt
+*-audit.txt

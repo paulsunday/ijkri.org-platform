@@ -40,11 +40,15 @@ function getAppUrl() {
 async function deliverDecisionEmail({
   to,
   submissionId,
+  editorialDecisionId,
+  editorId,
   decision,
   emailContent,
 }: {
   to: string;
   submissionId: string;
+  editorialDecisionId: string;
+  editorId: string;
   decision: EditorialDecisionValue;
   emailContent: {
     subject: string;
@@ -53,11 +57,27 @@ async function deliverDecisionEmail({
   };
 }) {
   try {
-    await sendEmail({
+    const result = await sendEmail({
       to,
       subject: emailContent.subject,
       html: emailContent.html,
       text: emailContent.text,
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        userId: editorId,
+        action: "UPDATE",
+        entity: "EditorialDecision",
+        entityId: editorialDecisionId,
+        metadata: {
+          event: "EDITORIAL_DECISION_EMAIL_SENT",
+          submissionId,
+          decision,
+          recipient: to,
+          resendMessageId: result?.id ?? null,
+        },
+      },
     });
   } catch (error) {
     logger.error("Editorial decision email delivery failed", error, {
@@ -65,6 +85,22 @@ async function deliverDecisionEmail({
       submissionId,
       decision,
       recipient: to,
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        userId: editorId,
+        action: "UPDATE",
+        entity: "EditorialDecision",
+        entityId: editorialDecisionId,
+        metadata: {
+          event: "EDITORIAL_DECISION_EMAIL_FAILED",
+          submissionId,
+          decision,
+          recipient: to,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      },
     });
   }
 }
@@ -402,6 +438,8 @@ export async function sendEditorialDecision(formData: FormData) {
     await deliverDecisionEmail({
       to: submission.author.email,
       submissionId,
+      editorialDecisionId: editorialDecision.id,
+      editorId: editor.id,
       decision,
       emailContent,
     });
@@ -448,6 +486,8 @@ export async function sendEditorialDecision(formData: FormData) {
     await deliverDecisionEmail({
       to: submission.author.email,
       submissionId,
+      editorialDecisionId: editorialDecision.id,
+      editorId: editor.id,
       decision,
       emailContent,
     });
@@ -467,6 +507,8 @@ export async function sendEditorialDecision(formData: FormData) {
     await deliverDecisionEmail({
       to: submission.author.email,
       submissionId,
+      editorialDecisionId: editorialDecision.id,
+      editorId: editor.id,
       decision,
       emailContent,
     });

@@ -1185,7 +1185,7 @@ export default function AuthorGuidelinesPage() {
             <p className="mt-4 leading-8 text-slate-700">
               Any submission, processing or article-publication charge
               must be stated clearly before payment is requested.
-              Editorial decisions must not depend on an author's
+              Editorial decisions must not depend on an author&apos;s
               ability to pay.
             </p>
 

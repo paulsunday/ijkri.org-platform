@@ -190,7 +190,7 @@ export default async function EditorProofreadingReviewPage({
                         </h1>
 
                         <p className="mt-2 text-gray-600">
-                            Review the proofreader's corrections and approve the manuscript for author proof approval.
+                            Review the proofreader&apos;s corrections and approve the manuscript for author proof approval.
                         </p>
                     </div>
 
