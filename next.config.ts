@@ -66,6 +66,20 @@ const nextConfig: NextConfig = {
    */
   serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core"],
 
+  /*
+   * `serverExternalPackages` stops Turbopack from bundling/tree-shaking
+   * @sparticuz/chromium, but Vercel's per-route output file tracing still
+   * decides independently which files to actually copy into each deployed
+   * function. It doesn't reliably discover the brotli-compressed Chromium
+   * binary through the package's internal (non-import) file reads, so
+   * routes that launch Chromium fail at runtime with "the input directory
+   * .../chromium/bin does not exist" unless every such route is told
+   * explicitly to include it.
+   */
+  outputFileTracingIncludes: {
+    "/api/**/*": ["./node_modules/@sparticuz/chromium/bin/**"],
+  },
+
   images: {
     remotePatterns: [
       {
