@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import {
   renderInvoiceImage,
@@ -179,12 +180,14 @@ export async function GET(request: Request, { params }: RouteContext) {
       },
     });
   } catch (error) {
+    logger.error("Invoice document render failed", error, {
+      event: "INVOICE_DOCUMENT_RENDER_FAILED",
+      invoiceId: invoice.id,
+      format,
+    });
+
     return NextResponse.json(
-      {
-        message: "DEBUG_RENDER_FAILED",
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : null,
-      },
+      { message: "The invoice document could not be generated. Please try again." },
       { status: 500 },
     );
   }
