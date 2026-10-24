@@ -8,6 +8,7 @@ import {
   assignJournalRole,
   createUser,
   removeJournalRole,
+  toggleActionAlerts,
   toggleUserStatus,
 } from "./actions";
 
@@ -102,6 +103,13 @@ export default async function AdminUsersPage() {
         <p className="mt-3 text-gray-600">
           Create user accounts and manage journal-specific
           permissions.
+        </p>
+
+        <p className="mt-2 text-sm text-gray-500">
+          Super administrators always receive notifications for
+          submissions needing action (new reviews, revisions, and
+          similar events). Grant &quot;Action Alerts&quot; to any
+          other account that should receive those too.
         </p>
       </header>
 
@@ -381,7 +389,7 @@ export default async function AdminUsersPage() {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <span
                       className={`rounded-full px-3 py-1 text-xs font-semibold ${user.isActive
                         ? "bg-green-100 text-green-800"
@@ -390,6 +398,32 @@ export default async function AdminUsersPage() {
                     >
                       {user.isActive ? "Active" : "Inactive"}
                     </span>
+
+                    {user.receivesActionAlerts && (
+                      <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-800">
+                        Gets action alerts
+                      </span>
+                    )}
+
+                    <form action={toggleActionAlerts}>
+                      <input
+                        type="hidden"
+                        name="userId"
+                        value={user.id}
+                      />
+
+                      <button
+                        type="submit"
+                        className={`rounded-lg border px-4 py-2 text-sm font-semibold ${user.receivesActionAlerts
+                          ? "border-indigo-300 text-indigo-800 hover:bg-indigo-50"
+                          : "border-slate-300 text-slate-800 hover:bg-slate-50"
+                          }`}
+                      >
+                        {user.receivesActionAlerts
+                          ? "Revoke Action Alerts"
+                          : "Grant Action Alerts"}
+                      </button>
+                    </form>
 
                     <form action={toggleUserStatus}>
                       <input

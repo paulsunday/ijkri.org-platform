@@ -6,6 +6,7 @@ import { getDashboardPath } from "@/lib/auth/dashboard-path";
 import { isSuperAdmin } from "@/lib/auth/permissions";
 import AdminQuickNav from "@/components/layout/AdminQuickNav";
 import MobileNav from "@/components/layout/MobileNav";
+import NotificationBell from "@/components/layout/NotificationBell";
 
 const navigation = [
   {
@@ -126,6 +127,8 @@ export default async function Header() {
 
           <div className="flex flex-wrap items-center gap-3">
             {user && isSuperAdmin(user) && <AdminQuickNav />}
+
+            {user && <NotificationBell />}
 
             {user ? (
               <>

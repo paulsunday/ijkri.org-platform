@@ -16,6 +16,7 @@ import { sendEmail } from "@/lib/email/send-email";
 import { rewardEarnedEmail } from "@/lib/email/templates";
 import { resolveActiveCampaignBonus } from "@/lib/campaigns/resolve-active-campaign";
 import { applyCampaignBonus } from "@/lib/campaigns/apply-campaign-bonus";
+import { notifyStaffActionNeeded } from "@/lib/notifications/notify-staff";
 
 const MAX_ATTACHMENTS = 5;
 const MAX_ATTACHMENT_SIZE = 20 * 1024 * 1024;
@@ -681,20 +682,16 @@ export async function submitReview(
         });
       }
 
-      if (editorId) {
-        await tx.notification.create({
-          data: {
-            userId: editorId,
-            type: "REVIEW",
-            title: `Review submitted — Round ${assignment.reviewRound}`,
-            message:
-              `A review report has been submitted for ` +
-              `"${assignment.submission.title}".`,
-            link:
-              `/editor/submissions/` + `${assignment.submissionId}/decisions`,
-          },
-        });
-      }
+      await notifyStaffActionNeeded(tx, {
+        journalId: assignment.submission.journalId,
+        type: "REVIEW",
+        title: `Review submitted — Round ${assignment.reviewRound}`,
+        message:
+          `A review report has been submitted for ` +
+          `"${assignment.submission.title}".`,
+        link: `/editor/submissions/${assignment.submissionId}/decisions`,
+        additionalUserIds: [editorId],
+      });
 
       await tx.activityLog.create({
         data: {

@@ -237,6 +237,7 @@ model User {
   phone                      String?
   lastLogin                  DateTime?
   isActive                   Boolean             @default(true)
+  receivesActionAlerts       Boolean             @default(false)
   createdAt                  DateTime            @default(now())
   updatedAt                  DateTime            @updatedAt
   emailVerified              DateTime?

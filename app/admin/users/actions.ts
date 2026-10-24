@@ -516,3 +516,71 @@ export async function toggleUserStatus(
 
     refreshUserPages();
 }
+
+export async function toggleActionAlerts(
+    formData: FormData,
+) {
+    const administrator =
+        await requireAnyActionRole(ADMIN_ROLES);
+
+    if (!administratorIsSuperAdmin(administrator)) {
+        throw new Error(
+            "Only a super administrator can grant or revoke action-needed alerts.",
+        );
+    }
+
+    const userId = String(
+        formData.get("userId") || "",
+    ).trim();
+
+    if (!userId) {
+        throw new Error("User ID is missing.");
+    }
+
+    const user = await prisma.user.findUnique({
+        where: {
+            id: userId,
+        },
+        select: {
+            id: true,
+            name: true,
+            email: true,
+            receivesActionAlerts: true,
+        },
+    });
+
+    if (!user) {
+        throw new Error("User not found.");
+    }
+
+    await prisma.$transaction(async (tx) => {
+        const updated = await tx.user.update({
+            where: {
+                id: userId,
+            },
+            data: {
+                receivesActionAlerts:
+                    !user.receivesActionAlerts,
+            },
+        });
+
+        await tx.activityLog.create({
+            data: {
+                userId: administrator.id,
+                action: "UPDATE",
+                entity: "User",
+                entityId: userId,
+                metadata: {
+                    event: updated.receivesActionAlerts
+                        ? "USER_ACTION_ALERTS_ENABLED"
+                        : "USER_ACTION_ALERTS_DISABLED",
+                    targetUserId: user.id,
+                    targetUserName: user.name,
+                    targetUserEmail: user.email,
+                },
+            },
+        });
+    });
+
+    revalidatePath("/admin/users");
+}

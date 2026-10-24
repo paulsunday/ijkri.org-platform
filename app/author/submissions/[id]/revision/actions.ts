@@ -11,6 +11,7 @@ import { validateFileSignature } from "@/lib/storage/file-signature";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { deleteJournalFile, uploadJournalFile } from "@/lib/storage/blob";
 import type { UploadResult } from "@/lib/storage/types";
+import { notifyStaffActionNeeded } from "@/lib/notifications/notify-staff";
 
 const MAX_MANUSCRIPT_SIZE = 20 * 1024 * 1024;
 const MAX_RESPONSE_FILE_SIZE = 20 * 1024 * 1024;
@@ -339,17 +340,14 @@ export async function submitRevision(formData: FormData) {
         },
       });
 
-      if (latestDecision?.editorId) {
-        await tx.notification.create({
-          data: {
-            userId: latestDecision.editorId,
-            type: "SUBMISSION",
-            title: "Revised manuscript submitted",
-            message: `The author submitted Version ${nextVersionNumber} of: ${submission.title}`,
-            link: `/editor/submissions/${submissionId}`,
-          },
-        });
-      }
+      await notifyStaffActionNeeded(tx, {
+        journalId: submission.journalId,
+        type: "SUBMISSION",
+        title: "Revised manuscript submitted",
+        message: `The author submitted Version ${nextVersionNumber} of: ${submission.title}`,
+        link: `/editor/submissions/${submissionId}`,
+        additionalUserIds: [latestDecision?.editorId],
+      });
 
       await tx.activityLog.create({
         data: {
