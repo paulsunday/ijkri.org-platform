@@ -4,14 +4,10 @@ import { requireAnyRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 
 import {
-  clearCurrentIssue,
-  createIssue,
-  deleteIssue,
-  publishIssue,
-  setCurrentIssue,
-  unpublishIssue,
-  updateIssue,
-} from "./actions";
+  CreateIssueForm,
+  IssueActionButtons,
+  UpdateIssueForm,
+} from "./IssueForms";
 
 function formatDate(value: Date | null | undefined) {
   if (!value) {
@@ -183,166 +179,7 @@ export default async function AdminIssuesPage() {
             </Link>
           </div>
         ) : (
-          <form action={createIssue} className="mt-6 grid gap-5 md:grid-cols-2">
-            <div className="md:col-span-2">
-              <label htmlFor="volumeId" className="mb-2 block font-semibold">
-                Volume
-              </label>
-
-              <select
-                id="volumeId"
-                name="volumeId"
-                required
-                defaultValue=""
-                className="w-full rounded-lg border p-3"
-              >
-                <option value="" disabled>
-                  Select volume
-                </option>
-
-                {volumes.map((volume) => (
-                  <option key={volume.id} value={volume.id}>
-                    {volume.journal.shortName} — Volume {volume.number} (
-                    {volume.year})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="number" className="mb-2 block font-semibold">
-                Issue Number
-              </label>
-
-              <input
-                id="number"
-                name="number"
-                type="number"
-                min={1}
-                required
-                className="w-full rounded-lg border p-3"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="title" className="mb-2 block font-semibold">
-                Issue Title
-              </label>
-
-              <input
-                id="title"
-                name="title"
-                className="w-full rounded-lg border p-3"
-                placeholder="Optional issue title"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label htmlFor="description" className="mb-2 block font-semibold">
-                Description
-              </label>
-
-              <textarea
-                id="description"
-                name="description"
-                rows={5}
-                className="w-full rounded-lg border p-3"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label htmlFor="editorial" className="mb-2 block font-semibold">
-                Editorial or Editor&apos;s Note
-              </label>
-
-              <textarea
-                id="editorial"
-                name="editorial"
-                rows={7}
-                className="w-full rounded-lg border p-3"
-                placeholder="Write the editor's introduction or note for this issue."
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label
-                htmlFor="coverImageFile"
-                className="mb-2 block font-semibold"
-              >
-                Cover Image
-              </label>
-
-              <input
-                id="coverImageFile"
-                name="coverImageFile"
-                type="file"
-                accept="image/png,image/jpeg"
-                className="w-full rounded-lg border p-3"
-              />
-
-              <p className="mt-2 text-sm text-gray-500">
-                PNG or JPEG, up to 5 MB. Or paste an already-hosted image
-                URL below instead.
-              </p>
-            </div>
-
-            <div className="md:col-span-2">
-              <label htmlFor="coverImage" className="mb-2 block font-semibold">
-                Cover Image URL
-              </label>
-
-              <input
-                id="coverImage"
-                name="coverImage"
-                type="url"
-                className="w-full rounded-lg border p-3"
-                placeholder="https://..."
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label
-                htmlFor="fullIssuePdf"
-                className="mb-2 block font-semibold"
-              >
-                Complete Issue PDF URL
-              </label>
-
-              <input
-                id="fullIssuePdf"
-                name="fullIssuePdf"
-                type="url"
-                className="w-full rounded-lg border p-3"
-                placeholder="https://example.com/complete-issue.pdf"
-              />
-
-              <p className="mt-2 text-sm text-gray-500">
-                Enter the URL of the PDF containing all articles in this issue.
-              </p>
-            </div>
-
-            <div>
-              <label htmlFor="publishedAt" className="mb-2 block font-semibold">
-                Planned Publication Date
-              </label>
-
-              <input
-                id="publishedAt"
-                name="publishedAt"
-                type="date"
-                className="w-full rounded-lg border p-3"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <button
-                type="submit"
-                className="rounded-lg bg-blue-700 px-6 py-3 font-semibold text-white hover:bg-blue-800"
-              >
-                Create Issue
-              </button>
-            </div>
-          </form>
+          <CreateIssueForm volumes={volumes} />
         )}
       </section>
 
@@ -482,206 +319,29 @@ export default async function AdminIssuesPage() {
                     </div>
                   )}
 
-                  <form
-                    action={updateIssue}
-                    className="mt-6 grid gap-4 md:grid-cols-2"
-                  >
-                    <input type="hidden" name="issueId" value={issue.id} />
-                    <div className="md:col-span-2">
-                      <label className="mb-2 block text-sm font-semibold">
-                        Issue Slug
-                      </label>
+                  <UpdateIssueForm
+                    issue={{
+                      id: issue.id,
+                      slug: issue.slug,
+                      title: issue.title,
+                      coverImage: issue.coverImage,
+                      fullIssuePdf: issue.fullIssuePdf,
+                      description: issue.description,
+                      editorial: issue.editorial,
+                      publishedAtInput: formatDateInput(
+                        issue.publishedAt,
+                      ),
+                    }}
+                  />
 
-                      <input
-                        name="slug"
-                        required
-                        defaultValue={issue.slug || ""}
-                        className="w-full rounded-lg border p-3 font-mono"
-                        placeholder="journal-volume-1-issue-1-2026"
-                      />
-
-                      <p className="mt-2 text-xs text-gray-500">
-                        Use lowercase words separated by hyphens. This becomes
-                        the public issue URL.
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="mb-2 block text-sm font-semibold">
-                        Title
-                      </label>
-
-                      <input
-                        name="title"
-                        defaultValue={issue.title || ""}
-                        className="w-full rounded-lg border p-3"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-2 block text-sm font-semibold">
-                        Replace Cover Image
-                      </label>
-
-                      <input
-                        name="coverImageFile"
-                        type="file"
-                        accept="image/png,image/jpeg"
-                        className="w-full rounded-lg border p-3"
-                      />
-
-                      <p className="mt-2 text-xs text-gray-500">
-                        PNG or JPEG, up to 5 MB. Uploading a file replaces
-                        the URL below.
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="mb-2 block text-sm font-semibold">
-                        Cover Image URL
-                      </label>
-
-                      <input
-                        name="coverImage"
-                        type="url"
-                        defaultValue={issue.coverImage || ""}
-                        className="w-full rounded-lg border p-3"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-2 block text-sm font-semibold">
-                        Complete Issue PDF URL
-                      </label>
-
-                      <input
-                        name="fullIssuePdf"
-                        type="url"
-                        defaultValue={issue.fullIssuePdf || ""}
-                        className="w-full rounded-lg border p-3"
-                        placeholder="https://example.com/complete-issue.pdf"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-2 block text-sm font-semibold">
-                        Publication Date
-                      </label>
-
-                      <input
-                        name="publishedAt"
-                        type="date"
-                        defaultValue={formatDateInput(issue.publishedAt)}
-                        className="w-full rounded-lg border p-3"
-                      />
-                    </div>
-
-                    <div className="md:col-span-2">
-                      <label className="mb-2 block text-sm font-semibold">
-                        Description
-                      </label>
-
-                      <textarea
-                        name="description"
-                        rows={4}
-                        defaultValue={issue.description || ""}
-                        className="w-full rounded-lg border p-3"
-                      />
-                    </div>
-
-                    <div className="md:col-span-2">
-                      <label className="mb-2 block text-sm font-semibold">
-                        Editorial or Editor&apos;s Note
-                      </label>
-
-                      <textarea
-                        name="editorial"
-                        rows={7}
-                        defaultValue={issue.editorial || ""}
-                        className="w-full rounded-lg border p-3"
-                      />
-                    </div>
-
-                    <div className="md:col-span-2">
-                      <button
-                        type="submit"
-                        className="rounded-lg bg-gray-800 px-5 py-3 font-semibold text-white hover:bg-black"
-                      >
-                        Save Changes
-                      </button>
-                    </div>
-                  </form>
-
-                  <div className="mt-6 flex flex-wrap gap-3">
-                    {!issue.isPublished ? (
-                      <form action={publishIssue}>
-                        <input type="hidden" name="issueId" value={issue.id} />
-
-                        <button
-                          type="submit"
-                          className="rounded-lg bg-green-700 px-5 py-3 font-semibold text-white hover:bg-green-800"
-                        >
-                          Publish Issue
-                        </button>
-                      </form>
-                    ) : (
-                      <form action={unpublishIssue}>
-                        <input type="hidden" name="issueId" value={issue.id} />
-
-                        <button
-                          type="submit"
-                          className="rounded-lg bg-yellow-600 px-5 py-3 font-semibold text-white hover:bg-yellow-700"
-                        >
-                          Unpublish Issue
-                        </button>
-                      </form>
-                    )}
-
-                    {issue.isPublished && !issue.isCurrent && (
-                      <form action={setCurrentIssue}>
-                        <input type="hidden" name="issueId" value={issue.id} />
-
-                        <button
-                          type="submit"
-                          className="rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"
-                        >
-                          Set as Current Issue
-                        </button>
-                      </form>
-                    )}
-
-                    {issue.isCurrent && (
-                      <form action={clearCurrentIssue}>
-                        <input type="hidden" name="issueId" value={issue.id} />
-
-                        <button
-                          type="submit"
-                          className="rounded-lg bg-indigo-700 px-5 py-3 font-semibold text-white hover:bg-indigo-800"
-                        >
-                          Clear Current Issue
-                        </button>
-                      </form>
-                    )}
-
-                    <Link
-                      href="/admin/articles"
-                      className="rounded-lg border border-blue-700 px-5 py-3 font-semibold text-blue-700 hover:bg-blue-50"
-                    >
-                      View Articles
-                    </Link>
-
-                    {issue.articles.length === 0 && (
-                      <form action={deleteIssue}>
-                        <input type="hidden" name="issueId" value={issue.id} />
-
-                        <button
-                          type="submit"
-                          className="rounded-lg bg-red-700 px-5 py-3 font-semibold text-white hover:bg-red-800"
-                        >
-                          Delete Issue
-                        </button>
-                      </form>
-                    )}
-                  </div>
+                  <IssueActionButtons
+                    issue={{
+                      id: issue.id,
+                      isPublished: issue.isPublished,
+                      isCurrent: issue.isCurrent,
+                      articleCount: issue.articles.length,
+                    }}
+                  />
                 </article>
               );
             })}

@@ -4,8 +4,36 @@ import { revalidatePath } from "next/cache";
 
 import { isSuperAdmin, requireAnyActionRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { uploadJournalFile } from "@/lib/storage/blob";
+
+export type IssueActionState = {
+  success: boolean;
+  message: string;
+};
+
+async function runIssueAction(
+  fn: () => Promise<string>,
+): Promise<IssueActionState> {
+  try {
+    const message = await fn();
+
+    return { success: true, message };
+  } catch (error) {
+    logger.error("Issue admin action failed", error, {
+      event: "ISSUE_ADMIN_ACTION_FAILED",
+    });
+
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Something went wrong. Please try again.",
+    };
+  }
+}
 
 /**
  * Uploads an issue cover image if one was provided in the form.
@@ -130,7 +158,11 @@ async function verifyIssueAdminPermission(
   }
 }
 
-export async function createIssue(formData: FormData) {
+export async function createIssue(
+  _previousState: IssueActionState,
+  formData: FormData,
+): Promise<IssueActionState> {
+  return runIssueAction(async () => {
   const administrator = await requireAnyActionRole(ADMIN_ROLES);
 
   const volumeId = String(formData.get("volumeId") || "").trim();
@@ -260,9 +292,16 @@ export async function createIssue(formData: FormData) {
   });
 
   refreshIssuePages();
+
+  return `Issue ${number} created in Volume ${volume.number}.`;
+  });
 }
 
-export async function updateIssue(formData: FormData) {
+export async function updateIssue(
+  _previousState: IssueActionState,
+  formData: FormData,
+): Promise<IssueActionState> {
+  return runIssueAction(async () => {
   const administrator = await requireAnyActionRole(ADMIN_ROLES);
 
   const issueId = String(formData.get("issueId") || "").trim();
@@ -388,9 +427,16 @@ export async function updateIssue(formData: FormData) {
   });
 
   refreshIssuePages();
+
+  return "Issue updated.";
+  });
 }
 
-export async function publishIssue(formData: FormData) {
+export async function publishIssue(
+  _previousState: IssueActionState,
+  formData: FormData,
+): Promise<IssueActionState> {
+  return runIssueAction(async () => {
   const administrator = await requireAnyActionRole(ADMIN_ROLES);
 
   const issueId = String(formData.get("issueId") || "").trim();
@@ -528,9 +574,16 @@ export async function publishIssue(formData: FormData) {
   });
 
   refreshIssuePages();
+
+  return "Issue published.";
+  });
 }
 
-export async function unpublishIssue(formData: FormData) {
+export async function unpublishIssue(
+  _previousState: IssueActionState,
+  formData: FormData,
+): Promise<IssueActionState> {
+  return runIssueAction(async () => {
   const administrator = await requireAnyActionRole(ADMIN_ROLES);
 
   const issueId = String(formData.get("issueId") || "").trim();
@@ -592,9 +645,16 @@ export async function unpublishIssue(formData: FormData) {
   });
 
   refreshIssuePages();
+
+  return "Issue unpublished.";
+  });
 }
 
-export async function setCurrentIssue(formData: FormData) {
+export async function setCurrentIssue(
+  _previousState: IssueActionState,
+  formData: FormData,
+): Promise<IssueActionState> {
+  return runIssueAction(async () => {
   const administrator = await requireAnyActionRole(ADMIN_ROLES);
 
   const issueId = String(formData.get("issueId") || "").trim();
@@ -668,9 +728,16 @@ export async function setCurrentIssue(formData: FormData) {
   });
 
   refreshIssuePages();
+
+  return "This issue is now the current issue.";
+  });
 }
 
-export async function clearCurrentIssue(formData: FormData) {
+export async function clearCurrentIssue(
+  _previousState: IssueActionState,
+  formData: FormData,
+): Promise<IssueActionState> {
+  return runIssueAction(async () => {
   const administrator = await requireAnyActionRole(ADMIN_ROLES);
 
   const issueId = String(formData.get("issueId") || "").trim();
@@ -729,9 +796,16 @@ export async function clearCurrentIssue(formData: FormData) {
   });
 
   refreshIssuePages();
+
+  return "Current issue cleared.";
+  });
 }
 
-export async function deleteIssue(formData: FormData) {
+export async function deleteIssue(
+  _previousState: IssueActionState,
+  formData: FormData,
+): Promise<IssueActionState> {
+  return runIssueAction(async () => {
   const administrator = await requireAnyActionRole(ADMIN_ROLES);
 
   const issueId = String(formData.get("issueId") || "").trim();
@@ -799,4 +873,7 @@ export async function deleteIssue(formData: FormData) {
   });
 
   refreshIssuePages();
+
+  return "Issue deleted.";
+  });
 }
