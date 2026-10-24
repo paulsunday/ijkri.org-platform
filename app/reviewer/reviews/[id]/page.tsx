@@ -6,10 +6,9 @@ import { REVIEWER_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 
 import {
-  acceptReview,
-  declineReview,
-  submitReview,
-} from "./actions";
+  InvitationResponseForms,
+  SubmitReviewForm,
+} from "./review-forms";
 
 type Props = {
   params: Promise<{
@@ -503,36 +502,10 @@ export default async function ReviewerReviewPage({
             invitation.
           </p>
 
-          <div className="mt-6 flex flex-wrap gap-4">
-            <form action={acceptReview}>
-              <input
-                type="hidden"
-                name="assignmentId"
-                value={assignment.id}
-              />
-
-              <button
-                type="submit"
-                className="rounded-lg bg-green-600 px-6 py-3 font-semibold text-white hover:bg-green-700"
-              >
-                Accept Review
-              </button>
-            </form>
-
-            <form action={declineReview}>
-              <input
-                type="hidden"
-                name="assignmentId"
-                value={assignment.id}
-              />
-
-              <button
-                type="submit"
-                className="rounded-lg bg-red-600 px-6 py-3 font-semibold text-white hover:bg-red-700"
-              >
-                Decline Review
-              </button>
-            </form>
+          <div className="mt-6">
+            <InvitationResponseForms
+              assignmentId={assignment.id}
+            />
           </div>
         </section>
       )}
@@ -544,136 +517,10 @@ export default async function ReviewerReviewPage({
             {assignment.reviewRound}
           </h2>
 
-          <form
-            action={submitReview}
-            encType="multipart/form-data"
-            className="mt-8 space-y-8"
-          >
-            <input
-              type="hidden"
-              name="assignmentId"
-              value={assignment.id}
-            />
-
-            <div>
-              <label
-                htmlFor="score"
-                className="mb-2 block font-semibold"
-              >
-                Overall Score (1–10)
-              </label>
-
-              <input
-                id="score"
-                type="number"
-                name="score"
-                min={1}
-                max={10}
-                step={1}
-                required
-                className="w-40 rounded-lg border p-3"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="recommendation"
-                className="mb-2 block font-semibold"
-              >
-                Recommendation
-              </label>
-
-              <select
-                id="recommendation"
-                name="recommendation"
-                required
-                defaultValue=""
-                className="w-full rounded-lg border p-3"
-              >
-                <option value="" disabled>
-                  Select recommendation
-                </option>
-                <option value="ACCEPT">
-                  Accept
-                </option>
-                <option value="MINOR_REVISION">
-                  Minor Revision
-                </option>
-                <option value="MAJOR_REVISION">
-                  Major Revision
-                </option>
-                <option value="REJECT">
-                  Reject
-                </option>
-              </select>
-            </div>
-
-            <div>
-              <label
-                htmlFor="commentsToAuthor"
-                className="mb-2 block font-semibold"
-              >
-                Comments to the Author
-              </label>
-
-              <textarea
-                id="commentsToAuthor"
-                name="commentsToAuthor"
-                rows={10}
-                required
-                className="w-full rounded-lg border p-3"
-                placeholder="Provide constructive comments that may be shared with the author."
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="commentsToEditor"
-                className="mb-2 block font-semibold"
-              >
-                Confidential Comments to the Editor
-              </label>
-
-              <textarea
-                id="commentsToEditor"
-                name="commentsToEditor"
-                rows={7}
-                className="w-full rounded-lg border p-3"
-                placeholder="Optional confidential comments for the editor."
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="attachments"
-                className="mb-2 block font-semibold"
-              >
-                Reviewer Attachments (Optional)
-              </label>
-
-              <input
-                id="attachments"
-                name="attachments"
-                type="file"
-                multiple
-                accept=".pdf,.doc,.docx"
-                className="block w-full rounded-lg border p-3"
-              />
-
-              <p className="mt-2 text-sm text-gray-500">
-                Upload annotated manuscripts or any supporting review
-                documents. Maximum 5 files.
-              </p>
-            </div>
-
-            <button
-              type="submit"
-              className="rounded-lg bg-blue-700 px-8 py-3 font-semibold text-white hover:bg-blue-800"
-            >
-              Submit Round{" "}
-              {assignment.reviewRound} Review
-            </button>
-          </form>
+          <SubmitReviewForm
+            assignmentId={assignment.id}
+            reviewRound={assignment.reviewRound}
+          />
         </section>
       )}
 

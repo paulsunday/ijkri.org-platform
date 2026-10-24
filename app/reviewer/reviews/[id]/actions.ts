@@ -29,6 +29,14 @@ const ALLOWED_ATTACHMENT_TYPES = new Set([
 
 const ALLOWED_ATTACHMENT_EXTENSIONS = new Set(["pdf", "doc", "docx"]);
 
+export type ReviewActionState = {
+  success: boolean;
+  message: string;
+};
+
+const REVIEW_ALREADY_SUBMITTED_MESSAGE =
+  "This review has already been submitted or is no longer available.";
+
 /**
  * An `<input type="file" multiple>` control that has no files selected
  * still produces one FormData entry for the "attachments" field. That
@@ -95,14 +103,28 @@ function refreshReviewPages(assignmentId: string, submissionId?: string) {
   }
 }
 
-export async function acceptReview(formData: FormData) {
+export async function acceptReview(
+  _previousState: ReviewActionState,
+  formData: FormData,
+): Promise<ReviewActionState> {
   const reviewer = await requireAnyActionRole(REVIEWER_ROLES);
   const assignmentId = String(formData.get("assignmentId") || "").trim();
 
   if (!assignmentId) {
-    throw new Error("Review assignment ID is missing.");
+    return { success: false, message: "Review assignment ID is missing." };
   }
-  await enforceReviewerRateLimit("accept", reviewer.id, assignmentId);
+
+  try {
+    await enforceReviewerRateLimit("accept", reviewer.id, assignmentId);
+  } catch (error) {
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Too many requests. Please wait before trying again.",
+    };
+  }
 
   const assignment = await prisma.reviewAssignment.findFirst({
     where: {
@@ -120,60 +142,97 @@ export async function acceptReview(formData: FormData) {
   });
 
   if (!assignment) {
-    throw new Error("Review assignment not found.");
+    return { success: false, message: "Review assignment not found." };
   }
 
   if (assignment.status !== "INVITED") {
-    throw new Error(
-      `This invitation cannot be accepted because its current status is ${assignment.status
+    return {
+      success: false,
+      message: `This invitation cannot be accepted because its current status is ${assignment.status
         .replaceAll("_", " ")
         .toLowerCase()}.`,
-    );
+    };
   }
 
-  await prisma.$transaction(async (tx) => {
-    const result = await tx.reviewAssignment.updateMany({
-      where: {
-        id: assignmentId,
-        reviewerId: reviewer.id,
-        status: "INVITED",
-      },
-      data: {
-        status: "ACCEPTED",
-        acceptedAt: new Date(),
-      },
-    });
-
-    if (result.count !== 1) {
-      throw new Error("This review invitation has already been processed.");
-    }
-
-    await tx.activityLog.create({
-      data: {
-        userId: reviewer.id,
-        action: "UPDATE",
-        entity: "ReviewAssignment",
-        entityId: assignmentId,
-        metadata: {
-          event: "REVIEW_INVITATION_ACCEPTED",
-          submissionId: assignment.submissionId,
-          reviewRound: assignment.reviewRound,
+  try {
+    await prisma.$transaction(async (tx) => {
+      const result = await tx.reviewAssignment.updateMany({
+        where: {
+          id: assignmentId,
+          reviewerId: reviewer.id,
+          status: "INVITED",
         },
-      },
+        data: {
+          status: "ACCEPTED",
+          acceptedAt: new Date(),
+        },
+      });
+
+      if (result.count !== 1) {
+        throw new Error("This review invitation has already been processed.");
+      }
+
+      await tx.activityLog.create({
+        data: {
+          userId: reviewer.id,
+          action: "UPDATE",
+          entity: "ReviewAssignment",
+          entityId: assignmentId,
+          metadata: {
+            event: "REVIEW_INVITATION_ACCEPTED",
+            submissionId: assignment.submissionId,
+            reviewRound: assignment.reviewRound,
+          },
+        },
+      });
     });
-  });
+  } catch (error) {
+    logger.error("Failed to accept review invitation", error, {
+      event: "REVIEW_INVITATION_ACCEPT_FAILED",
+      reviewerId: reviewer.id,
+      assignmentId,
+    });
+
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Something went wrong while accepting this invitation. Please try again.",
+    };
+  }
 
   refreshReviewPages(assignmentId, assignment.submissionId);
+
+  return {
+    success: true,
+    message: "You have accepted this review invitation.",
+  };
 }
 
-export async function declineReview(formData: FormData) {
+export async function declineReview(
+  _previousState: ReviewActionState,
+  formData: FormData,
+): Promise<ReviewActionState> {
   const reviewer = await requireAnyActionRole(REVIEWER_ROLES);
   const assignmentId = String(formData.get("assignmentId") || "").trim();
 
   if (!assignmentId) {
-    throw new Error("Review assignment ID is missing.");
+    return { success: false, message: "Review assignment ID is missing." };
   }
-  await enforceReviewerRateLimit("decline", reviewer.id, assignmentId);
+
+  try {
+    await enforceReviewerRateLimit("decline", reviewer.id, assignmentId);
+  } catch (error) {
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Too many requests. Please wait before trying again.",
+    };
+  }
+
   const assignment = await prisma.reviewAssignment.findFirst({
     where: {
       id: assignmentId,
@@ -205,70 +264,95 @@ export async function declineReview(formData: FormData) {
   });
 
   if (!assignment) {
-    throw new Error("Review assignment not found.");
+    return { success: false, message: "Review assignment not found." };
   }
 
   if (assignment.status !== "INVITED") {
-    throw new Error(
-      `This invitation cannot be declined because its current status is ${assignment.status
+    return {
+      success: false,
+      message: `This invitation cannot be declined because its current status is ${assignment.status
         .replaceAll("_", " ")
         .toLowerCase()}.`,
-    );
+    };
   }
 
   const editorId = assignment.submission.decisions[0]?.editorId;
 
-  await prisma.$transaction(async (tx) => {
-    const result = await tx.reviewAssignment.updateMany({
-      where: {
-        id: assignmentId,
-        reviewerId: reviewer.id,
-        status: "INVITED",
-      },
-      data: {
-        status: "DECLINED",
-        completedAt: new Date(),
-      },
-    });
-
-    if (result.count !== 1) {
-      throw new Error("This review invitation has already been processed.");
-    }
-
-    if (editorId) {
-      await tx.notification.create({
+  try {
+    await prisma.$transaction(async (tx) => {
+      const result = await tx.reviewAssignment.updateMany({
+        where: {
+          id: assignmentId,
+          reviewerId: reviewer.id,
+          status: "INVITED",
+        },
         data: {
-          userId: editorId,
-          type: "REVIEW",
-          title: "Reviewer declined invitation",
-          message:
-            `A reviewer declined the invitation for ` +
-            `"${assignment.submission.title}" in review round ` +
-            `${assignment.reviewRound}.`,
-          link: `/editor/submissions/${assignment.submissionId}/reviewers`,
+          status: "DECLINED",
+          completedAt: new Date(),
         },
       });
-    }
 
-    await tx.activityLog.create({
-      data: {
-        userId: reviewer.id,
-        action: "UPDATE",
-        entity: "ReviewAssignment",
-        entityId: assignmentId,
-        metadata: {
-          event: "REVIEW_INVITATION_DECLINED",
-          submissionId: assignment.submissionId,
-          reviewRound: assignment.reviewRound,
+      if (result.count !== 1) {
+        throw new Error("This review invitation has already been processed.");
+      }
+
+      if (editorId) {
+        await tx.notification.create({
+          data: {
+            userId: editorId,
+            type: "REVIEW",
+            title: "Reviewer declined invitation",
+            message:
+              `A reviewer declined the invitation for ` +
+              `"${assignment.submission.title}" in review round ` +
+              `${assignment.reviewRound}.`,
+            link: `/editor/submissions/${assignment.submissionId}/reviewers`,
+          },
+        });
+      }
+
+      await tx.activityLog.create({
+        data: {
+          userId: reviewer.id,
+          action: "UPDATE",
+          entity: "ReviewAssignment",
+          entityId: assignmentId,
+          metadata: {
+            event: "REVIEW_INVITATION_DECLINED",
+            submissionId: assignment.submissionId,
+            reviewRound: assignment.reviewRound,
+          },
         },
-      },
+      });
     });
-  });
+  } catch (error) {
+    logger.error("Failed to decline review invitation", error, {
+      event: "REVIEW_INVITATION_DECLINE_FAILED",
+      reviewerId: reviewer.id,
+      assignmentId,
+    });
+
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Something went wrong while declining this invitation. Please try again.",
+    };
+  }
 
   refreshReviewPages(assignmentId, assignment.submissionId);
+
+  return {
+    success: true,
+    message: "You have declined this review invitation.",
+  };
 }
 
-export async function submitReview(formData: FormData) {
+export async function submitReview(
+  _previousState: ReviewActionState,
+  formData: FormData,
+): Promise<ReviewActionState> {
   const reviewer = await requireAnyActionRole(REVIEWER_ROLES);
 
   const assignmentId = String(formData.get("assignmentId") || "").trim();
@@ -293,62 +377,100 @@ export async function submitReview(formData: FormData) {
   );
 
   if (!assignmentId) {
-    throw new Error("Review assignment ID is missing.");
+    return { success: false, message: "Review assignment ID is missing." };
   }
-  await enforceReviewerRateLimit("submit", reviewer.id, assignmentId);
+
+  try {
+    await enforceReviewerRateLimit("submit", reviewer.id, assignmentId);
+  } catch (error) {
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Too many requests. Please wait before trying again.",
+    };
+  }
 
   if (attachmentFiles.length > MAX_ATTACHMENTS) {
-    throw new Error(
-      `You may upload a maximum of ${MAX_ATTACHMENTS} review attachments.`,
-    );
+    return {
+      success: false,
+      message: `You may upload a maximum of ${MAX_ATTACHMENTS} review attachments.`,
+    };
   }
 
   for (const file of attachmentFiles) {
     if (file.size === 0) {
-      throw new Error(`${file.name} is empty and cannot be uploaded.`);
+      return {
+        success: false,
+        message: `${file.name} is empty and cannot be uploaded.`,
+      };
     }
 
     if (file.size > MAX_ATTACHMENT_SIZE) {
-      throw new Error(`${file.name} exceeds the maximum file size of 20 MB.`);
+      return {
+        success: false,
+        message: `${file.name} exceeds the maximum file size of 20 MB.`,
+      };
     }
 
     const extension = getFileExtension(file.name);
 
     if (!extension) {
-      throw new Error(`${file.name} does not have a valid file extension.`);
+      return {
+        success: false,
+        message: `${file.name} does not have a valid file extension.`,
+      };
     }
 
     if (!ALLOWED_ATTACHMENT_EXTENSIONS.has(extension)) {
-      throw new Error(
-        `${file.name} is not an accepted review attachment. Upload PDF, DOC, or DOCX files only.`,
-      );
+      return {
+        success: false,
+        message: `${file.name} is not an accepted review attachment. Upload PDF, DOC, or DOCX files only.`,
+      };
     }
 
     if (!ALLOWED_ATTACHMENT_TYPES.has(file.type)) {
-      throw new Error(
-        `${file.name} has an invalid file type. Upload PDF, DOC, or DOCX files only.`,
-      );
+      return {
+        success: false,
+        message: `${file.name} has an invalid file type. Upload PDF, DOC, or DOCX files only.`,
+      };
     }
 
-    await validateFileSignature(file, extension);
+    try {
+      await validateFileSignature(file, extension);
+    } catch (error) {
+      return {
+        success: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : `${file.name} could not be verified and was not uploaded.`,
+      };
+    }
   }
 
   if (commentsToAuthor.length > MAX_REVIEW_COMMENT_LENGTH) {
-    throw new Error(
-      "Comments to the author must not exceed 25,000 characters.",
-    );
+    return {
+      success: false,
+      message: "Comments to the author must not exceed 25,000 characters.",
+    };
   }
 
   if (commentsToEditor.length > MAX_REVIEW_COMMENT_LENGTH) {
-    throw new Error(
-      "Comments to the editor must not exceed 25,000 characters.",
-    );
+    return {
+      success: false,
+      message: "Comments to the editor must not exceed 25,000 characters.",
+    };
   }
 
   const score = Number(scoreValue);
 
   if (!Number.isInteger(score) || score < 1 || score > 10) {
-    throw new Error("Overall score must be a whole number between 1 and 10.");
+    return {
+      success: false,
+      message: "Overall score must be a whole number between 1 and 10.",
+    };
   }
 
   const validRecommendations = [
@@ -361,11 +483,11 @@ export async function submitReview(formData: FormData) {
   type ReviewRecommendation = (typeof validRecommendations)[number];
 
   if (!validRecommendations.includes(recommendation as ReviewRecommendation)) {
-    throw new Error("Please select a valid recommendation.");
+    return { success: false, message: "Please select a valid recommendation." };
   }
 
   if (!commentsToAuthor) {
-    throw new Error("Please enter comments to the author.");
+    return { success: false, message: "Please enter comments to the author." };
   }
 
   const assignment = await prisma.reviewAssignment.findFirst({
@@ -409,19 +531,22 @@ export async function submitReview(formData: FormData) {
   });
 
   if (!assignment) {
-    throw new Error("Review assignment not found.");
+    return { success: false, message: "Review assignment not found." };
   }
 
   if (assignment.status !== "ACCEPTED") {
-    throw new Error(
-      "You must accept the review invitation before submitting a report.",
-    );
+    return {
+      success: false,
+      message:
+        "You must accept the review invitation before submitting a report.",
+    };
   }
 
   if (assignment.review) {
-    throw new Error(
-      "A review report has already been submitted for this assignment.",
-    );
+    return {
+      success: false,
+      message: "A review report has already been submitted for this assignment.",
+    };
   }
 
   const editorId = assignment.submission.decisions[0]?.editorId;
@@ -467,9 +592,7 @@ export async function submitReview(formData: FormData) {
       });
 
       if (assignmentUpdate.count !== 1) {
-        throw new Error(
-          "This review has already been submitted or is no longer available.",
-        );
+        throw new Error(REVIEW_ALREADY_SUBMITTED_MESSAGE);
       }
 
       const review = await tx.review.create({
@@ -635,7 +758,12 @@ export async function submitReview(formData: FormData) {
       attachmentCount: uploadedAttachments.length,
     });
 
-    throw error;
+    const message =
+      error instanceof Error && error.message === REVIEW_ALREADY_SUBMITTED_MESSAGE
+        ? REVIEW_ALREADY_SUBMITTED_MESSAGE
+        : "We couldn't submit your review due to an unexpected error. Please try again, and contact the editorial office if this keeps happening.";
+
+    return { success: false, message };
   }
 
   refreshReviewPages(assignmentId, assignment.submissionId);
@@ -676,4 +804,9 @@ export async function submitReview(formData: FormData) {
       });
     }
   }
+
+  return {
+    success: true,
+    message: `Your Round ${assignment.reviewRound} review has been submitted successfully.`,
+  };
 }
