@@ -41,12 +41,14 @@ const REVIEW_ALREADY_SUBMITTED_MESSAGE =
  * An `<input type="file" multiple>` control that has no files selected
  * still produces one FormData entry for the "attachments" field. That
  * placeholder is a zero-byte File. Depending on the browser/runtime it
- * shows up with an empty name, or — per the Fetch spec's multipart/
- * form-data encoding algorithm, which names a bare Blob "blob" when it
- * has no File.name — with the literal generic name "blob". Either way it
- * is not a real attachment the reviewer selected and must not be treated
- * as one (it would otherwise fail the size check below on every review
- * submitted without an attachment).
+ * shows up with an empty name, with the literal generic name "blob" —
+ * per the Fetch spec's multipart/form-data encoding algorithm, which
+ * names a bare Blob "blob" when it has no File.name — or, observed on
+ * Next.js's server-action multipart parser in production, with the
+ * literal string "undefined". None of these is a real attachment the
+ * reviewer selected and must not be treated as one (it would otherwise
+ * fail the size check below on every review submitted without an
+ * attachment).
  *
  * A genuinely empty file the reviewer actually picked keeps its real
  * filename (e.g. "notes.pdf"), so it is not mistaken for this
@@ -55,7 +57,10 @@ const REVIEW_ALREADY_SUBMITTED_MESSAGE =
  */
 function isPlaceholderFileEntry(file: File): boolean {
   const name = file.name.trim().toLowerCase();
-  return file.size === 0 && (name.length === 0 || name === "blob");
+  return (
+    file.size === 0 &&
+    (name.length === 0 || name === "blob" || name === "undefined")
+  );
 }
 
 function getFileExtension(fileName: string): string {
