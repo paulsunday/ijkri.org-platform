@@ -1316,6 +1316,104 @@ export function manuscriptAcceptedEmail({
   };
 }
 
+export function manuscriptReceivedEmail({
+  authorName,
+  journalName: selectedJournalName,
+  manuscriptTitle,
+  manuscriptDisplayId,
+  submissionUrl,
+}: {
+  authorName: string;
+  journalName: string;
+  manuscriptTitle: string;
+  manuscriptDisplayId: string;
+  submissionUrl: string;
+}) {
+  const safeAuthorName = escapeHtml(authorName);
+  const safeJournalName = escapeHtml(
+    selectedJournalName,
+  );
+  const safeManuscriptTitle = escapeHtml(
+    manuscriptTitle,
+  );
+  const safeDisplayId = escapeHtml(
+    manuscriptDisplayId,
+  );
+
+  return {
+    subject: `${journalShortName}: Manuscript received (${manuscriptDisplayId})`,
+
+    text: [
+      `Hello ${authorName},`,
+      "",
+      `We have received your manuscript submitted to ${selectedJournalName}.`,
+      "",
+      `Manuscript ID: ${manuscriptDisplayId}`,
+      `Title: ${manuscriptTitle}`,
+      "",
+      "What happens next:",
+      "1. Editorial screening to confirm the manuscript fits the journal's scope and formatting requirements.",
+      "2. If it passes screening, it is assigned to independent reviewers for double-blind peer review.",
+      "3. You will be notified by email of the outcome of each stage.",
+      "",
+      `Please quote the manuscript ID ${manuscriptDisplayId} in any correspondence about this submission.`,
+      "",
+      `View your submission: ${submissionUrl}`,
+    ].join("\n"),
+
+    html: emailLayout({
+      heading: "Manuscript received",
+      content: `
+        <p>Hello ${safeAuthorName},</p>
+
+        <p>
+          Thank you for submitting your manuscript to
+          <strong>${safeJournalName}</strong>. This email
+          confirms that we have received it.
+        </p>
+
+        ${informationBox({
+        title: "Manuscript ID",
+        content: `<strong>${safeDisplayId}</strong>`,
+      })}
+
+        ${informationBox({
+        title: "Manuscript title",
+        content: safeManuscriptTitle,
+      })}
+
+        <p><strong>What happens next:</strong></p>
+
+        <ol>
+          <li>
+            Editorial screening to confirm the manuscript fits
+            the journal's scope and formatting requirements.
+          </li>
+          <li>
+            If it passes screening, it is assigned to
+            independent reviewers for double-blind peer review.
+          </li>
+          <li>
+            You will be notified by email of the outcome of
+            each stage.
+          </li>
+        </ol>
+
+        <p>
+          Please quote the manuscript ID
+          <strong>${safeDisplayId}</strong> in any correspondence
+          about this submission.
+        </p>
+
+        ${emailButton({
+        url: submissionUrl,
+        label: "View Submission",
+      })}
+      `,
+    }),
+  };
+}
+
 export function manuscriptRejectedEmail({
   authorName,
   journalName: selectedJournalName,

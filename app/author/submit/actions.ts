@@ -23,7 +23,10 @@ import { recordReferralEvent } from "@/lib/ambassador/referral-events";
 import { creditWallet } from "@/lib/ambassador/wallet";
 import { getRewardSettings } from "@/lib/ambassador/reward-settings";
 import { sendEmail } from "@/lib/email/send-email";
-import { referralSubmittedEmail } from "@/lib/email/templates";
+import {
+  manuscriptReceivedEmail,
+  referralSubmittedEmail,
+} from "@/lib/email/templates";
 import { resolveActiveCampaignBonus } from "@/lib/campaigns/resolve-active-campaign";
 import { applyCampaignBonus } from "@/lib/campaigns/apply-campaign-bonus";
 
@@ -472,6 +475,7 @@ export async function submitManuscript(
       select: {
         id: true,
         slug: true,
+        name: true,
         tenantId: true,
         isActive: true,
       },
@@ -770,6 +774,33 @@ export async function submitManuscript(
   revalidatePath(
     `/author/submissions/${submissionId}`,
   );
+
+  const appUrlForConfirmation = (
+    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+  ).replace(/\/+$/, "");
+
+  const confirmationEmailContent = manuscriptReceivedEmail({
+    authorName: submittingUser.name,
+    journalName: journal.name,
+    manuscriptTitle: title,
+    manuscriptDisplayId,
+    submissionUrl: `${appUrlForConfirmation}/author/submissions/${submissionId}`,
+  });
+
+  try {
+    await sendEmail({
+      to: submittingUser.email,
+      subject: confirmationEmailContent.subject,
+      html: confirmationEmailContent.html,
+      text: confirmationEmailContent.text,
+    });
+  } catch (error) {
+    logger.error("Manuscript received confirmation email failed", error, {
+      event: "MANUSCRIPT_RECEIVED_EMAIL_FAILED",
+      userId: submittingUser.id,
+      submissionId,
+    });
+  }
 
   if (referral) {
     const referringReviewer = await prisma.user.findUnique({
