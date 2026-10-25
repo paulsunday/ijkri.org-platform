@@ -43,6 +43,7 @@ function statusBadgeClass(status: string) {
     case "PUBLISHED":
     case "ACCEPTED":
     case "PAID":
+    case "SIGNED":
       return "border-green-200 bg-green-50 text-green-800";
 
     case "REJECTED":
@@ -50,15 +51,18 @@ function statusBadgeClass(status: string) {
     case "OVERDUE":
     case "FAILED":
     case "CANCELLED":
+    case "DECLINED":
       return "border-red-200 bg-red-50 text-red-800";
 
     case "REVISION_REQUIRED":
     case "PENDING":
     case "PROCESSING":
+    case "PARTIALLY_SIGNED":
       return "border-amber-200 bg-amber-50 text-amber-800";
 
     case "UNDER_PEER_REVIEW":
     case "UNDER_INITIAL_REVIEW":
+    case "SENT":
       return "border-blue-200 bg-blue-50 text-blue-800";
 
     case "WAIVED":
@@ -154,6 +158,9 @@ export default async function AdminSubmissionsPage({
               select: { status: true },
             },
           },
+        },
+        agreement: {
+          select: { status: true },
         },
       },
     }),
@@ -260,6 +267,7 @@ export default async function AdminSubmissionsPage({
                 <th className="p-3">Status</th>
                 <th className="p-3">Invoice</th>
                 <th className="p-3">Payment</th>
+                <th className="p-3">Agreement</th>
                 <th className="p-3">Submitted</th>
                 <th className="p-3">Action</th>
               </tr>
@@ -272,6 +280,8 @@ export default async function AdminSubmissionsPage({
 
                 const invoiceStatus: InvoiceStatus | null =
                   submission.invoice?.status ?? null;
+
+                const agreementStatus = submission.agreement?.status ?? null;
 
                 return (
                   <tr
@@ -308,6 +318,13 @@ export default async function AdminSubmissionsPage({
                       )}
                     </td>
                     <td className="p-3">
+                      {agreementStatus ? (
+                        <StatusPill status={agreementStatus} />
+                      ) : (
+                        <span className="text-slate-400">Not sent</span>
+                      )}
+                    </td>
+                    <td className="p-3">
                       {submission.submittedAt
                         ? submission.submittedAt.toLocaleDateString()
                         : "—"}
@@ -327,7 +344,7 @@ export default async function AdminSubmissionsPage({
               {submissions.length === 0 && (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={10}
                     className="p-8 text-center text-slate-500"
                   >
                     No submissions match your filters.
