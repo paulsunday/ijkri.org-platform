@@ -2,6 +2,8 @@ import { randomUUID } from "crypto";
 
 import { Prisma } from "@/lib/generated/prisma";
 
+import { sendPublicationAgreement } from "@/lib/agreements/send-agreement";
+import { logger } from "@/lib/logger";
 import { notifyStaffActionNeeded } from "@/lib/notifications/notify-staff";
 import { sendChatNotification } from "@/lib/notifications/notify-webhook";
 import { prisma } from "@/lib/prisma";
@@ -690,6 +692,23 @@ export async function completePayment(
                 ? `${getAppUrl()}/admin/invoices/${payment.invoice.id}`
                 : `${getAppUrl()}/admin/payments/${payment.id}`,
         });
+
+        if (payment.purpose === "APC" && payment.invoice) {
+            try {
+                await sendPublicationAgreement(
+                    payment.invoice.submissionId,
+                );
+            } catch (error) {
+                logger.error(
+                    "Failed to send publication agreement after payment",
+                    error,
+                    {
+                        event: "AGREEMENT_SEND_FAILED",
+                        submissionId: payment.invoice.submissionId,
+                    },
+                );
+            }
+        }
     }
 
     return result;

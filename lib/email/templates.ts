@@ -2058,3 +2058,124 @@ export function eventRegistrationNotificationEmail({
     }),
   };
 }
+
+export function agreementSigningRequestEmail({
+  signerName,
+  journalName: selectedJournalName,
+  manuscriptTitle,
+  manuscriptDisplayId,
+  signingUrl,
+}: {
+  signerName: string;
+  journalName: string;
+  manuscriptTitle: string;
+  manuscriptDisplayId: string;
+  signingUrl: string;
+}) {
+  const safeSignerName = escapeHtml(signerName);
+  const safeJournalName = escapeHtml(selectedJournalName);
+  const safeManuscriptTitle = escapeHtml(manuscriptTitle);
+  const safeDisplayId = escapeHtml(manuscriptDisplayId);
+
+  return {
+    subject: `${journalShortName}: Please sign the publication agreement (${manuscriptDisplayId})`,
+
+    text: [
+      `Hello ${signerName},`,
+      "",
+      `Your manuscript submitted to ${selectedJournalName} has had its ` +
+        "Article Processing Charge settled, and is ready to proceed to " +
+        "production. Before that can happen, the publication agreement for " +
+        "this manuscript needs your signature.",
+      "",
+      `Manuscript ID: ${manuscriptDisplayId}`,
+      `Title: ${manuscriptTitle}`,
+      "",
+      `Review and sign the agreement: ${signingUrl}`,
+    ].join("\n"),
+
+    html: emailLayout({
+      heading: "Signature required: publication agreement",
+      content: `
+        <p>Hello ${safeSignerName},</p>
+
+        <p>
+          Your manuscript submitted to <strong>${safeJournalName}</strong>
+          has had its Article Processing Charge settled, and is ready to
+          proceed to production. Before that can happen, the publication
+          agreement for this manuscript needs your signature.
+        </p>
+
+        ${informationBox({
+        title: "Manuscript",
+        content: `${safeDisplayId} — ${safeManuscriptTitle}`,
+      })}
+
+        ${emailButton({
+        url: signingUrl,
+        label: "Review and Sign Agreement",
+      })}
+      `,
+    }),
+  };
+}
+
+export function agreementFullySignedEmail({
+  authorName,
+  journalName: selectedJournalName,
+  manuscriptTitle,
+  manuscriptDisplayId,
+  submissionUrl,
+}: {
+  authorName: string;
+  journalName: string;
+  manuscriptTitle: string;
+  manuscriptDisplayId: string;
+  submissionUrl: string;
+}) {
+  const safeAuthorName = escapeHtml(authorName);
+  const safeJournalName = escapeHtml(selectedJournalName);
+  const safeManuscriptTitle = escapeHtml(manuscriptTitle);
+  const safeDisplayId = escapeHtml(manuscriptDisplayId);
+
+  return {
+    subject: `${journalShortName}: Publication agreement fully signed (${manuscriptDisplayId})`,
+
+    text: [
+      `Hello ${authorName},`,
+      "",
+      `The publication agreement for "${manuscriptTitle}" ` +
+        `(${manuscriptDisplayId}) submitted to ${selectedJournalName} has ` +
+        "now been signed by all required signers.",
+      "",
+      "Your manuscript will now proceed into production.",
+      "",
+      `View your submission: ${submissionUrl}`,
+    ].join("\n"),
+
+    html: emailLayout({
+      heading: "Agreement fully signed",
+      content: `
+        <p>Hello ${safeAuthorName},</p>
+
+        <p>
+          The publication agreement for your manuscript submitted to
+          <strong>${safeJournalName}</strong> has now been signed by all
+          required signers.
+        </p>
+
+        ${informationBox({
+        title: "Manuscript",
+        content: `${safeDisplayId} — ${safeManuscriptTitle}`,
+      })}
+
+        <p>Your manuscript will now proceed into production.</p>
+
+        ${emailButton({
+        url: submissionUrl,
+        label: "View Submission",
+      })}
+      `,
+    }),
+  };
+}
