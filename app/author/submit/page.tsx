@@ -383,6 +383,118 @@ export default async function SubmitManuscriptPage({
 
         </div>
 
+        {/* ===========================
+            DECLARATIONS
+        ============================ */}
+
+        <div className="rounded-xl border p-6 bg-gray-50 space-y-4">
+          <h2 className="text-2xl font-semibold">
+            Declarations
+          </h2>
+
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              name="declarationOriginalWork"
+              required
+              className="mt-1"
+            />
+            <span>
+              This manuscript is original work and has not
+              been published elsewhere, in whole or in part.
+            </span>
+          </label>
+
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              name="declarationNotUnderReview"
+              required
+              className="mt-1"
+            />
+            <span>
+              This manuscript is not currently under review
+              at another journal.
+            </span>
+          </label>
+
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              name="declarationConflictOfInterest"
+              required
+              className="mt-1"
+            />
+            <span>
+              I have disclosed any competing or conflicting
+              interests relevant to this manuscript (financial,
+              professional, or personal), either here or in the
+              cover letter.
+            </span>
+          </label>
+
+          <div className="space-y-2">
+            <p className="font-medium">
+              Ethics approval
+            </p>
+
+            <label className="flex items-start gap-3">
+              <input
+                type="radio"
+                name="declarationEthicsApproval"
+                value="OBTAINED"
+                required
+                className="mt-1"
+              />
+              <span>
+                This study required ethics approval, and we
+                obtained it.
+              </span>
+            </label>
+
+            <label className="flex items-start gap-3">
+              <input
+                type="radio"
+                name="declarationEthicsApproval"
+                value="NOT_APPLICABLE"
+                required
+                className="mt-1"
+              />
+              <span>
+                This study did not require ethics approval.
+              </span>
+            </label>
+          </div>
+
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              name="declarationPolicyConsent"
+              required
+              className="mt-1"
+            />
+            <span>
+              I have read and agree to the journal&apos;s{" "}
+              <a
+                href="/author-guidelines"
+                target="_blank"
+                className="underline"
+              >
+                author guidelines
+              </a>{" "}
+              and{" "}
+              <a
+                href="/publication-ethics"
+                target="_blank"
+                className="underline"
+              >
+                publication ethics policy
+              </a>
+              .
+            </span>
+          </label>
+        </div>
+
         <button
           type="submit"
           className="rounded-lg bg-black px-8 py-3 font-semibold text-white hover:bg-gray-800"

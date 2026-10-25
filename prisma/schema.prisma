@@ -603,6 +603,19 @@ model Submission {
   status                SubmissionStatus       @default(DRAFT)
   coverLetter           String?
   submittedAt           DateTime?
+
+  /*
+   * Author declarations captured at submission time. "OBTAINED" or
+   * "NOT_APPLICABLE" for ethics approval (plain String rather than a
+   * new enum, since this is informational, not a workflow state).
+   */
+  declarationOriginalWork       Boolean?
+  declarationNotUnderReview     Boolean?
+  declarationConflictOfInterest Boolean?
+  declarationEthicsApproval     String?
+  declarationPolicyConsent      Boolean?
+  declarationsAcceptedAt        DateTime?
+
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
   currentReviewRound    Int                    @default(1)

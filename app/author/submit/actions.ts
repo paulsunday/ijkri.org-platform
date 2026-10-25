@@ -317,6 +317,75 @@ function readSubmissionAuthors(
   return authors;
 }
 
+type SubmittedDeclarations = {
+  originalWork: boolean;
+  notUnderReview: boolean;
+  conflictOfInterest: boolean;
+  ethicsApproval: "OBTAINED" | "NOT_APPLICABLE";
+  policyConsent: boolean;
+};
+
+function readDeclarations(
+  formData: FormData,
+): SubmittedDeclarations {
+  const originalWork =
+    formData.get("declarationOriginalWork") === "on";
+
+  const notUnderReview =
+    formData.get("declarationNotUnderReview") === "on";
+
+  const conflictOfInterest =
+    formData.get("declarationConflictOfInterest") === "on";
+
+  const policyConsent =
+    formData.get("declarationPolicyConsent") === "on";
+
+  const ethicsApprovalValue = String(
+    formData.get("declarationEthicsApproval") || "",
+  );
+
+  if (!originalWork) {
+    throw new Error(
+      "Please confirm that this manuscript is original work.",
+    );
+  }
+
+  if (!notUnderReview) {
+    throw new Error(
+      "Please confirm that this manuscript is not under review elsewhere.",
+    );
+  }
+
+  if (!conflictOfInterest) {
+    throw new Error(
+      "Please confirm the conflict-of-interest declaration.",
+    );
+  }
+
+  if (
+    ethicsApprovalValue !== "OBTAINED" &&
+    ethicsApprovalValue !== "NOT_APPLICABLE"
+  ) {
+    throw new Error(
+      "Please select an ethics approval declaration.",
+    );
+  }
+
+  if (!policyConsent) {
+    throw new Error(
+      "Please confirm that you agree to the journal's policies.",
+    );
+  }
+
+  return {
+    originalWork,
+    notUnderReview,
+    conflictOfInterest,
+    ethicsApproval: ethicsApprovalValue,
+    policyConsent,
+  };
+}
+
 function validateManuscriptFile(
   manuscriptFile: File,
 ) {
@@ -450,6 +519,9 @@ export async function submitManuscript(
 
   const manuscriptAuthors =
     readSubmissionAuthors(formData);
+
+  const declarations =
+    readDeclarations(formData);
 
   const manuscriptFileValue =
     formData.get("manuscriptFile");
@@ -605,6 +677,13 @@ export async function submitManuscript(
             submittedAt: new Date(),
             referrerReviewerId: referral?.reviewerId,
             referrerAssignedAt: referral ? new Date() : null,
+            declarationOriginalWork: declarations.originalWork,
+            declarationNotUnderReview: declarations.notUnderReview,
+            declarationConflictOfInterest:
+              declarations.conflictOfInterest,
+            declarationEthicsApproval: declarations.ethicsApproval,
+            declarationPolicyConsent: declarations.policyConsent,
+            declarationsAcceptedAt: new Date(),
           },
         });
 
