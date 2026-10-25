@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { requireAnyActionRole } from "@/lib/auth/permissions";
 import { AUTHOR_ROLES } from "@/lib/auth/role-groups";
 import { logger } from "@/lib/logger";
+import { generateManuscriptDisplayId } from "@/lib/manuscripts/generate-display-id";
 import { prisma } from "@/lib/prisma";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import {
@@ -470,6 +471,7 @@ export async function submitManuscript(
       },
       select: {
         id: true,
+        slug: true,
         tenantId: true,
         isActive: true,
       },
@@ -502,6 +504,13 @@ export async function submitManuscript(
    * the permanent ID can be included in the storage path.
    */
   const submissionId = randomUUID();
+
+  /*
+   * Assigned inside the transaction below (it needs an atomic
+   * per-journal, per-year counter), but referenced after the
+   * transaction resolves for the confirmation email and redirect.
+   */
+  let manuscriptDisplayId = "";
 
   let manuscriptUpload:
     | UploadResult
@@ -573,9 +582,16 @@ export async function submitManuscript(
   try {
     await prisma.$transaction(
       async (tx) => {
+        manuscriptDisplayId = await generateManuscriptDisplayId(
+          tx,
+          journal.slug,
+          journal.id,
+        );
+
         await tx.submission.create({
           data: {
             id: submissionId,
+            displayId: manuscriptDisplayId,
             journalId: journal.id,
             authorId: submittingUser.id,
             title,
