@@ -170,7 +170,6 @@ export default async function AdminUsersPage() {
             name: journal.name,
           }))}
           roles={JOURNAL_ROLES}
-          formatRole={formatRole}
         />
       </section>
 

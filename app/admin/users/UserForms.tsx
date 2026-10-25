@@ -172,16 +172,21 @@ type SelectableJournal = {
   name: string;
 };
 
+function formatRole(value: string) {
+  return value
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
 export function AssignJournalRoleForm({
   users,
   journals,
   roles,
-  formatRole,
 }: {
   users: SelectableUser[];
   journals: SelectableJournal[];
   roles: readonly string[];
-  formatRole: (value: string) => string;
 }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(
