@@ -9,13 +9,13 @@ import { requireAnyRole } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
 
 import {
-    approveCareerApplication,
-    markCareerApplicationUnderReview,
-    rejectCareerApplication,
-    reopenCareerApplication,
-    scheduleCareerInterview,
-    shortlistCareerApplication,
-} from "./actions";
+    ApproveForm,
+    MarkUnderReviewForm,
+    RejectForm,
+    ReopenForm,
+    ScheduleInterviewForm,
+    ShortlistForm,
+} from "./ApplicationForms";
 
 const MANAGER_ROLES: UserRole[] = [
     "SUPER_ADMIN",
@@ -871,36 +871,15 @@ export default async function CareerApplicationsPage({
                                                 "REJECTED" &&
                                                 application.status !==
                                                 "WITHDRAWN" && (
-                                                    <form
-                                                        action={
-                                                            markCareerApplicationUnderReview
+                                                    <MarkUnderReviewForm
+                                                        applicationId={
+                                                            application.id
                                                         }
-                                                        className="rounded-xl border border-blue-200 bg-blue-50 p-5"
-                                                    >
-                                                        <input
-                                                            type="hidden"
-                                                            name="applicationId"
-                                                            value={
-                                                                application.id
-                                                            }
-                                                        />
-
-                                                        <ActionTextarea
-                                                            id={`review-${application.id}`}
-                                                            label="Review note"
-                                                            defaultValue={
-                                                                application.reviewNotes ||
-                                                                ""
-                                                            }
-                                                        />
-
-                                                        <button
-                                                            type="submit"
-                                                            className="mt-4 rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"
-                                                        >
-                                                            Mark Under Review
-                                                        </button>
-                                                    </form>
+                                                        defaultReviewNotes={
+                                                            application.reviewNotes ||
+                                                            ""
+                                                        }
+                                                    />
                                                 )}
 
                                             {application.status !==
@@ -909,36 +888,15 @@ export default async function CareerApplicationsPage({
                                                 "REJECTED" &&
                                                 application.status !==
                                                 "WITHDRAWN" && (
-                                                    <form
-                                                        action={
-                                                            shortlistCareerApplication
+                                                    <ShortlistForm
+                                                        applicationId={
+                                                            application.id
                                                         }
-                                                        className="rounded-xl border border-purple-200 bg-purple-50 p-5"
-                                                    >
-                                                        <input
-                                                            type="hidden"
-                                                            name="applicationId"
-                                                            value={
-                                                                application.id
-                                                            }
-                                                        />
-
-                                                        <ActionTextarea
-                                                            id={`shortlist-${application.id}`}
-                                                            label="Shortlisting note"
-                                                            defaultValue={
-                                                                application.reviewNotes ||
-                                                                ""
-                                                            }
-                                                        />
-
-                                                        <button
-                                                            type="submit"
-                                                            className="mt-4 rounded-lg bg-purple-700 px-5 py-3 font-semibold text-white hover:bg-purple-800"
-                                                        >
-                                                            Shortlist Applicant
-                                                        </button>
-                                                    </form>
+                                                        defaultReviewNotes={
+                                                            application.reviewNotes ||
+                                                            ""
+                                                        }
+                                                    />
                                                 )}
 
                                             {application.status !==
@@ -947,87 +905,30 @@ export default async function CareerApplicationsPage({
                                                 "REJECTED" &&
                                                 application.status !==
                                                 "WITHDRAWN" && (
-                                                    <form
-                                                        action={
-                                                            scheduleCareerInterview
+                                                    <ScheduleInterviewForm
+                                                        applicationId={
+                                                            application.id
                                                         }
-                                                        className="rounded-xl border border-orange-200 bg-orange-50 p-5"
-                                                    >
-                                                        <input
-                                                            type="hidden"
-                                                            name="applicationId"
-                                                            value={
-                                                                application.id
-                                                            }
-                                                        />
-
-                                                        <label
-                                                            htmlFor={`interview-${application.id}`}
-                                                            className="font-bold text-orange-950"
-                                                        >
-                                                            Interview date and time
-                                                        </label>
-
-                                                        <input
-                                                            id={`interview-${application.id}`}
-                                                            name="interviewDate"
-                                                            type="datetime-local"
-                                                            required
-                                                            className="mt-3 w-full rounded-lg border border-orange-200 bg-white p-3"
-                                                        />
-
-                                                        <ActionTextarea
-                                                            id={`interview-note-${application.id}`}
-                                                            label="Interview note"
-                                                            defaultValue={
-                                                                application.reviewNotes ||
-                                                                ""
-                                                            }
-                                                        />
-
-                                                        <button
-                                                            type="submit"
-                                                            className="mt-4 rounded-lg bg-orange-600 px-5 py-3 font-semibold text-white hover:bg-orange-700"
-                                                        >
-                                                            Schedule Interview
-                                                        </button>
-                                                    </form>
+                                                        defaultReviewNotes={
+                                                            application.reviewNotes ||
+                                                            ""
+                                                        }
+                                                    />
                                                 )}
 
                                             {application.status !==
                                                 "APPROVED" &&
                                                 application.status !==
                                                 "WITHDRAWN" && (
-                                                    <form
-                                                        action={
-                                                            approveCareerApplication
+                                                    <ApproveForm
+                                                        applicationId={
+                                                            application.id
                                                         }
-                                                        className="rounded-xl border border-green-200 bg-green-50 p-5"
-                                                    >
-                                                        <input
-                                                            type="hidden"
-                                                            name="applicationId"
-                                                            value={
-                                                                application.id
-                                                            }
-                                                        />
-
-                                                        <ActionTextarea
-                                                            id={`approve-${application.id}`}
-                                                            label="Approval note"
-                                                            defaultValue={
-                                                                application.reviewNotes ||
-                                                                ""
-                                                            }
-                                                        />
-
-                                                        <button
-                                                            type="submit"
-                                                            className="mt-4 rounded-lg bg-green-700 px-5 py-3 font-semibold text-white hover:bg-green-800"
-                                                        >
-                                                            Approve Application
-                                                        </button>
-                                                    </form>
+                                                        defaultReviewNotes={
+                                                            application.reviewNotes ||
+                                                            ""
+                                                        }
+                                                    />
                                                 )}
 
                                             {application.status !==
@@ -1036,33 +937,11 @@ export default async function CareerApplicationsPage({
                                                 "REJECTED" &&
                                                 application.status !==
                                                 "WITHDRAWN" && (
-                                                    <form
-                                                        action={
-                                                            rejectCareerApplication
+                                                    <RejectForm
+                                                        applicationId={
+                                                            application.id
                                                         }
-                                                        className="rounded-xl border border-red-200 bg-red-50 p-5"
-                                                    >
-                                                        <input
-                                                            type="hidden"
-                                                            name="applicationId"
-                                                            value={
-                                                                application.id
-                                                            }
-                                                        />
-
-                                                        <ActionTextarea
-                                                            id={`reject-${application.id}`}
-                                                            label="Rejection reason"
-                                                            required
-                                                        />
-
-                                                        <button
-                                                            type="submit"
-                                                            className="mt-4 rounded-lg bg-red-700 px-5 py-3 font-semibold text-white hover:bg-red-800"
-                                                        >
-                                                            Reject Application
-                                                        </button>
-                                                    </form>
+                                                    />
                                                 )}
 
                                             {(application.status ===
@@ -1073,38 +952,11 @@ export default async function CareerApplicationsPage({
                                                 "SHORTLISTED" ||
                                                 application.status ===
                                                 "INTERVIEW_SCHEDULED") && (
-                                                    <form
-                                                        action={
-                                                            reopenCareerApplication
+                                                    <ReopenForm
+                                                        applicationId={
+                                                            application.id
                                                         }
-                                                        className="rounded-xl border border-amber-200 bg-amber-50 p-5"
-                                                    >
-                                                        <input
-                                                            type="hidden"
-                                                            name="applicationId"
-                                                            value={
-                                                                application.id
-                                                            }
-                                                        />
-
-                                                        <p className="font-bold text-amber-950">
-                                                            Reopen Application
-                                                        </p>
-
-                                                        <p className="mt-2 text-sm leading-6 text-amber-900">
-                                                            Return this application to
-                                                            pending status and clear the
-                                                            current interview and review
-                                                            information.
-                                                        </p>
-
-                                                        <button
-                                                            type="submit"
-                                                            className="mt-4 rounded-lg bg-amber-500 px-5 py-3 font-semibold text-slate-950 hover:bg-amber-400"
-                                                        >
-                                                            Return to Pending
-                                                        </button>
-                                                    </form>
+                                                    />
                                                 )}
                                         </div>
                                     </article>
@@ -1254,38 +1106,6 @@ function DeclarationCard({
             <p className="mt-2 text-sm">
                 {label}
             </p>
-        </div>
-    );
-}
-
-function ActionTextarea({
-    id,
-    label,
-    defaultValue = "",
-    required = false,
-}: {
-    id: string;
-    label: string;
-    defaultValue?: string;
-    required?: boolean;
-}) {
-    return (
-        <div className="mt-4">
-            <label
-                htmlFor={id}
-                className="font-bold"
-            >
-                {label}
-            </label>
-
-            <textarea
-                id={id}
-                name="reviewNotes"
-                rows={4}
-                required={required}
-                defaultValue={defaultValue}
-                className="mt-3 w-full rounded-lg border bg-white p-3"
-            />
         </div>
     );
 }

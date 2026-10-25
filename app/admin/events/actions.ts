@@ -7,6 +7,10 @@ import {
     isSuperAdmin,
     requireAnyActionRole,
 } from "@/lib/auth/permissions";
+import {
+    runFormAction,
+    type FormActionState,
+} from "@/lib/forms/run-form-action";
 import { prisma } from "@/lib/prisma";
 import { generateUniqueSlug } from "@/lib/slug";
 
@@ -144,7 +148,11 @@ function validatedUrl(value: string | undefined, label: string) {
     return normalized;
 }
 
-export async function createEvent(formData: FormData) {
+export async function createEvent(
+    _previousState: FormActionState,
+    formData: FormData,
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const data = normalize(formData);
 
     const manager = await ensureJournalManager(data.journalId);
@@ -241,9 +249,16 @@ export async function createEvent(formData: FormData) {
     });
 
     refreshPages(slug);
+
+    return `Event "${data.title}" created.`;
+    }, { action: "createEvent" });
 }
 
-export async function updateEvent(formData: FormData) {
+export async function updateEvent(
+    _previousState: FormActionState,
+    formData: FormData,
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const eventId = String(formData.get("eventId") || "").trim();
 
     if (!eventId) {
@@ -342,9 +357,16 @@ export async function updateEvent(formData: FormData) {
     });
 
     refreshPages(existingEvent.slug);
+
+    return "Event updated.";
+    }, { action: "updateEvent" });
 }
 
-export async function deleteEvent(formData: FormData) {
+export async function deleteEvent(
+    _previousState: FormActionState,
+    formData: FormData,
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const eventId = String(formData.get("eventId") || "").trim();
 
     if (!eventId) {
@@ -385,4 +407,7 @@ export async function deleteEvent(formData: FormData) {
     });
 
     refreshPages(event.slug);
+
+    return "Event deleted.";
+    }, { action: "deleteEvent" });
 }

@@ -4,11 +4,11 @@ import { requireAnyRole } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
 
 import {
-    approveReviewerApplication,
-    markApplicationUnderReview,
-    rejectReviewerApplication,
-    reopenReviewerApplication,
-} from "./actions";
+    ApproveApplicationForm,
+    MarkUnderReviewForm,
+    RejectApplicationForm,
+    ReopenApplicationForm,
+} from "./ApplicationForms";
 
 const REVIEWER_APPLICATION_MANAGER_ROLES = [
     "SUPER_ADMIN",
@@ -768,91 +768,22 @@ export default async function ReviewerApplicationsPage({
                                         "PENDING" ||
                                         application.status ===
                                         "UNDER_REVIEW") && (
-                                            <form
-                                                action={
-                                                    markApplicationUnderReview
-                                                }
-                                                className="rounded-xl border border-blue-200 bg-blue-50 p-5"
-                                            >
-                                                <input
-                                                    type="hidden"
-                                                    name="applicationId"
-                                                    value={
-                                                        application.id
-                                                    }
-                                                />
-
-                                                <label
-                                                    htmlFor={`under-review-${application.id}`}
-                                                    className="font-bold text-blue-950"
-                                                >
-                                                    Internal review note
-                                                </label>
-
-                                                <textarea
-                                                    id={`under-review-${application.id}`}
-                                                    name="reviewNotes"
-                                                    rows={4}
-                                                    defaultValue={
-                                                        application.reviewNotes ||
-                                                        ""
-                                                    }
-                                                    className="mt-3 w-full rounded-lg border border-blue-200 bg-white p-3"
-                                                />
-
-                                                <button
-                                                    type="submit"
-                                                    className="mt-4 rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"
-                                                >
-                                                    Mark Under Review
-                                                </button>
-                                            </form>
+                                            <MarkUnderReviewForm
+                                                applicationId={application.id}
+                                                reviewNotes={application.reviewNotes}
+                                                variant="list"
+                                            />
                                         )}
 
                                     {application.status !==
                                         "APPROVED" &&
                                         application.status !==
                                         "WITHDRAWN" && (
-                                            <form
-                                                action={
-                                                    approveReviewerApplication
-                                                }
-                                                className="rounded-xl border border-green-200 bg-green-50 p-5"
-                                            >
-                                                <input
-                                                    type="hidden"
-                                                    name="applicationId"
-                                                    value={
-                                                        application.id
-                                                    }
-                                                />
-
-                                                <label
-                                                    htmlFor={`approve-${application.id}`}
-                                                    className="font-bold text-green-950"
-                                                >
-                                                    Approval note
-                                                </label>
-
-                                                <textarea
-                                                    id={`approve-${application.id}`}
-                                                    name="reviewNotes"
-                                                    rows={4}
-                                                    defaultValue={
-                                                        application.reviewNotes ||
-                                                        ""
-                                                    }
-                                                    className="mt-3 w-full rounded-lg border border-green-200 bg-white p-3"
-                                                    placeholder="State why the applicant is suitable."
-                                                />
-
-                                                <button
-                                                    type="submit"
-                                                    className="mt-4 rounded-lg bg-green-700 px-5 py-3 font-semibold text-white hover:bg-green-800"
-                                                >
-                                                    Approve and Assign Reviewer Role
-                                                </button>
-                                            </form>
+                                            <ApproveApplicationForm
+                                                applicationId={application.id}
+                                                reviewNotes={application.reviewNotes}
+                                                variant="list"
+                                            />
                                         )}
 
                                     {application.status !==
@@ -861,79 +792,20 @@ export default async function ReviewerApplicationsPage({
                                         "REJECTED" &&
                                         application.status !==
                                         "WITHDRAWN" && (
-                                            <form
-                                                action={
-                                                    rejectReviewerApplication
-                                                }
-                                                className="rounded-xl border border-red-200 bg-red-50 p-5"
-                                            >
-                                                <input
-                                                    type="hidden"
-                                                    name="applicationId"
-                                                    value={
-                                                        application.id
-                                                    }
-                                                />
-
-                                                <label
-                                                    htmlFor={`reject-${application.id}`}
-                                                    className="font-bold text-red-950"
-                                                >
-                                                    Rejection reason
-                                                </label>
-
-                                                <textarea
-                                                    id={`reject-${application.id}`}
-                                                    name="reviewNotes"
-                                                    rows={4}
-                                                    required
-                                                    className="mt-3 w-full rounded-lg border border-red-200 bg-white p-3"
-                                                />
-
-                                                <button
-                                                    type="submit"
-                                                    className="mt-4 rounded-lg bg-red-700 px-5 py-3 font-semibold text-white hover:bg-red-800"
-                                                >
-                                                    Reject Application
-                                                </button>
-                                            </form>
+                                            <RejectApplicationForm
+                                                applicationId={application.id}
+                                                variant="list"
+                                            />
                                         )}
 
                                     {(application.status ===
                                         "REJECTED" ||
                                         application.status ===
                                         "UNDER_REVIEW") && (
-                                            <form
-                                                action={
-                                                    reopenReviewerApplication
-                                                }
-                                                className="rounded-xl border border-amber-200 bg-amber-50 p-5"
-                                            >
-                                                <input
-                                                    type="hidden"
-                                                    name="applicationId"
-                                                    value={
-                                                        application.id
-                                                    }
-                                                />
-
-                                                <p className="font-bold text-amber-950">
-                                                    Reopen application
-                                                </p>
-
-                                                <p className="mt-2 text-sm leading-6 text-amber-900">
-                                                    Return this application
-                                                    to pending status for a
-                                                    new review.
-                                                </p>
-
-                                                <button
-                                                    type="submit"
-                                                    className="mt-4 rounded-lg bg-amber-500 px-5 py-3 font-semibold text-slate-950 hover:bg-amber-400"
-                                                >
-                                                    Return to Pending
-                                                </button>
-                                            </form>
+                                            <ReopenApplicationForm
+                                                applicationId={application.id}
+                                                variant="list"
+                                            />
                                         )}
                                 </div>
                             </article>

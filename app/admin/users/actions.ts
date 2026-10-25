@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 
 import { revalidatePath } from "next/cache";
 
@@ -6,6 +6,34 @@ import { requireAnyActionRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 import type { UserRole } from "@/lib/generated/prisma";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
+
+export type UserActionState = {
+    success: boolean;
+    message: string;
+};
+
+async function runUserAction(
+    fn: () => Promise<string>,
+): Promise<UserActionState> {
+    try {
+        const message = await fn();
+
+        return { success: true, message };
+    } catch (error) {
+        logger.error("User admin action failed", error, {
+            event: "USER_ADMIN_ACTION_FAILED",
+        });
+
+        return {
+            success: false,
+            message:
+                error instanceof Error
+                    ? error.message
+                    : "Something went wrong. Please try again.",
+        };
+    }
+}
 
 const VALID_ROLES = [
     "SUPER_ADMIN",
@@ -92,7 +120,11 @@ function administratorIsSuperAdmin(
     );
 }
 
-export async function createUser(formData: FormData) {
+export async function createUser(
+    _previousState: UserActionState,
+    formData: FormData,
+): Promise<UserActionState> {
+    return runUserAction(async () => {
     const administrator =
         await requireAnyActionRole(ADMIN_ROLES);
 
@@ -180,11 +212,16 @@ export async function createUser(formData: FormData) {
     });
 
     refreshUserPages();
+
+    return `User "${name}" created.`;
+    });
 }
 
 export async function assignJournalRole(
+    _previousState: UserActionState,
     formData: FormData,
-) {
+): Promise<UserActionState> {
+    return runUserAction(async () => {
     const administrator =
         await requireAnyActionRole(ADMIN_ROLES);
 
@@ -308,11 +345,16 @@ export async function assignJournalRole(
     });
 
     refreshUserPages();
+
+    return `${role.replaceAll("_", " ")} role assigned on ${journal.name}.`;
+    });
 }
 
 export async function removeJournalRole(
+    _previousState: UserActionState,
     formData: FormData,
-) {
+): Promise<UserActionState> {
+    return runUserAction(async () => {
     const administrator =
         await requireAnyActionRole(ADMIN_ROLES);
 
@@ -411,11 +453,16 @@ export async function removeJournalRole(
     });
 
     refreshUserPages();
+
+    return "Role removed.";
+    });
 }
 
 export async function toggleUserStatus(
+    _previousState: UserActionState,
     formData: FormData,
-) {
+): Promise<UserActionState> {
+    return runUserAction(async () => {
     const administrator =
         await requireAnyActionRole(ADMIN_ROLES);
 
@@ -515,11 +562,18 @@ export async function toggleUserStatus(
     }
 
     refreshUserPages();
+
+    return updatedUser.isActive
+        ? "User activated."
+        : "User deactivated.";
+    });
 }
 
 export async function toggleActionAlerts(
+    _previousState: UserActionState,
     formData: FormData,
-) {
+): Promise<UserActionState> {
+    return runUserAction(async () => {
     const administrator =
         await requireAnyActionRole(ADMIN_ROLES);
 
@@ -583,4 +637,9 @@ export async function toggleActionAlerts(
     });
 
     revalidatePath("/admin/users");
+
+    return !user.receivesActionAlerts
+        ? "Action alerts granted."
+        : "Action alerts revoked.";
+    });
 }

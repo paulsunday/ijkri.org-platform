@@ -5,10 +5,10 @@ import { requireAnyRole } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
 
 import {
-    createInsight,
-    deleteInsight,
-    updateInsight,
-} from "./actions";
+    CreateInsightForm,
+    DeleteInsightForm,
+    UpdateInsightForm,
+} from "./InsightForms";
 
 const MANAGER_ROLES: UserRole[] = [
     "SUPER_ADMIN",
@@ -198,97 +198,9 @@ export default async function InsightsAdminPage({
                                 </Link>
                             </div>
 
-                            <form
-                                action={createInsight}
-                                className="mt-8 space-y-6"
-                            >
-                                <input
-                                    type="hidden"
-                                    name="journalId"
-                                    value={selectedJournal.id}
-                                />
-
-                                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                                    <FormInput
-                                        label="Title"
-                                        name="title"
-                                        required
-                                        placeholder="Five tips for a stronger literature review"
-                                    />
-
-                                    <FormSelect
-                                        label="Category"
-                                        name="category"
-                                        required
-                                        options={CATEGORY_OPTIONS}
-                                    />
-
-                                    <FormInput
-                                        label="Author name"
-                                        name="authorName"
-                                        placeholder="IJKRI Editorial Team"
-                                    />
-
-                                    <FormInput
-                                        label="Cover image URL"
-                                        name="coverImage"
-                                        type="url"
-                                        placeholder="https://..."
-                                    />
-
-                                    <label className="flex items-center gap-2.5 self-end pb-3 text-sm font-medium text-slate-700">
-                                        <input
-                                            type="checkbox"
-                                            name="isPublished"
-                                            className="h-4 w-4 rounded border-slate-300"
-                                        />
-                                        Publish immediately
-                                    </label>
-                                </div>
-
-                                <div>
-                                    <label
-                                        htmlFor="excerpt"
-                                        className="mb-2 block font-semibold"
-                                    >
-                                        Excerpt *
-                                    </label>
-
-                                    <textarea
-                                        id="excerpt"
-                                        name="excerpt"
-                                        rows={2}
-                                        required
-                                        placeholder="One or two sentences shown on the insight card."
-                                        className="w-full rounded-lg border border-amber-200 bg-white px-4 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label
-                                        htmlFor="body"
-                                        className="mb-2 block font-semibold"
-                                    >
-                                        Body *
-                                    </label>
-
-                                    <textarea
-                                        id="body"
-                                        name="body"
-                                        rows={14}
-                                        required
-                                        placeholder="Full article content."
-                                        className="w-full rounded-lg border border-amber-200 bg-white px-4 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
-                                    />
-                                </div>
-
-                                <button
-                                    type="submit"
-                                    className="rounded-lg bg-amber-500 px-6 py-3 font-bold text-slate-950 hover:bg-amber-400"
-                                >
-                                    Add Insight
-                                </button>
-                            </form>
+                            <CreateInsightForm
+                                journalId={selectedJournal.id}
+                            />
                         </section>
                     )}
 
@@ -359,159 +271,14 @@ export default async function InsightsAdminPage({
                                                 Edit Insight
                                             </summary>
 
-                                            <form
-                                                action={updateInsight}
-                                                className="space-y-6 border-t p-5"
-                                            >
-                                                <input
-                                                    type="hidden"
-                                                    name="insightId"
-                                                    value={insight.id}
-                                                />
-
-                                                <input
-                                                    type="hidden"
-                                                    name="journalId"
-                                                    value={
-                                                        insight.journalId
-                                                    }
-                                                />
-
-                                                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                                                    <FormInput
-                                                        label="Title"
-                                                        name="title"
-                                                        required
-                                                        defaultValue={
-                                                            insight.title
-                                                        }
-                                                    />
-
-                                                    <FormSelect
-                                                        label="Category"
-                                                        name="category"
-                                                        required
-                                                        options={
-                                                            CATEGORY_OPTIONS
-                                                        }
-                                                        defaultValue={
-                                                            insight.category
-                                                        }
-                                                    />
-
-                                                    <FormInput
-                                                        label="Author name"
-                                                        name="authorName"
-                                                        defaultValue={
-                                                            insight.authorName ||
-                                                            ""
-                                                        }
-                                                    />
-
-                                                    <FormInput
-                                                        label="Cover image URL"
-                                                        name="coverImage"
-                                                        type="url"
-                                                        defaultValue={
-                                                            insight.coverImage ||
-                                                            ""
-                                                        }
-                                                    />
-
-                                                    <label className="flex items-center gap-2.5 self-end pb-3 text-sm font-medium text-slate-700">
-                                                        <input
-                                                            type="checkbox"
-                                                            name="isPublished"
-                                                            defaultChecked={
-                                                                insight.isPublished
-                                                            }
-                                                            className="h-4 w-4 rounded border-slate-300"
-                                                        />
-                                                        Published
-                                                    </label>
-                                                </div>
-
-                                                <div>
-                                                    <label
-                                                        htmlFor={`excerpt-${insight.id}`}
-                                                        className="mb-2 block font-semibold"
-                                                    >
-                                                        Excerpt
-                                                    </label>
-
-                                                    <textarea
-                                                        id={`excerpt-${insight.id}`}
-                                                        name="excerpt"
-                                                        rows={2}
-                                                        required
-                                                        defaultValue={
-                                                            insight.excerpt
-                                                        }
-                                                        className="w-full rounded-lg border border-slate-300 px-4 py-3"
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <label
-                                                        htmlFor={`body-${insight.id}`}
-                                                        className="mb-2 block font-semibold"
-                                                    >
-                                                        Body
-                                                    </label>
-
-                                                    <textarea
-                                                        id={`body-${insight.id}`}
-                                                        name="body"
-                                                        rows={14}
-                                                        required
-                                                        defaultValue={
-                                                            insight.body
-                                                        }
-                                                        className="w-full rounded-lg border border-slate-300 px-4 py-3"
-                                                    />
-                                                </div>
-
-                                                <button
-                                                    type="submit"
-                                                    className="rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"
-                                                >
-                                                    Save Changes
-                                                </button>
-                                            </form>
+                                            <UpdateInsightForm
+                                                insight={insight}
+                                            />
                                         </details>
 
-                                        <form
-                                            action={deleteInsight}
-                                            className="mt-4 rounded-xl border border-red-200 bg-red-50 p-5"
-                                        >
-                                            <input
-                                                type="hidden"
-                                                name="insightId"
-                                                value={insight.id}
-                                            />
-
-                                            <div className="flex flex-wrap items-center justify-between gap-4">
-                                                <div>
-                                                    <p className="font-bold text-red-950">
-                                                        Remove Insight
-                                                    </p>
-
-                                                    <p className="mt-1 text-sm text-red-800">
-                                                        This permanently
-                                                        removes the insight
-                                                        from the public
-                                                        section.
-                                                    </p>
-                                                </div>
-
-                                                <button
-                                                    type="submit"
-                                                    className="rounded-lg bg-red-700 px-5 py-3 font-semibold text-white hover:bg-red-800"
-                                                >
-                                                    Delete Insight
-                                                </button>
-                                            </div>
-                                        </form>
+                                        <DeleteInsightForm
+                                            insightId={insight.id}
+                                        />
                                     </article>
                                 ))}
                             </div>
@@ -523,84 +290,3 @@ export default async function InsightsAdminPage({
     );
 }
 
-type FormInputProps = {
-    label: string;
-    name: string;
-    type?: string;
-    required?: boolean;
-    placeholder?: string;
-    defaultValue?: string;
-};
-
-function FormInput({
-    label,
-    name,
-    type = "text",
-    required = false,
-    placeholder,
-    defaultValue,
-}: FormInputProps) {
-    return (
-        <div>
-            <label
-                htmlFor={`${name}-${defaultValue || "new"}`}
-                className="mb-2 block font-semibold"
-            >
-                {label}
-                {required ? " *" : ""}
-            </label>
-
-            <input
-                id={`${name}-${defaultValue || "new"}`}
-                name={name}
-                type={type}
-                required={required}
-                placeholder={placeholder}
-                defaultValue={defaultValue}
-                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
-            />
-        </div>
-    );
-}
-
-type FormSelectProps = {
-    label: string;
-    name: string;
-    options: ReadonlyArray<{ value: string; label: string }>;
-    required?: boolean;
-    defaultValue?: string;
-};
-
-function FormSelect({
-    label,
-    name,
-    options,
-    required = false,
-    defaultValue = "",
-}: FormSelectProps) {
-    return (
-        <div>
-            <label
-                htmlFor={`${name}-${defaultValue || "new"}`}
-                className="mb-2 block font-semibold"
-            >
-                {label}
-                {required ? " *" : ""}
-            </label>
-
-            <select
-                id={`${name}-${defaultValue || "new"}`}
-                name={name}
-                required={required}
-                defaultValue={defaultValue}
-                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
-            >
-                {options.map((option) => (
-                    <option key={option.value} value={option.value}>
-                        {option.label}
-                    </option>
-                ))}
-            </select>
-        </div>
-    );
-}

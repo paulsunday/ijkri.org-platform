@@ -68,20 +68,22 @@ function formData(entries: Record<string, string>) {
   return data;
 }
 
+const IDLE_STATE = { success: false, message: "" };
+
 describe("referral campaign permission enforcement", () => {
   it("createCampaign rejects a non-Super-Admin caller before touching the database", async () => {
     requireActionRoleMock.mockRejectedValue(new Error("Forbidden"));
 
-    await expect(
-      createCampaign(
-        formData({
-          name: "Test Campaign",
-          startDate: "2026-01-01",
-          endDate: "2026-02-01",
-        }),
-      ),
-    ).rejects.toThrow("Forbidden");
+    const result = await createCampaign(
+      IDLE_STATE,
+      formData({
+        name: "Test Campaign",
+        startDate: "2026-01-01",
+        endDate: "2026-02-01",
+      }),
+    );
 
+    expect(result).toEqual({ success: false, message: "Forbidden" });
     expect(campaignCreate).not.toHaveBeenCalled();
   });
 
@@ -97,6 +99,7 @@ describe("referral campaign permission enforcement", () => {
 
     await expect(
       createCampaign(
+        IDLE_STATE,
         formData({
           name: "Test Campaign",
           startDate: "2026-01-01",
@@ -112,10 +115,10 @@ describe("referral campaign permission enforcement", () => {
     requireActionRoleMock.mockResolvedValue({ id: "admin_1" });
     campaignFindUnique.mockResolvedValue({ status: "ACTIVE", name: "Live Campaign" });
 
-    await expect(deleteCampaign(formData({ campaignId: "campaign_1" }))).rejects.toThrow(
-      /only a draft campaign/i,
-    );
+    const result = await deleteCampaign(IDLE_STATE, formData({ campaignId: "campaign_1" }));
 
+    expect(result.success).toBe(false);
+    expect(result.message).toMatch(/only a draft campaign/i);
     expect(campaignDelete).not.toHaveBeenCalled();
   });
 
@@ -124,10 +127,9 @@ describe("referral campaign permission enforcement", () => {
     campaignFindUnique.mockResolvedValue({ status: "DRAFT", name: "Draft Campaign" });
     transactionMock.mockResolvedValue(undefined);
 
-    await expect(
-      deleteCampaign(formData({ campaignId: "campaign_1" })),
-    ).resolves.toBeUndefined();
+    const result = await deleteCampaign(IDLE_STATE, formData({ campaignId: "campaign_1" }));
 
+    expect(result).toEqual({ success: true, message: "Campaign deleted." });
     expect(transactionMock).toHaveBeenCalled();
   });
 });

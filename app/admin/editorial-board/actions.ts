@@ -7,6 +7,10 @@ import {
     isSuperAdmin,
     requireAnyActionRole,
 } from "@/lib/auth/permissions";
+import {
+    runFormAction,
+    type FormActionState,
+} from "@/lib/forms/run-form-action";
 import { prisma } from "@/lib/prisma";
 import { uploadJournalFile } from "@/lib/storage/blob";
 
@@ -131,8 +135,10 @@ async function ensureJournalManager(
 }
 
 export async function createEditorialBoardMember(
+    _previousState: FormActionState,
     formData: FormData,
-) {
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const data = normalize(formData);
 
     const manager = await ensureJournalManager(
@@ -268,10 +274,15 @@ export async function createEditorialBoardMember(
     });
 
     refreshPages();
+
+    return "Editorial board member added.";
+    }, { action: "createEditorialBoardMember" });
 }
 export async function updateEditorialBoardMember(
+    _previousState: FormActionState,
     formData: FormData,
-) {
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const memberId = String(
         formData.get("memberId") || "",
     ).trim();
@@ -442,11 +453,16 @@ export async function updateEditorialBoardMember(
     });
 
     refreshPages();
+
+    return "Editorial board member updated.";
+    }, { action: "updateEditorialBoardMember" });
 }
 
 export async function deleteEditorialBoardMember(
+    _previousState: FormActionState,
     formData: FormData,
-) {
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const memberId = String(
         formData.get("memberId") || "",
     ).trim();
@@ -511,4 +527,7 @@ export async function deleteEditorialBoardMember(
     });
 
     refreshPages();
+
+    return "Editorial board member removed.";
+    }, { action: "deleteEditorialBoardMember" });
 }

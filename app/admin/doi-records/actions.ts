@@ -9,6 +9,10 @@ import {
 import { submitDepositToCrossref } from "@/lib/doi/crossref-client";
 import { buildCrossrefDepositXml } from "@/lib/doi/crossref-xml";
 import { prisma } from "@/lib/prisma";
+import {
+    runFormAction,
+    type FormActionState,
+} from "@/lib/forms/run-form-action";
 
 const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
@@ -72,8 +76,10 @@ function refreshDoiPages() {
 }
 
 export async function markDoiRegistered(
+    _previousState: FormActionState,
     formData: FormData,
-) {
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const user = await requireAnyActionRole([
         ...DOI_MANAGER_ROLES,
     ]);
@@ -152,11 +158,16 @@ export async function markDoiRegistered(
     });
 
     refreshDoiPages();
+
+    return "DOI marked as registered.";
+    });
 }
 
 export async function markDoiFailed(
+    _previousState: FormActionState,
     formData: FormData,
-) {
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const user = await requireAnyActionRole([
         ...DOI_MANAGER_ROLES,
     ]);
@@ -255,11 +266,16 @@ export async function markDoiFailed(
     });
 
     refreshDoiPages();
+
+    return "DOI marked as failed.";
+    });
 }
 
 export async function resetDoiToPending(
+    _previousState: FormActionState,
     formData: FormData,
-) {
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const user = await requireAnyActionRole([
         ...DOI_MANAGER_ROLES,
     ]);
@@ -331,6 +347,9 @@ export async function resetDoiToPending(
     });
 
     refreshDoiPages();
+
+    return "DOI reset to pending.";
+    });
 }
 
 function getCrossrefDepositorInfo() {
@@ -364,8 +383,10 @@ function getCrossrefDepositorInfo() {
  * remain available.
  */
 export async function submitDoiRegistration(
+    _previousState: FormActionState,
     formData: FormData,
-) {
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const user = await requireAnyActionRole([
         ...DOI_MANAGER_ROLES,
     ]);
@@ -557,4 +578,7 @@ export async function submitDoiRegistration(
     }
 
     refreshDoiPages();
+
+    return "DOI submitted to Crossref.";
+    });
 }

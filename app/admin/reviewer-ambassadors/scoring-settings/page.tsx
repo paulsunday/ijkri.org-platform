@@ -3,7 +3,7 @@ import Link from "next/link";
 import { requireRole } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
 
-import { updateScoringSettings } from "./actions";
+import { ScoringSettingsForm } from "./ScoringSettingsForm";
 
 const WEIGHT_FIELDS: { key: string; label: string; defaultValue: number }[] = [
   { key: "reviewQualityWeight", label: "Review Quality Score", defaultValue: 20 },
@@ -54,42 +54,11 @@ export default async function ScoringSettingsPage() {
         change these.
       </p>
 
-      <form
-        action={updateScoringSettings}
-        className="mt-8 max-w-xl space-y-4 rounded-xl border bg-white p-6 shadow-sm"
-      >
-        <input type="hidden" name="journalId" value={journal.id} />
-
-        {WEIGHT_FIELDS.map((field) => (
-          <div key={field.key}>
-            <label htmlFor={field.key} className="mb-1 block font-medium">
-              {field.label}
-            </label>
-
-            <input
-              id={field.key}
-              name={field.key}
-              type="number"
-              min="0"
-              max="100"
-              required
-              defaultValue={
-                settings
-                  ? (settings as unknown as Record<string, number>)[field.key]
-                  : field.defaultValue
-              }
-              className="w-full rounded-lg border p-3"
-            />
-          </div>
-        ))}
-
-        <button
-          type="submit"
-          className="rounded-lg bg-amber-500 px-6 py-3 font-bold text-slate-950 hover:bg-amber-400"
-        >
-          Save Weights
-        </button>
-      </form>
+      <ScoringSettingsForm
+        journalId={journal.id}
+        weightFields={WEIGHT_FIELDS}
+        settings={settings as unknown as Record<string, number> | null}
+      />
     </div>
   );
 }

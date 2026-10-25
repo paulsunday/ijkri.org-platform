@@ -6,6 +6,34 @@ import { requireActionRole, requireAnyActionRole } from "@/lib/auth/permissions"
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 import { recordReferralEvent } from "@/lib/ambassador/referral-events";
+import { logger } from "@/lib/logger";
+
+export type SubmissionActionState = {
+  success: boolean;
+  message: string;
+};
+
+async function runSubmissionAction(
+  fn: () => Promise<string>,
+): Promise<SubmissionActionState> {
+  try {
+    const message = await fn();
+
+    return { success: true, message };
+  } catch (error) {
+    logger.error("Submission admin action failed", error, {
+      event: "SUBMISSION_ADMIN_ACTION_FAILED",
+    });
+
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Something went wrong. Please try again.",
+    };
+  }
+}
 
 const MAX_AUTHORS = 100;
 const MAX_AUTHOR_NAME_LENGTH = 200;
@@ -35,7 +63,11 @@ function assertMaximumLength(
   }
 }
 
-export async function assignEditor(formData: FormData) {
+export async function assignEditor(
+  _previousState: SubmissionActionState,
+  formData: FormData,
+): Promise<SubmissionActionState> {
+  return runSubmissionAction(async () => {
   const admin = await requireAnyActionRole(ADMIN_ROLES);
 
   const submissionId = String(
@@ -149,6 +181,9 @@ export async function assignEditor(formData: FormData) {
     `/editor/submissions/${submissionId}`,
   );
   revalidatePath("/editor/dashboard");
+
+  return "Editor assigned and initial review started.";
+  });
 }
 
 /**
@@ -161,7 +196,11 @@ export async function assignEditor(formData: FormData) {
  * per-author records existed are backfilled with the primary
  * submitter as author 1 so the list stays consistent.
  */
-export async function addSubmissionAuthor(formData: FormData) {
+export async function addSubmissionAuthor(
+  _previousState: SubmissionActionState,
+  formData: FormData,
+): Promise<SubmissionActionState> {
+  return runSubmissionAction(async () => {
   const admin = await requireActionRole("SUPER_ADMIN");
 
   const submissionId = String(
@@ -330,4 +369,7 @@ export async function addSubmissionAuthor(formData: FormData) {
 
   revalidatePath(`/admin/submissions/${submissionId}`);
   revalidatePath(`/editor/submissions/${submissionId}`);
+
+  return `${fullName} added as an author.`;
+  });
 }

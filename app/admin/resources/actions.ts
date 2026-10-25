@@ -7,6 +7,10 @@ import {
     isSuperAdmin,
     requireAnyActionRole,
 } from "@/lib/auth/permissions";
+import {
+    runFormAction,
+    type FormActionState,
+} from "@/lib/forms/run-form-action";
 import { prisma } from "@/lib/prisma";
 import { generateUniqueSlug } from "@/lib/slug";
 
@@ -112,8 +116,10 @@ async function ensureJournalManager(
 }
 
 export async function createResourceGuide(
+    _previousState: FormActionState,
     formData: FormData,
-) {
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const data = normalize(formData);
 
     const manager = await ensureJournalManager(
@@ -220,11 +226,16 @@ export async function createResourceGuide(
     });
 
     refreshPages();
+
+    return "Resource guide added.";
+    }, { action: "createResourceGuide" });
 }
 
 export async function updateResourceGuide(
+    _previousState: FormActionState,
     formData: FormData,
-) {
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const resourceId = String(
         formData.get("resourceId") || "",
     ).trim();
@@ -354,11 +365,16 @@ export async function updateResourceGuide(
     });
 
     refreshPages();
+
+    return "Resource guide updated.";
+    }, { action: "updateResourceGuide" });
 }
 
 export async function deleteResourceGuide(
+    _previousState: FormActionState,
     formData: FormData,
-) {
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const resourceId = String(
         formData.get("resourceId") || "",
     ).trim();
@@ -422,4 +438,7 @@ export async function deleteResourceGuide(
     });
 
     refreshPages();
+
+    return "Resource guide deleted.";
+    }, { action: "deleteResourceGuide" });
 }

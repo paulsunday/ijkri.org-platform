@@ -6,7 +6,10 @@ import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 import { COUNTRIES } from "@/lib/constants/countries";
 import { prisma } from "@/lib/prisma";
 
-import { addSubmissionAuthor, assignEditor } from "./actions";
+import {
+  AddSubmissionAuthorForm,
+  AssignEditorForm,
+} from "./SubmissionForms";
 
 type PageProps = {
   params: Promise<{
@@ -377,20 +380,7 @@ export default async function SubmissionDetailsPage({
             Start the editorial assessment for this submission.
           </p>
 
-          <form action={assignEditor} className="mt-6">
-            <input
-              type="hidden"
-              name="submissionId"
-              value={submission.id}
-            />
-
-            <button
-              type="submit"
-              className="rounded-lg bg-green-700 px-6 py-3 font-semibold text-white hover:bg-green-800"
-            >
-              Assign Editor / Start Initial Review
-            </button>
-          </form>
+          <AssignEditorForm submissionId={submission.id} />
         </section>
       )}
 
@@ -467,131 +457,10 @@ export default async function SubmissionDetailsPage({
               corresponding author, who is not changed.
             </p>
 
-            <form
-              action={addSubmissionAuthor}
-              className="mt-5 grid gap-4 md:grid-cols-2"
-            >
-              <input
-                type="hidden"
-                name="submissionId"
-                value={submission.id}
-              />
-
-              <div>
-                <label
-                  htmlFor="fullName"
-                  className="mb-1 block text-sm font-medium"
-                >
-                  Full name
-                </label>
-
-                <input
-                  id="fullName"
-                  name="fullName"
-                  type="text"
-                  required
-                  className="w-full rounded-lg border p-2"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="email"
-                  className="mb-1 block text-sm font-medium"
-                >
-                  Email
-                </label>
-
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  className="w-full rounded-lg border p-2"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="affiliation"
-                  className="mb-1 block text-sm font-medium"
-                >
-                  Affiliation
-                </label>
-
-                <input
-                  id="affiliation"
-                  name="affiliation"
-                  type="text"
-                  className="w-full rounded-lg border p-2"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="department"
-                  className="mb-1 block text-sm font-medium"
-                >
-                  Department
-                </label>
-
-                <input
-                  id="department"
-                  name="department"
-                  type="text"
-                  className="w-full rounded-lg border p-2"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="country"
-                  className="mb-1 block text-sm font-medium"
-                >
-                  Country
-                </label>
-
-                <select
-                  id="country"
-                  name="country"
-                  defaultValue=""
-                  className="w-full rounded-lg border p-2"
-                >
-                  <option value="">Select country</option>
-
-                  {COUNTRIES.map((country) => (
-                    <option key={country} value={country}>
-                      {country}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="orcid"
-                  className="mb-1 block text-sm font-medium"
-                >
-                  ORCID
-                </label>
-
-                <input
-                  id="orcid"
-                  name="orcid"
-                  type="text"
-                  placeholder="0000-0000-0000-0000"
-                  className="w-full rounded-lg border p-2"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <button
-                  type="submit"
-                  className="rounded-lg bg-blue-700 px-6 py-3 font-semibold text-white hover:bg-blue-800"
-                >
-                  Add Author
-                </button>
-              </div>
-            </form>
+            <AddSubmissionAuthorForm
+              submissionId={submission.id}
+              countries={COUNTRIES}
+            />
           </div>
         )}
       </section>

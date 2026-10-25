@@ -4,8 +4,16 @@ import { revalidatePath } from "next/cache";
 
 import { requireActionRole } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
+import {
+  runFormAction,
+  type FormActionState,
+} from "@/lib/forms/run-form-action";
 
-export async function overrideConflict(formData: FormData) {
+export async function overrideConflict(
+  _previousState: FormActionState,
+  formData: FormData,
+): Promise<FormActionState> {
+  return runFormAction(async () => {
   const admin = await requireActionRole("SUPER_ADMIN");
 
   const conflictId = String(formData.get("conflictId") || "").trim();
@@ -63,4 +71,7 @@ export async function overrideConflict(formData: FormData) {
   ]);
 
   revalidatePath("/admin/coi-audit");
+
+  return "Conflict finding overridden.";
+  });
 }

@@ -5,10 +5,10 @@ import { requireAnyRole } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
 
 import {
-    createResourceGuide,
-    deleteResourceGuide,
-    updateResourceGuide,
-} from "./actions";
+    CreateResourceForm,
+    DeleteResourceForm,
+    UpdateResourceForm,
+} from "./ResourceForms";
 
 const MANAGER_ROLES: UserRole[] = [
     "SUPER_ADMIN",
@@ -208,105 +208,9 @@ export default async function ResourcesAdminPage({
                                 </Link>
                             </div>
 
-                            <form
-                                action={createResourceGuide}
-                                className="mt-8 space-y-6"
-                            >
-                                <input
-                                    type="hidden"
-                                    name="journalId"
-                                    value={selectedJournal.id}
-                                />
-
-                                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                                    <FormInput
-                                        label="Title"
-                                        name="title"
-                                        required
-                                        placeholder="Designing a mixed-methods study"
-                                    />
-
-                                    <FormSelect
-                                        label="Category"
-                                        name="category"
-                                        required
-                                        options={CATEGORY_OPTIONS}
-                                    />
-
-                                    <FormSelect
-                                        label="Format"
-                                        name="format"
-                                        options={FORMAT_OPTIONS}
-                                        defaultValue="GUIDE"
-                                    />
-
-                                    <FormInput
-                                        label="External URL (optional)"
-                                        name="externalUrl"
-                                        type="url"
-                                        placeholder="https://..."
-                                    />
-
-                                    <FormInput
-                                        label="Display order"
-                                        name="sortOrder"
-                                        type="number"
-                                        defaultValue="0"
-                                    />
-
-                                    <label className="flex items-center gap-2.5 self-end pb-3 text-sm font-medium text-slate-700">
-                                        <input
-                                            type="checkbox"
-                                            name="isPublished"
-                                            className="h-4 w-4 rounded border-slate-300"
-                                        />
-                                        Publish immediately
-                                    </label>
-                                </div>
-
-                                <div>
-                                    <label
-                                        htmlFor="summary"
-                                        className="mb-2 block font-semibold"
-                                    >
-                                        Summary *
-                                    </label>
-
-                                    <textarea
-                                        id="summary"
-                                        name="summary"
-                                        rows={2}
-                                        required
-                                        placeholder="One or two sentences shown on the resource card."
-                                        className="w-full rounded-lg border border-amber-200 bg-white px-4 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label
-                                        htmlFor="body"
-                                        className="mb-2 block font-semibold"
-                                    >
-                                        Guide content (optional if an
-                                        external URL is provided)
-                                    </label>
-
-                                    <textarea
-                                        id="body"
-                                        name="body"
-                                        rows={8}
-                                        placeholder="Full guide content, shown on its own page."
-                                        className="w-full rounded-lg border border-amber-200 bg-white px-4 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
-                                    />
-                                </div>
-
-                                <button
-                                    type="submit"
-                                    className="rounded-lg bg-amber-500 px-6 py-3 font-bold text-slate-950 hover:bg-amber-400"
-                                >
-                                    Add Resource
-                                </button>
-                            </form>
+                            <CreateResourceForm
+                                journalId={selectedJournal.id}
+                            />
                         </section>
                     )}
 
@@ -381,169 +285,14 @@ export default async function ResourcesAdminPage({
                                                 Edit Resource
                                             </summary>
 
-                                            <form
-                                                action={updateResourceGuide}
-                                                className="space-y-6 border-t p-5"
-                                            >
-                                                <input
-                                                    type="hidden"
-                                                    name="resourceId"
-                                                    value={resource.id}
-                                                />
-
-                                                <input
-                                                    type="hidden"
-                                                    name="journalId"
-                                                    value={
-                                                        resource.journalId
-                                                    }
-                                                />
-
-                                                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                                                    <FormInput
-                                                        label="Title"
-                                                        name="title"
-                                                        required
-                                                        defaultValue={
-                                                            resource.title
-                                                        }
-                                                    />
-
-                                                    <FormSelect
-                                                        label="Category"
-                                                        name="category"
-                                                        required
-                                                        options={
-                                                            CATEGORY_OPTIONS
-                                                        }
-                                                        defaultValue={
-                                                            resource.category
-                                                        }
-                                                    />
-
-                                                    <FormSelect
-                                                        label="Format"
-                                                        name="format"
-                                                        options={
-                                                            FORMAT_OPTIONS
-                                                        }
-                                                        defaultValue={
-                                                            resource.format
-                                                        }
-                                                    />
-
-                                                    <FormInput
-                                                        label="External URL"
-                                                        name="externalUrl"
-                                                        type="url"
-                                                        defaultValue={
-                                                            resource.externalUrl ||
-                                                            ""
-                                                        }
-                                                    />
-
-                                                    <FormInput
-                                                        label="Display order"
-                                                        name="sortOrder"
-                                                        type="number"
-                                                        defaultValue={String(
-                                                            resource.sortOrder,
-                                                        )}
-                                                    />
-
-                                                    <label className="flex items-center gap-2.5 self-end pb-3 text-sm font-medium text-slate-700">
-                                                        <input
-                                                            type="checkbox"
-                                                            name="isPublished"
-                                                            defaultChecked={
-                                                                resource.isPublished
-                                                            }
-                                                            className="h-4 w-4 rounded border-slate-300"
-                                                        />
-                                                        Published
-                                                    </label>
-                                                </div>
-
-                                                <div>
-                                                    <label
-                                                        htmlFor={`summary-${resource.id}`}
-                                                        className="mb-2 block font-semibold"
-                                                    >
-                                                        Summary
-                                                    </label>
-
-                                                    <textarea
-                                                        id={`summary-${resource.id}`}
-                                                        name="summary"
-                                                        rows={2}
-                                                        required
-                                                        defaultValue={
-                                                            resource.summary
-                                                        }
-                                                        className="w-full rounded-lg border border-slate-300 px-4 py-3"
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <label
-                                                        htmlFor={`body-${resource.id}`}
-                                                        className="mb-2 block font-semibold"
-                                                    >
-                                                        Guide content
-                                                    </label>
-
-                                                    <textarea
-                                                        id={`body-${resource.id}`}
-                                                        name="body"
-                                                        rows={8}
-                                                        defaultValue={
-                                                            resource.body ||
-                                                            ""
-                                                        }
-                                                        className="w-full rounded-lg border border-slate-300 px-4 py-3"
-                                                    />
-                                                </div>
-
-                                                <button
-                                                    type="submit"
-                                                    className="rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"
-                                                >
-                                                    Save Changes
-                                                </button>
-                                            </form>
+                                            <UpdateResourceForm
+                                                resource={resource}
+                                            />
                                         </details>
 
-                                        <form
-                                            action={deleteResourceGuide}
-                                            className="mt-4 rounded-xl border border-red-200 bg-red-50 p-5"
-                                        >
-                                            <input
-                                                type="hidden"
-                                                name="resourceId"
-                                                value={resource.id}
-                                            />
-
-                                            <div className="flex flex-wrap items-center justify-between gap-4">
-                                                <div>
-                                                    <p className="font-bold text-red-950">
-                                                        Remove Resource
-                                                    </p>
-
-                                                    <p className="mt-1 text-sm text-red-800">
-                                                        This permanently
-                                                        removes the resource
-                                                        from the public hub.
-                                                    </p>
-                                                </div>
-
-                                                <button
-                                                    type="submit"
-                                                    className="rounded-lg bg-red-700 px-5 py-3 font-semibold text-white hover:bg-red-800"
-                                                >
-                                                    Delete Resource
-                                                </button>
-                                            </div>
-                                        </form>
+                                        <DeleteResourceForm
+                                            resourceId={resource.id}
+                                        />
                                     </article>
                                 ))}
                             </div>
@@ -555,84 +304,3 @@ export default async function ResourcesAdminPage({
     );
 }
 
-type FormInputProps = {
-    label: string;
-    name: string;
-    type?: string;
-    required?: boolean;
-    placeholder?: string;
-    defaultValue?: string;
-};
-
-function FormInput({
-    label,
-    name,
-    type = "text",
-    required = false,
-    placeholder,
-    defaultValue,
-}: FormInputProps) {
-    return (
-        <div>
-            <label
-                htmlFor={`${name}-${defaultValue || "new"}`}
-                className="mb-2 block font-semibold"
-            >
-                {label}
-                {required ? " *" : ""}
-            </label>
-
-            <input
-                id={`${name}-${defaultValue || "new"}`}
-                name={name}
-                type={type}
-                required={required}
-                placeholder={placeholder}
-                defaultValue={defaultValue}
-                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
-            />
-        </div>
-    );
-}
-
-type FormSelectProps = {
-    label: string;
-    name: string;
-    options: ReadonlyArray<{ value: string; label: string }>;
-    required?: boolean;
-    defaultValue?: string;
-};
-
-function FormSelect({
-    label,
-    name,
-    options,
-    required = false,
-    defaultValue = "",
-}: FormSelectProps) {
-    return (
-        <div>
-            <label
-                htmlFor={`${name}-${defaultValue || "new"}`}
-                className="mb-2 block font-semibold"
-            >
-                {label}
-                {required ? " *" : ""}
-            </label>
-
-            <select
-                id={`${name}-${defaultValue || "new"}`}
-                name={name}
-                required={required}
-                defaultValue={defaultValue}
-                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
-            >
-                {options.map((option) => (
-                    <option key={option.value} value={option.value}>
-                        {option.label}
-                    </option>
-                ))}
-            </select>
-        </div>
-    );
-}

@@ -5,6 +5,10 @@ import { revalidatePath } from "next/cache";
 import { requireAnyActionRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
+import {
+    runFormAction,
+    type FormActionState,
+} from "@/lib/forms/run-form-action";
 
 function refreshVolumePages() {
     revalidatePath("/admin/volumes");
@@ -61,8 +65,10 @@ async function verifyVolumeAdminPermission(
 }
 
 export async function createVolume(
+    _previousState: FormActionState,
     formData: FormData,
-) {
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const administrator =
         await requireAnyActionRole(ADMIN_ROLES);
 
@@ -182,11 +188,16 @@ export async function createVolume(
     });
 
     refreshVolumePages();
+
+    return `Volume ${number} (${year}) created.`;
+    });
 }
 
 export async function updateVolume(
+    _previousState: FormActionState,
     formData: FormData,
-) {
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const administrator =
         await requireAnyActionRole(ADMIN_ROLES);
 
@@ -317,11 +328,16 @@ export async function updateVolume(
     });
 
     refreshVolumePages();
+
+    return "Volume updated.";
+    });
 }
 
 export async function toggleVolumePublished(
+    _previousState: FormActionState,
     formData: FormData,
-) {
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const administrator =
         await requireAnyActionRole(ADMIN_ROLES);
 
@@ -376,6 +392,8 @@ export async function toggleVolumePublished(
         );
     }
 
+    let nextIsPublished = !volume.isPublished;
+
     await prisma.$transaction(async (tx) => {
         const updatedVolume =
             await tx.volume.update({
@@ -387,6 +405,8 @@ export async function toggleVolumePublished(
                         !volume.isPublished,
                 },
             });
+
+        nextIsPublished = updatedVolume.isPublished;
 
         await tx.activityLog.create({
             data: {
@@ -409,11 +429,18 @@ export async function toggleVolumePublished(
     });
 
     refreshVolumePages();
+
+    return nextIsPublished
+        ? "Volume published."
+        : "Volume unpublished.";
+    });
 }
 
 export async function deleteVolume(
+    _previousState: FormActionState,
     formData: FormData,
-) {
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const administrator =
         await requireAnyActionRole(ADMIN_ROLES);
 
@@ -513,4 +540,7 @@ export async function deleteVolume(
     });
 
     refreshVolumePages();
+
+    return "Volume deleted.";
+    });
 }

@@ -14,6 +14,10 @@ import {
 import { generateReferralCode } from "@/lib/ambassador/referral-code";
 
 import { prisma } from "@/lib/prisma";
+import {
+    runFormAction,
+    type FormActionState,
+} from "@/lib/forms/run-form-action";
 
 const REVIEWER_APPLICATION_MANAGER_ROLES = [
     "SUPER_ADMIN",
@@ -118,80 +122,87 @@ async function getApplicationForManager(
 }
 
 export async function markApplicationUnderReview(
+    _previousState: FormActionState,
     formData: FormData,
-) {
-    const manager =
-        await requireAnyActionRole([
-            ...REVIEWER_APPLICATION_MANAGER_ROLES,
-        ]);
+): Promise<FormActionState> {
+    return runFormAction(async () => {
+        const manager =
+            await requireAnyActionRole([
+                ...REVIEWER_APPLICATION_MANAGER_ROLES,
+            ]);
 
-    const applicationId = String(
-        formData.get("applicationId") || "",
-    ).trim();
+        const applicationId = String(
+            formData.get("applicationId") || "",
+        ).trim();
 
-    const reviewNotes = String(
-        formData.get("reviewNotes") || "",
-    ).trim();
+        const reviewNotes = String(
+            formData.get("reviewNotes") || "",
+        ).trim();
 
-    if (!applicationId) {
-        throw new Error(
-            "Reviewer application ID is missing.",
-        );
-    }
+        if (!applicationId) {
+            throw new Error(
+                "Reviewer application ID is missing.",
+            );
+        }
 
-    const application =
-        await getApplicationForManager(
-            applicationId,
-            manager.id,
-        );
+        const application =
+            await getApplicationForManager(
+                applicationId,
+                manager.id,
+            );
 
-    if (
-        application.status === "APPROVED" ||
-        application.status === "REJECTED" ||
-        application.status === "WITHDRAWN"
-    ) {
-        throw new Error(
-            `This application cannot be moved to review because its current status is ${application.status}.`,
-        );
-    }
+        if (
+            application.status === "APPROVED" ||
+            application.status === "REJECTED" ||
+            application.status === "WITHDRAWN"
+        ) {
+            throw new Error(
+                `This application cannot be moved to review because its current status is ${application.status}.`,
+            );
+        }
 
-    await prisma.$transaction(async (tx) => {
-        await tx.reviewerApplication.update({
-            where: {
-                id: applicationId,
-            },
-
-            data: {
-                status: "UNDER_REVIEW",
-                reviewedById: manager.id,
-                reviewedAt: new Date(),
-                reviewNotes: reviewNotes || null,
-            },
-        });
-
-        await tx.activityLog.create({
-            data: {
-                userId: manager.id,
-                action: "UPDATE",
-                entity: "ReviewerApplication",
-                entityId: applicationId,
-
-                metadata: {
-                    event:
-                        "REVIEWER_APPLICATION_MARKED_UNDER_REVIEW",
-                    journalId: application.journalId,
-                    applicantEmail: application.email,
+        await prisma.$transaction(async (tx) => {
+            await tx.reviewerApplication.update({
+                where: {
+                    id: applicationId,
                 },
-            },
-        });
-    });
 
-    refreshReviewerApplicationPages();
+                data: {
+                    status: "UNDER_REVIEW",
+                    reviewedById: manager.id,
+                    reviewedAt: new Date(),
+                    reviewNotes: reviewNotes || null,
+                },
+            });
+
+            await tx.activityLog.create({
+                data: {
+                    userId: manager.id,
+                    action: "UPDATE",
+                    entity: "ReviewerApplication",
+                    entityId: applicationId,
+
+                    metadata: {
+                        event:
+                            "REVIEWER_APPLICATION_MARKED_UNDER_REVIEW",
+                        journalId: application.journalId,
+                        applicantEmail: application.email,
+                    },
+                },
+            });
+        });
+
+        refreshReviewerApplicationPages();
+
+        return "Application marked as under review.";
+    }, { action: "markApplicationUnderReview" });
 }
 
 export async function approveReviewerApplication(
+    _previousState: FormActionState,
     formData: FormData,
-) {
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const manager =
         await requireAnyActionRole([
             ...REVIEWER_APPLICATION_MANAGER_ROLES,
@@ -389,11 +400,16 @@ export async function approveReviewerApplication(
     }
 
     refreshReviewerApplicationPages();
+
+    return "Application approved and reviewer role assigned.";
+    }, { action: "approveReviewerApplication" });
 }
 
 export async function rejectReviewerApplication(
+    _previousState: FormActionState,
     formData: FormData,
-) {
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const manager =
         await requireAnyActionRole([
             ...REVIEWER_APPLICATION_MANAGER_ROLES,
@@ -511,11 +527,16 @@ export async function rejectReviewerApplication(
     }
 
     refreshReviewerApplicationPages();
+
+    return "Application rejected.";
+    }, { action: "rejectReviewerApplication" });
 }
 
 export async function reopenReviewerApplication(
+    _previousState: FormActionState,
     formData: FormData,
-) {
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const manager =
         await requireAnyActionRole([
             ...REVIEWER_APPLICATION_MANAGER_ROLES,
@@ -580,4 +601,7 @@ export async function reopenReviewerApplication(
     });
 
     refreshReviewerApplicationPages();
+
+    return "Application returned to pending.";
+    }, { action: "reopenReviewerApplication" });
 }

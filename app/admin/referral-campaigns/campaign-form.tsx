@@ -1,3 +1,13 @@
+"use client";
+
+import { useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+import {
+  IDLE_FORM_ACTION_STATE,
+  type FormActionState,
+} from "@/lib/forms/run-form-action";
+
 type CampaignFormValues = {
   name?: string;
   description?: string | null;
@@ -21,24 +31,56 @@ function toDateInputValue(value: Date | string | undefined) {
   return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
 }
 
+function ActionBanner({ state }: { state: FormActionState }) {
+  if (!state.message) return null;
+
+  return (
+    <div
+      role={state.success ? "status" : "alert"}
+      className={`rounded-lg p-3 text-sm ${
+        state.success ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"
+      }`}
+    >
+      {state.message}
+    </div>
+  );
+}
+
 export function CampaignForm({
   action,
   campaignId,
   values,
   submitLabel,
 }: {
-  action: (formData: FormData) => void;
+  action: (
+    previousState: FormActionState,
+    formData: FormData,
+  ) => Promise<FormActionState>;
   campaignId?: string;
   values?: CampaignFormValues;
   submitLabel: string;
 }) {
+  const router = useRouter();
+  const [state, formAction, pending] = useActionState(
+    action,
+    IDLE_FORM_ACTION_STATE,
+  );
+
+  useEffect(() => {
+    if (state.success) {
+      router.refresh();
+    }
+  }, [state.success, router]);
+
   return (
     <form
-      action={action}
+      action={formAction}
       encType="multipart/form-data"
       className="mt-6 max-w-2xl space-y-6 rounded-xl border bg-white p-6 shadow-sm"
     >
       {campaignId && <input type="hidden" name="campaignId" value={campaignId} />}
+
+      <ActionBanner state={state} />
 
       <div>
         <label htmlFor="name" className="mb-1 block font-medium">
@@ -50,6 +92,7 @@ export function CampaignForm({
           type="text"
           required
           defaultValue={values?.name}
+          disabled={pending}
           className="w-full rounded-lg border p-3"
         />
       </div>
@@ -63,6 +106,7 @@ export function CampaignForm({
           name="description"
           rows={3}
           defaultValue={values?.description ?? ""}
+          disabled={pending}
           className="w-full rounded-lg border p-3"
         />
       </div>
@@ -78,6 +122,7 @@ export function CampaignForm({
             type="date"
             required
             defaultValue={toDateInputValue(values?.startDate)}
+            disabled={pending}
             className="w-full rounded-lg border p-3"
           />
         </div>
@@ -92,6 +137,7 @@ export function CampaignForm({
             type="date"
             required
             defaultValue={toDateInputValue(values?.endDate)}
+            disabled={pending}
             className="w-full rounded-lg border p-3"
           />
         </div>
@@ -108,6 +154,7 @@ export function CampaignForm({
           step="0.1"
           min="1"
           defaultValue={values?.rewardMultiplier?.toString() ?? "1"}
+          disabled={pending}
           className="w-full rounded-lg border p-3"
         />
         <p className="mt-1 text-sm text-slate-500">
@@ -127,6 +174,7 @@ export function CampaignForm({
             step="0.01"
             min="0"
             defaultValue={values?.reviewBonus?.toString() ?? "0"}
+            disabled={pending}
             className="w-full rounded-lg border p-3"
           />
         </div>
@@ -142,6 +190,7 @@ export function CampaignForm({
             step="0.01"
             min="0"
             defaultValue={values?.submissionBonus?.toString() ?? "0"}
+            disabled={pending}
             className="w-full rounded-lg border p-3"
           />
         </div>
@@ -157,6 +206,7 @@ export function CampaignForm({
             step="0.01"
             min="0"
             defaultValue={values?.publicationBonus?.toString() ?? "0"}
+            disabled={pending}
             className="w-full rounded-lg border p-3"
           />
         </div>
@@ -172,6 +222,7 @@ export function CampaignForm({
             step="0.01"
             min="0"
             defaultValue={values?.referralBonus?.toString() ?? "0"}
+            disabled={pending}
             className="w-full rounded-lg border p-3"
           />
         </div>
@@ -188,6 +239,7 @@ export function CampaignForm({
             type="text"
             placeholder="e.g. Research Article"
             defaultValue={values?.targetDiscipline ?? ""}
+            disabled={pending}
             className="w-full rounded-lg border p-3"
           />
         </div>
@@ -201,6 +253,7 @@ export function CampaignForm({
             name="targetCountry"
             type="text"
             defaultValue={values?.targetCountry ?? ""}
+            disabled={pending}
             className="w-full rounded-lg border p-3"
           />
         </div>
@@ -214,6 +267,7 @@ export function CampaignForm({
             name="targetInstitution"
             type="text"
             defaultValue={values?.targetInstitution ?? ""}
+            disabled={pending}
             className="w-full rounded-lg border p-3"
           />
         </div>
@@ -230,6 +284,7 @@ export function CampaignForm({
           step="0.01"
           min="0"
           defaultValue={values?.maxBudget?.toString() ?? ""}
+          disabled={pending}
           className="w-full rounded-lg border p-3"
         />
       </div>
@@ -253,12 +308,14 @@ export function CampaignForm({
           name="banner"
           type="file"
           accept="image/png,image/jpeg,image/webp"
+          disabled={pending}
           className="w-full rounded-lg border p-3"
         />
       </div>
 
       <button
         type="submit"
+        disabled={pending}
         className="rounded-lg bg-amber-500 px-6 py-3 font-bold text-slate-950 hover:bg-amber-400"
       >
         {submitLabel}

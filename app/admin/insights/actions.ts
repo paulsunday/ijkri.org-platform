@@ -7,6 +7,10 @@ import {
     isSuperAdmin,
     requireAnyActionRole,
 } from "@/lib/auth/permissions";
+import {
+    runFormAction,
+    type FormActionState,
+} from "@/lib/forms/run-form-action";
 import { prisma } from "@/lib/prisma";
 import { generateUniqueSlug } from "@/lib/slug";
 
@@ -106,7 +110,11 @@ function validatedCoverImage(value?: string) {
     return normalized;
 }
 
-export async function createInsight(formData: FormData) {
+export async function createInsight(
+    _previousState: FormActionState,
+    formData: FormData,
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const data = normalize(formData);
 
     const manager = await ensureJournalManager(data.journalId);
@@ -176,9 +184,16 @@ export async function createInsight(formData: FormData) {
     });
 
     refreshPages(slug);
+
+    return `Insight "${data.title}" created.`;
+    }, { action: "createInsight" });
 }
 
-export async function updateInsight(formData: FormData) {
+export async function updateInsight(
+    _previousState: FormActionState,
+    formData: FormData,
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const insightId = String(formData.get("insightId") || "").trim();
 
     if (!insightId) {
@@ -255,9 +270,16 @@ export async function updateInsight(formData: FormData) {
     });
 
     refreshPages(existingInsight.slug);
+
+    return "Insight updated.";
+    }, { action: "updateInsight" });
 }
 
-export async function deleteInsight(formData: FormData) {
+export async function deleteInsight(
+    _previousState: FormActionState,
+    formData: FormData,
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const insightId = String(formData.get("insightId") || "").trim();
 
     if (!insightId) {
@@ -298,4 +320,7 @@ export async function deleteInsight(formData: FormData) {
     });
 
     refreshPages(insight.slug);
+
+    return "Insight deleted.";
+    }, { action: "deleteInsight" });
 }

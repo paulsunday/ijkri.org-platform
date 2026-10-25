@@ -8,11 +8,10 @@ import {
 } from "@/lib/manuscripts/author-status";
 
 import {
-  changeArticleStatus,
-  deleteArticle,
-  updateArticle,
-  updateCorrespondingAuthor,
-} from "./actions";
+  ArticleActionButtons,
+  UpdateArticleForm,
+  UpdateCorrespondingAuthorForm,
+} from "./ArticleForms";
 
 function formatDate(
   value: Date | null | undefined,
@@ -393,393 +392,46 @@ export default async function AdminArticlesPage() {
                     </div>
                   </div>
 
-                  <form
-                    action={updateArticle}
-                    className="mt-7 space-y-5 rounded-xl bg-gray-50 p-5"
-                  >
-                    <input
-                      type="hidden"
-                      name="articleId"
-                      value={article.id}
-                    />
-
-                    <div>
-                      <label
-                        htmlFor={`title-${article.id}`}
-                        className="mb-2 block font-semibold"
-                      >
-                        Article Title
-                      </label>
-
-                      <input
-                        id={`title-${article.id}`}
-                        name="title"
-                        required
-                        defaultValue={article.title}
-                        className="w-full rounded-lg border bg-white p-3"
-                      />
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor={`abstract-${article.id}`}
-                        className="mb-2 block font-semibold"
-                      >
-                        Abstract
-                      </label>
-
-                      <textarea
-                        id={`abstract-${article.id}`}
-                        name="abstract"
-                        required
-                        rows={8}
-                        defaultValue={article.abstract}
-                        className="w-full rounded-lg border bg-white p-3"
-                      />
-                    </div>
-
-                    <div className="grid gap-5 md:grid-cols-2">
-                      <div>
-                        <label
-                          htmlFor={`issue-${article.id}`}
-                          className="mb-2 block font-semibold"
-                        >
-                          Volume / Issue
-                        </label>
-
-                        <select
-                          id={`issue-${article.id}`}
-                          name="issueId"
-                          defaultValue={article.issueId || ""}
-                          className="w-full rounded-lg border bg-white p-3"
-                        >
-                          <option value="">
-                            No issue assigned
-                          </option>
-
-                          {compatibleIssues.map((issue) => (
-                            <option
-                              key={issue.id}
-                              value={issue.id}
-                            >
-                              Volume {issue.volume.number} (
-                              {issue.volume.year}), Issue{" "}
-                              {issue.number}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label
-                          htmlFor={`publishedAt-${article.id}`}
-                          className="mb-2 block font-semibold"
-                        >
-                          Publication Date
-                        </label>
-
-                        <input
-                          id={`publishedAt-${article.id}`}
-                          name="publishedAt"
-                          type="date"
-                          defaultValue={formatDate(
-                            article.publishedAt,
-                          )}
-                          className="w-full rounded-lg border bg-white p-3"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid gap-5 md:grid-cols-2">
-                      <div>
-                        <label
-                          htmlFor={`doi-${article.id}`}
-                          className="mb-2 block font-semibold"
-                        >
-                          DOI
-                        </label>
-
-                        <input
-                          id={`doi-${article.id}`}
-                          name="doi"
-                          defaultValue={article.doi || ""}
-                          placeholder="10.xxxx/xxxxx"
-                          className="w-full rounded-lg border bg-white p-3"
-                        />
-                      </div>
-
-                      <div>
-                        <label
-                          htmlFor={`pdfUrl-${article.id}`}
-                          className="mb-2 block font-semibold"
-                        >
-                          PDF URL
-                        </label>
-
-                        <input
-                          id={`pdfUrl-${article.id}`}
-                          name="pdfUrl"
-                          type="url"
-                          defaultValue={article.pdfUrl || ""}
-                          placeholder="https://..."
-                          className="w-full rounded-lg border bg-white p-3"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor={`issn-${article.id}`}
-                        className="mb-2 block font-semibold"
-                      >
-                        Article ISSN
-                      </label>
-
-                      <input
-                        id={`issn-${article.id}`}
-                        name="issn"
-                        defaultValue={article.issn || ""}
-                        placeholder="0000-000X"
-                        className="w-full rounded-lg border bg-white p-3"
-                      />
-
-                      <p className="mt-2 text-sm text-gray-500">
-                        Until this article has an ISSN, it stays
-                        visible as published on the public website
-                        but continues to show as &quot;Under
-                        Review&quot; on the author&apos;s dashboard.
-                      </p>
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor={`accessType-${article.id}`}
-                        className="mb-2 block font-semibold"
-                      >
-                        Access
-                      </label>
-
-                      <select
-                        id={`accessType-${article.id}`}
-                        name="accessType"
-                        required
-                        defaultValue={article.accessType}
-                        className="w-full rounded-lg border bg-white p-3"
-                      >
-                        <option value="OPEN_ACCESS">
-                          Open Access — free to everyone, no login required
-                        </option>
-
-                        <option value="SUBSCRIPTION">
-                          Subscription only
-                        </option>
-
-                        <option value="PAY_PER_VIEW">
-                          Pay-per-article only
-                        </option>
-
-                        <option value="SUBSCRIPTION_OR_PAY_PER_VIEW">
-                          Subscription or pay-per-article
-                        </option>
-                      </select>
-
-                      <p className="mt-2 text-sm text-gray-500">
-                        Open Access articles can be downloaded by anyone
-                        without signing in. All other options require the
-                        reader to be signed in with an active subscription
-                        and/or a purchase of this article.
-                      </p>
-                    </div>
-
-                    <button
-                      type="submit"
-                      className="rounded-lg bg-blue-700 px-6 py-3 font-semibold text-white hover:bg-blue-800"
-                    >
-                      Save Article Changes
-                    </button>
-                  </form>
+                  <UpdateArticleForm
+                    article={{
+                      id: article.id,
+                      title: article.title,
+                      abstract: article.abstract,
+                      issueId: article.issueId,
+                      publishedAtInput: formatDate(
+                        article.publishedAt,
+                      ),
+                      doi: article.doi,
+                      pdfUrl: article.pdfUrl,
+                      issn: article.issn,
+                      accessType: article.accessType,
+                    }}
+                    compatibleIssues={compatibleIssues}
+                  />
 
                   {article.authors.length > 0 && (
-                    <form
-                      action={updateCorrespondingAuthor}
-                      className="mt-5 flex flex-wrap items-end gap-4 rounded-xl bg-amber-50 p-5"
-                    >
-                      <input
-                        type="hidden"
-                        name="articleId"
-                        value={article.id}
-                      />
-
-                      <div className="min-w-[240px] flex-1">
-                        <label
-                          htmlFor={`corresponding-author-${article.id}`}
-                          className="mb-2 block font-semibold"
-                        >
-                          Corresponding Author
-                        </label>
-
-                        <select
-                          id={`corresponding-author-${article.id}`}
-                          name="authorId"
-                          defaultValue={
-                            article.authors.find(
-                              (author) => author.isCorresponding,
-                            )?.id || ""
-                          }
-                          className="w-full rounded-lg border bg-white p-3"
-                        >
-                          <option value="">
-                            None assigned
-                          </option>
-
-                          {article.authors.map((author) => (
-                            <option
-                              key={author.id}
-                              value={author.id}
-                            >
-                              {author.fullName}
-                              {author.email
-                                ? ` (${author.email})`
-                                : ""}
-                            </option>
-                          ))}
-                        </select>
-
-                        <p className="mt-2 text-sm text-amber-800">
-                          Shown to readers on the published article
-                          page. Change this if an author requests to
-                          be listed as the corresponding author.
-                        </p>
-                      </div>
-
-                      <button
-                        type="submit"
-                        className="rounded-lg bg-amber-700 px-6 py-3 font-semibold text-white hover:bg-amber-800"
-                      >
-                        Update Corresponding Author
-                      </button>
-                    </form>
+                    <UpdateCorrespondingAuthorForm
+                      articleId={article.id}
+                      authors={article.authors.map((author) => ({
+                        id: author.id,
+                        fullName: author.fullName,
+                        email: author.email,
+                      }))}
+                      defaultAuthorId={
+                        article.authors.find(
+                          (author) => author.isCorresponding,
+                        )?.id || ""
+                      }
+                    />
                   )}
 
-                  <div className="mt-6 flex flex-wrap gap-3">
-                    {article.status !== "PUBLISHED" && (
-                      <form action={changeArticleStatus}>
-                        <input
-                          type="hidden"
-                          name="articleId"
-                          value={article.id}
-                        />
-
-                        <input
-                          type="hidden"
-                          name="status"
-                          value="PUBLISHED"
-                        />
-
-                        <button
-                          type="submit"
-                          className="rounded-lg bg-green-700 px-5 py-3 font-semibold text-white hover:bg-green-800"
-                        >
-                          Publish
-                        </button>
-                      </form>
-                    )}
-
-                    {article.status !== "SCHEDULED" && (
-                      <form action={changeArticleStatus}>
-                        <input
-                          type="hidden"
-                          name="articleId"
-                          value={article.id}
-                        />
-
-                        <input
-                          type="hidden"
-                          name="status"
-                          value="SCHEDULED"
-                        />
-
-                        <button
-                          type="submit"
-                          className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
-                        >
-                          Schedule
-                        </button>
-                      </form>
-                    )}
-
-                    {article.status !== "DRAFT" && (
-                      <form action={changeArticleStatus}>
-                        <input
-                          type="hidden"
-                          name="articleId"
-                          value={article.id}
-                        />
-
-                        <input
-                          type="hidden"
-                          name="status"
-                          value="DRAFT"
-                        />
-
-                        <button
-                          type="submit"
-                          className="rounded-lg bg-yellow-600 px-5 py-3 font-semibold text-white hover:bg-yellow-700"
-                        >
-                          Return to Draft
-                        </button>
-                      </form>
-                    )}
-
-                    {article.status !== "ARCHIVED" && (
-                      <form action={changeArticleStatus}>
-                        <input
-                          type="hidden"
-                          name="articleId"
-                          value={article.id}
-                        />
-
-                        <input
-                          type="hidden"
-                          name="status"
-                          value="ARCHIVED"
-                        />
-
-                        <button
-                          type="submit"
-                          className="rounded-lg bg-gray-700 px-5 py-3 font-semibold text-white hover:bg-gray-800"
-                        >
-                          Archive
-                        </button>
-                      </form>
-                    )}
-
-                    {article.status === "PUBLISHED" && (
-                      <Link
-                        href={`/articles/${article.slug}`}
-                        className="rounded-lg border border-blue-700 px-5 py-3 font-semibold text-blue-700 hover:bg-blue-50"
-                      >
-                        View Public Article
-                      </Link>
-                    )}
-
-                    {article.status !== "PUBLISHED" && (
-                      <form action={deleteArticle}>
-                        <input
-                          type="hidden"
-                          name="articleId"
-                          value={article.id}
-                        />
-
-                        <button
-                          type="submit"
-                          className="rounded-lg bg-red-700 px-5 py-3 font-semibold text-white hover:bg-red-800"
-                        >
-                          Delete Article
-                        </button>
-                      </form>
-                    )}
-                  </div>
+                  <ArticleActionButtons
+                    article={{
+                      id: article.id,
+                      status: article.status,
+                      slug: article.slug,
+                    }}
+                  />
                 </article>
               );
             })}

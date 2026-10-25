@@ -4,7 +4,7 @@ import { requireAnyRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 
-import { recordManualPayment, waiveInvoice } from "./actions";
+import { RecordManualPaymentForm, WaiveInvoiceForm } from "./InvoiceForms";
 
 function formatStatus(value: string) {
   return value
@@ -264,79 +264,11 @@ export default async function AdminInvoicesPage() {
                   {(canWaive || canRecordManualPayment) && (
                     <div className="mt-6 grid gap-4 border-t pt-6 md:grid-cols-2">
                       {canRecordManualPayment && (
-                        <form
-                          action={recordManualPayment}
-                          className="space-y-3 rounded-xl bg-green-50 p-5"
-                        >
-                          <input
-                            type="hidden"
-                            name="invoiceId"
-                            value={invoice.id}
-                          />
-
-                          <h4 className="font-semibold text-green-900">
-                            Record Manual Payment
-                          </h4>
-
-                          <input
-                            name="paymentMethod"
-                            required
-                            placeholder="Payment method (e.g. bank transfer)"
-                            className="w-full rounded-lg border bg-white p-2.5 text-sm"
-                          />
-
-                          <input
-                            name="paymentReference"
-                            placeholder="Reference (optional)"
-                            className="w-full rounded-lg border bg-white p-2.5 text-sm"
-                          />
-
-                          <textarea
-                            name="notes"
-                            rows={2}
-                            placeholder="Notes (optional)"
-                            className="w-full rounded-lg border bg-white p-2.5 text-sm"
-                          />
-
-                          <button
-                            type="submit"
-                            className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white hover:bg-green-800"
-                          >
-                            Mark as Paid
-                          </button>
-                        </form>
+                        <RecordManualPaymentForm invoiceId={invoice.id} />
                       )}
 
                       {canWaive && (
-                        <form
-                          action={waiveInvoice}
-                          className="space-y-3 rounded-xl bg-amber-50 p-5"
-                        >
-                          <input
-                            type="hidden"
-                            name="invoiceId"
-                            value={invoice.id}
-                          />
-
-                          <h4 className="font-semibold text-amber-900">
-                            Waive APC
-                          </h4>
-
-                          <textarea
-                            name="waiverReason"
-                            required
-                            rows={3}
-                            placeholder="Reason for waiving this invoice (required)"
-                            className="w-full rounded-lg border bg-white p-2.5 text-sm"
-                          />
-
-                          <button
-                            type="submit"
-                            className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-800"
-                          >
-                            Waive Invoice
-                          </button>
-                        </form>
+                        <WaiveInvoiceForm invoiceId={invoice.id} />
                       )}
                     </div>
                   )}

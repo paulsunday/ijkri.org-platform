@@ -1,12 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
 import { requireAnyActionRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 import { Prisma } from "@/lib/generated/prisma";
 import { prisma } from "@/lib/prisma";
+import {
+    runFormAction,
+    type FormActionState,
+} from "@/lib/forms/run-form-action";
 
 const REVIEW_TYPES = [
     "DOUBLE_BLIND",
@@ -253,8 +256,10 @@ function optionalPercentage(
 }
 
 export async function updateJournalSettings(
+    _previousState: FormActionState,
     formData: FormData,
-) {
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const administrator = await requireAnyActionRole(
         ADMIN_ROLES,
     );
@@ -547,7 +552,6 @@ export async function updateJournalSettings(
     revalidatePath("/current-issue");
     revalidatePath("/archives");
 
-    redirect(
-        `/admin/settings?journalId=${journalId}&saved=1`,
-    );
+    return "Journal settings were saved successfully.";
+    });
 }

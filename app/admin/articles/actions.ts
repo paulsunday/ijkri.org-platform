@@ -8,6 +8,10 @@ import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 import { embedPublishedArticlePdfMetadata } from "@/lib/pdf/publish-metadata";
 import { prisma } from "@/lib/prisma";
 import { processAmbassadorPublicationEvent } from "@/lib/ambassador/process-publication-event";
+import {
+    runFormAction,
+    type FormActionState,
+} from "@/lib/forms/run-form-action";
 
 const VALID_ARTICLE_STATUSES = [
     "DRAFT",
@@ -27,6 +31,27 @@ function slugify(value: string) {
         .trim()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "");
+}
+
+function changeArticleStatusMessage(
+    status: ArticleStatusValue,
+) {
+    switch (status) {
+        case "PUBLISHED":
+            return "Article published.";
+
+        case "SCHEDULED":
+            return "Article scheduled.";
+
+        case "DRAFT":
+            return "Article returned to draft.";
+
+        case "ARCHIVED":
+            return "Article archived.";
+
+        default:
+            return "Article status updated.";
+    }
 }
 
 function refreshArticlePages(articleSlug?: string) {
@@ -88,8 +113,10 @@ async function verifyArticleAdminPermission(
 }
 
 export async function updateArticle(
+    _previousState: FormActionState,
     formData: FormData,
-) {
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const administrator =
         await requireAnyActionRole(ADMIN_ROLES);
 
@@ -397,11 +424,16 @@ export async function updateArticle(
     if (updatedArticle.slug !== article.slug) {
         refreshArticlePages(updatedArticle.slug);
     }
+
+    return "Article updated.";
+    }, { action: "updateArticle" });
 }
 
 export async function updateCorrespondingAuthor(
+    _previousState: FormActionState,
     formData: FormData,
-) {
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const administrator =
         await requireAnyActionRole(ADMIN_ROLES);
 
@@ -501,11 +533,16 @@ export async function updateCorrespondingAuthor(
     });
 
     refreshArticlePages(article.slug);
+
+    return "Corresponding author updated.";
+    }, { action: "updateCorrespondingAuthor" });
 }
 
 export async function changeArticleStatus(
+    _previousState: FormActionState,
     formData: FormData,
-) {
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const administrator =
         await requireAnyActionRole(ADMIN_ROLES);
 
@@ -685,11 +722,16 @@ export async function changeArticleStatus(
             }),
         );
     }
+
+    return changeArticleStatusMessage(status);
+    }, { action: "changeArticleStatus" });
 }
 
 export async function deleteArticle(
+    _previousState: FormActionState,
     formData: FormData,
-) {
+): Promise<FormActionState> {
+    return runFormAction(async () => {
     const administrator =
         await requireAnyActionRole(ADMIN_ROLES);
 
@@ -790,4 +832,7 @@ export async function deleteArticle(
     });
 
     refreshArticlePages(article.slug);
+
+    return "Article deleted.";
+    }, { action: "deleteArticle" });
 }

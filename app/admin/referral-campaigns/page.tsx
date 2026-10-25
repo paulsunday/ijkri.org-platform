@@ -3,14 +3,7 @@ import Link from "next/link";
 import { requireRole } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
 
-import {
-  activateCampaign,
-  pauseCampaign,
-  resumeCampaign,
-  archiveCampaign,
-  duplicateCampaign,
-  deleteCampaign,
-} from "./actions";
+import { CampaignActionButtons } from "./CampaignActionButtons";
 
 type Props = {
   searchParams: Promise<{ status?: string }>;
@@ -108,59 +101,9 @@ export default async function ReferralCampaignsPage({ searchParams }: Props) {
                 </p>
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                {campaign.status === "DRAFT" && (
-                  <form action={activateCampaign}>
-                    <input type="hidden" name="campaignId" value={campaign.id} />
-                    <button className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800">
-                      Activate
-                    </button>
-                  </form>
-                )}
-
-                {campaign.status === "ACTIVE" && (
-                  <form action={pauseCampaign}>
-                    <input type="hidden" name="campaignId" value={campaign.id} />
-                    <button className="rounded-lg bg-yellow-600 px-3 py-2 text-xs font-semibold text-white hover:bg-yellow-700">
-                      Pause
-                    </button>
-                  </form>
-                )}
-
-                {campaign.status === "PAUSED" && (
-                  <form action={resumeCampaign}>
-                    <input type="hidden" name="campaignId" value={campaign.id} />
-                    <button className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800">
-                      Resume
-                    </button>
-                  </form>
-                )}
-
-                {campaign.status !== "ARCHIVED" && (
-                  <form action={archiveCampaign}>
-                    <input type="hidden" name="campaignId" value={campaign.id} />
-                    <button className="rounded-lg bg-slate-700 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">
-                      Archive
-                    </button>
-                  </form>
-                )}
-
-                <form action={duplicateCampaign}>
-                  <input type="hidden" name="campaignId" value={campaign.id} />
-                  <button className="rounded-lg border px-3 py-2 text-xs font-semibold hover:bg-slate-50">
-                    Duplicate
-                  </button>
-                </form>
-
-                {campaign.status === "DRAFT" && (
-                  <form action={deleteCampaign}>
-                    <input type="hidden" name="campaignId" value={campaign.id} />
-                    <button className="rounded-lg bg-red-700 px-3 py-2 text-xs font-semibold text-white hover:bg-red-800">
-                      Delete
-                    </button>
-                  </form>
-                )}
-              </div>
+              <CampaignActionButtons
+                campaign={{ id: campaign.id, status: campaign.status }}
+              />
             </div>
           </div>
         ))}

@@ -1,16 +1,16 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireAnyRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 import { COUNTRIES } from "@/lib/constants/countries";
 
 import {
-  assignJournalRole,
-  createUser,
-  removeJournalRole,
-  toggleActionAlerts,
-  toggleUserStatus,
-} from "./actions";
+  AssignJournalRoleForm,
+  CreateUserForm,
+  RemoveJournalRoleForm,
+  ToggleActionAlertsForm,
+  ToggleUserStatusForm,
+} from "./UserForms";
 
 const JOURNAL_ROLES = [
   "SUPER_ADMIN",
@@ -150,106 +150,7 @@ export default async function AdminUsersPage() {
           Create User
         </h2>
 
-        <form
-          action={createUser}
-          className="mt-6 grid gap-5 md:grid-cols-2"
-        >
-          <div>
-            <label
-              htmlFor="name"
-              className="mb-2 block font-semibold"
-            >
-              Full Name
-            </label>
-
-            <input
-              id="name"
-              name="name"
-              required
-              className="w-full rounded-lg border p-3"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="email"
-              className="mb-2 block font-semibold"
-            >
-              Email
-            </label>
-
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              className="w-full rounded-lg border p-3"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="affiliation"
-              className="mb-2 block font-semibold"
-            >
-              Affiliation
-            </label>
-
-            <input
-              id="affiliation"
-              name="affiliation"
-              className="w-full rounded-lg border p-3"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="country"
-              className="mb-2 block font-semibold"
-            >
-              Country
-            </label>
-
-            <select
-              id="country"
-              name="country"
-              defaultValue=""
-              className="w-full rounded-lg border p-3"
-            >
-              <option value="">Select country</option>
-
-              {COUNTRIES.map((country) => (
-                <option key={country} value={country}>
-                  {country}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label
-              htmlFor="phone"
-              className="mb-2 block font-semibold"
-            >
-              Phone
-            </label>
-
-            <input
-              id="phone"
-              name="phone"
-              className="w-full rounded-lg border p-3"
-            />
-          </div>
-
-          <div className="flex items-end">
-            <button
-              type="submit"
-              className="rounded-lg bg-blue-700 px-6 py-3 font-semibold text-white hover:bg-blue-800"
-            >
-              Create User
-            </button>
-          </div>
-        </form>
+        <CreateUserForm countries={COUNTRIES} />
       </section>
 
       <section className="rounded-xl border bg-white p-6 shadow-sm">
@@ -257,105 +158,20 @@ export default async function AdminUsersPage() {
           Assign Journal Role
         </h2>
 
-        <form
-          action={assignJournalRole}
-          className="mt-6 grid gap-5 md:grid-cols-3"
-        >
-          <div>
-            <label
-              htmlFor="userId"
-              className="mb-2 block font-semibold"
-            >
-              User
-            </label>
-
-            <select
-              id="userId"
-              name="userId"
-              required
-              defaultValue=""
-              className="w-full rounded-lg border p-3"
-            >
-              <option value="" disabled>
-                Select user
-              </option>
-
-              {users
-                .filter((user) => user.isActive)
-                .map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name} — {user.email}
-                  </option>
-                ))}
-            </select>
-          </div>
-
-          <div>
-            <label
-              htmlFor="journalId"
-              className="mb-2 block font-semibold"
-            >
-              Journal
-            </label>
-
-            <select
-              id="journalId"
-              name="journalId"
-              required
-              defaultValue=""
-              className="w-full rounded-lg border p-3"
-            >
-              <option value="" disabled>
-                Select journal
-              </option>
-
-              {journals.map((journal) => (
-                <option
-                  key={journal.id}
-                  value={journal.id}
-                >
-                  {journal.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label
-              htmlFor="role"
-              className="mb-2 block font-semibold"
-            >
-              Role
-            </label>
-
-            <select
-              id="role"
-              name="role"
-              required
-              defaultValue=""
-              className="w-full rounded-lg border p-3"
-            >
-              <option value="" disabled>
-                Select role
-              </option>
-
-              {JOURNAL_ROLES.map((role) => (
-                <option key={role} value={role}>
-                  {formatRole(role)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="md:col-span-3">
-            <button
-              type="submit"
-              className="rounded-lg bg-indigo-700 px-6 py-3 font-semibold text-white hover:bg-indigo-800"
-            >
-              Assign Role
-            </button>
-          </div>
-        </form>
+        <AssignJournalRoleForm
+          users={users.map((user) => ({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            isActive: user.isActive,
+          }))}
+          journals={journals.map((journal) => ({
+            id: journal.id,
+            name: journal.name,
+          }))}
+          roles={JOURNAL_ROLES}
+          formatRole={formatRole}
+        />
       </section>
 
       <section className="rounded-xl border bg-white p-6 shadow-sm">
@@ -405,45 +221,15 @@ export default async function AdminUsersPage() {
                       </span>
                     )}
 
-                    <form action={toggleActionAlerts}>
-                      <input
-                        type="hidden"
-                        name="userId"
-                        value={user.id}
-                      />
+                    <ToggleActionAlertsForm
+                      userId={user.id}
+                      receivesActionAlerts={user.receivesActionAlerts}
+                    />
 
-                      <button
-                        type="submit"
-                        className={`rounded-lg border px-4 py-2 text-sm font-semibold ${user.receivesActionAlerts
-                          ? "border-indigo-300 text-indigo-800 hover:bg-indigo-50"
-                          : "border-slate-300 text-slate-800 hover:bg-slate-50"
-                          }`}
-                      >
-                        {user.receivesActionAlerts
-                          ? "Revoke Action Alerts"
-                          : "Grant Action Alerts"}
-                      </button>
-                    </form>
-
-                    <form action={toggleUserStatus}>
-                      <input
-                        type="hidden"
-                        name="userId"
-                        value={user.id}
-                      />
-
-                      <button
-                        type="submit"
-                        className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${user.isActive
-                          ? "bg-red-700 hover:bg-red-800"
-                          : "bg-green-700 hover:bg-green-800"
-                          }`}
-                      >
-                        {user.isActive
-                          ? "Deactivate"
-                          : "Activate"}
-                      </button>
-                    </form>
+                    <ToggleUserStatusForm
+                      userId={user.id}
+                      isActive={user.isActive}
+                    />
                   </div>
                 </div>
 
@@ -470,21 +256,9 @@ export default async function AdminUsersPage() {
                             </strong>
                           </span>
 
-                          <form action={removeJournalRole}>
-                            <input
-                              type="hidden"
-                              name="roleRecordId"
-                              value={roleRecord.id}
-                            />
-
-                            <button
-                              type="submit"
-                              className="text-sm font-bold text-red-700 hover:text-red-900"
-                              aria-label="Remove role"
-                            >
-                              ×
-                            </button>
-                          </form>
+                          <RemoveJournalRoleForm
+                            roleRecordId={roleRecord.id}
+                          />
                         </div>
                       ))}
                     </div>

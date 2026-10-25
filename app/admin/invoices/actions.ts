@@ -5,6 +5,34 @@ import { revalidatePath } from "next/cache";
 import { requireAnyActionRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
+
+export type InvoiceActionState = {
+    success: boolean;
+    message: string;
+};
+
+async function runInvoiceAction(
+    fn: () => Promise<string>,
+): Promise<InvoiceActionState> {
+    try {
+        const message = await fn();
+
+        return { success: true, message };
+    } catch (error) {
+        logger.error("Invoice admin action failed", error, {
+            event: "INVOICE_ADMIN_ACTION_FAILED",
+        });
+
+        return {
+            success: false,
+            message:
+                error instanceof Error
+                    ? error.message
+                    : "Something went wrong. Please try again.",
+        };
+    }
+}
 
 function refreshInvoicePages(invoiceId: string, submissionId: string | null) {
     revalidatePath("/admin/invoices");
@@ -51,7 +79,11 @@ async function loadInvoiceForAction(invoiceId: string) {
     return invoice;
 }
 
-export async function waiveInvoice(formData: FormData) {
+export async function waiveInvoice(
+    _previousState: InvoiceActionState,
+    formData: FormData,
+): Promise<InvoiceActionState> {
+    return runInvoiceAction(async () => {
     const administrator = await requireAnyActionRole(ADMIN_ROLES);
 
     const invoiceId = String(formData.get("invoiceId") || "").trim();
@@ -125,9 +157,16 @@ export async function waiveInvoice(formData: FormData) {
     });
 
     refreshInvoicePages(invoice.id, invoice.submissionId);
+
+    return `Invoice ${invoice.invoiceNumber} waived.`;
+    });
 }
 
-export async function recordManualPayment(formData: FormData) {
+export async function recordManualPayment(
+    _previousState: InvoiceActionState,
+    formData: FormData,
+): Promise<InvoiceActionState> {
+    return runInvoiceAction(async () => {
     const administrator = await requireAnyActionRole(ADMIN_ROLES);
 
     const invoiceId = String(formData.get("invoiceId") || "").trim();
@@ -208,4 +247,7 @@ export async function recordManualPayment(formData: FormData) {
     });
 
     refreshInvoicePages(invoice.id, invoice.submissionId);
+
+    return `Invoice ${invoice.invoiceNumber} marked as paid.`;
+    });
 }

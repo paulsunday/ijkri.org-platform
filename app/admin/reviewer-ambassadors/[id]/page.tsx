@@ -7,12 +7,11 @@ import { prisma } from "@/lib/prisma";
 import { LEVEL_LABELS } from "@/lib/ambassador/levels";
 
 import {
-  adjustEarnings,
-  suspendAmbassador,
-  reactivateAmbassador,
-  regenerateReferralCode,
-  issueManualCertificate,
-} from "./actions";
+  AdjustEarningsForm,
+  AmbassadorStatusForm,
+  RegenerateCodeForm,
+  IssueCertificateForm,
+} from "./AmbassadorForms";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -185,87 +184,19 @@ export default async function AdminAmbassadorDetailPage({ params }: Props) {
         <div className="rounded-xl border bg-white p-6 shadow-sm">
           <h2 className="text-lg font-bold">Adjust Earnings</h2>
 
-          <form action={adjustEarnings} className="mt-4 space-y-3">
-            <input type="hidden" name="ambassadorId" value={ambassador.id} />
-
-            <div>
-              <label htmlFor="amount" className="mb-1 block text-sm font-medium">
-                Amount ({currency}, use negative to deduct)
-              </label>
-
-              <input
-                id="amount"
-                name="amount"
-                type="number"
-                step="0.01"
-                required
-                className="w-full rounded-lg border p-2"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="reason" className="mb-1 block text-sm font-medium">
-                Reason
-              </label>
-
-              <textarea
-                id="reason"
-                name="reason"
-                required
-                rows={3}
-                className="w-full rounded-lg border p-2"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-            >
-              Apply Adjustment
-            </button>
-          </form>
+          <AdjustEarningsForm ambassadorId={ambassador.id} currency={currency} />
         </div>
 
         <div className="rounded-xl border bg-white p-6 shadow-sm">
           <h2 className="text-lg font-bold">Ambassador Status</h2>
 
-          {ambassador.status === "ACTIVE" ? (
-            <form action={suspendAmbassador} className="mt-4 space-y-3">
-              <input type="hidden" name="ambassadorId" value={ambassador.id} />
-
-              <textarea
-                name="reason"
-                required
-                rows={3}
-                placeholder="Reason for suspension"
-                className="w-full rounded-lg border p-2"
-              />
-
-              <button
-                type="submit"
-                className="w-full rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800"
-              >
-                Suspend Ambassador
-              </button>
-            </form>
-          ) : (
-            <form action={reactivateAmbassador} className="mt-4">
-              <input type="hidden" name="ambassadorId" value={ambassador.id} />
-
-              {ambassador.suspendedReason && (
-                <p className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-800">
-                  {ambassador.suspendedReason}
-                </p>
-              )}
-
-              <button
-                type="submit"
-                className="w-full rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
-              >
-                Reactivate Ambassador
-              </button>
-            </form>
-          )}
+          <AmbassadorStatusForm
+            ambassador={{
+              id: ambassador.id,
+              status: ambassador.status,
+              suspendedReason: ambassador.suspendedReason,
+            }}
+          />
         </div>
 
         <div className="rounded-xl border bg-white p-6 shadow-sm">
@@ -277,16 +208,7 @@ export default async function AdminAmbassadorDetailPage({ params }: Props) {
             unaffected.
           </p>
 
-          <form action={regenerateReferralCode} className="mt-4">
-            <input type="hidden" name="ambassadorId" value={ambassador.id} />
-
-            <button
-              type="submit"
-              className="w-full rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-400"
-            >
-              Regenerate Code
-            </button>
-          </form>
+          <RegenerateCodeForm ambassadorId={ambassador.id} />
         </div>
       </div>
 
@@ -298,44 +220,7 @@ export default async function AdminAmbassadorDetailPage({ params }: Props) {
           Ambassador are awarded manually by an administrator.
         </p>
 
-        <form
-          action={issueManualCertificate}
-          className="mt-4 flex flex-wrap items-end gap-4"
-        >
-          <input type="hidden" name="ambassadorId" value={ambassador.id} />
-
-          <div>
-            <label htmlFor="type" className="mb-1 block text-sm font-medium">
-              Certificate
-            </label>
-
-            <select id="type" name="type" required className="rounded-lg border p-2">
-              <option value="OUTSTANDING_REVIEWER">Outstanding Reviewer</option>
-              <option value="TOP_REVIEWER">Top Reviewer</option>
-              <option value="TOP_AMBASSADOR">Top Ambassador</option>
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="periodLabel" className="mb-1 block text-sm font-medium">
-              Period (optional, e.g. 2026)
-            </label>
-
-            <input
-              id="periodLabel"
-              name="periodLabel"
-              type="text"
-              className="rounded-lg border p-2"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="rounded-lg bg-slate-950 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-          >
-            Issue Certificate
-          </button>
-        </form>
+        <IssueCertificateForm ambassadorId={ambassador.id} />
       </div>
     </div>
   );

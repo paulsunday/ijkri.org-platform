@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 
 import { requireAnyActionRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
+import {
+  runFormAction,
+  type FormActionState,
+} from "@/lib/forms/run-form-action";
 import { prisma } from "@/lib/prisma";
 import { uploadJournalFile } from "@/lib/storage/blob";
 import type { MarketingAssetType } from "@/lib/generated/prisma";
@@ -19,7 +23,11 @@ const VALID_ASSET_TYPES: MarketingAssetType[] = [
   "BUSINESS_CARD",
 ];
 
-export async function uploadMarketingTemplate(formData: FormData) {
+export async function uploadMarketingTemplate(
+  _previousState: FormActionState,
+  formData: FormData,
+): Promise<FormActionState> {
+  return runFormAction(async () => {
   const admin = await requireAnyActionRole(ADMIN_ROLES);
 
   const assetType = String(formData.get("assetType") || "").trim() as MarketingAssetType;
@@ -85,4 +93,7 @@ export async function uploadMarketingTemplate(formData: FormData) {
 
   revalidatePath("/admin/marketing-templates");
   revalidatePath("/reviewer/marketing");
+
+  return "Marketing template uploaded.";
+  }, { action: "uploadMarketingTemplate" });
 }

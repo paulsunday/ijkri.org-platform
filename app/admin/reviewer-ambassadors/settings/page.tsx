@@ -4,7 +4,7 @@ import { requireAnyRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 
-import { updateRewardSettings } from "./actions";
+import { RewardSettingsForm } from "./RewardSettingsForm";
 
 export default async function AmbassadorRewardSettingsPage() {
   await requireAnyRole(ADMIN_ROLES);
@@ -43,102 +43,15 @@ export default async function AmbassadorRewardSettingsPage() {
         {journal.currency}. Leaving an amount at 0 disables that reward.
       </p>
 
-      <form
-        action={updateRewardSettings}
-        className="mt-8 max-w-xl space-y-6 rounded-xl border bg-white p-6 shadow-sm"
-      >
-        <input type="hidden" name="journalId" value={journal.id} />
-
-        <div>
-          <label htmlFor="reviewReward" className="mb-1 block font-medium">
-            Review Reward
-          </label>
-
-          <input
-            id="reviewReward"
-            name="reviewReward"
-            type="number"
-            step="0.01"
-            min="0"
-            defaultValue={settings?.reviewReward.toString() ?? "0"}
-            className="w-full rounded-lg border p-3"
-          />
-
-          <p className="mt-1 text-sm text-slate-500">
-            Paid to any reviewer each time they submit a review report.
-          </p>
-        </div>
-
-        <div>
-          <label htmlFor="submissionReward" className="mb-1 block font-medium">
-            Submission Reward
-          </label>
-
-          <input
-            id="submissionReward"
-            name="submissionReward"
-            type="number"
-            step="0.01"
-            min="0"
-            defaultValue={settings?.submissionReward.toString() ?? "0"}
-            className="w-full rounded-lg border p-3"
-          />
-
-          <p className="mt-1 text-sm text-slate-500">
-            Paid to the referring reviewer when a referred author submits a
-            manuscript.
-          </p>
-        </div>
-
-        <div>
-          <label htmlFor="publicationReward" className="mb-1 block font-medium">
-            Publication Reward
-          </label>
-
-          <input
-            id="publicationReward"
-            name="publicationReward"
-            type="number"
-            step="0.01"
-            min="0"
-            defaultValue={settings?.publicationReward.toString() ?? "0"}
-            className="w-full rounded-lg border p-3"
-          />
-
-          <p className="mt-1 text-sm text-slate-500">
-            Paid to the referring reviewer when a referred manuscript is
-            published.
-          </p>
-        </div>
-
-        <div>
-          <label htmlFor="referralBonus" className="mb-1 block font-medium">
-            Referral Bonus
-          </label>
-
-          <input
-            id="referralBonus"
-            name="referralBonus"
-            type="number"
-            step="0.01"
-            min="0"
-            defaultValue={settings?.referralBonus.toString() ?? "0"}
-            className="w-full rounded-lg border p-3"
-          />
-
-          <p className="mt-1 text-sm text-slate-500">
-            Paid to the referring reviewer when a new author registers using
-            their referral link.
-          </p>
-        </div>
-
-        <button
-          type="submit"
-          className="rounded-lg bg-amber-500 px-6 py-3 font-bold text-slate-950 hover:bg-amber-400"
-        >
-          Save Reward Settings
-        </button>
-      </form>
+      <RewardSettingsForm
+        journalId={journal.id}
+        values={{
+          reviewReward: settings?.reviewReward.toString() ?? "0",
+          submissionReward: settings?.submissionReward.toString() ?? "0",
+          publicationReward: settings?.publicationReward.toString() ?? "0",
+          referralBonus: settings?.referralBonus.toString() ?? "0",
+        }}
+      />
     </div>
   );
 }

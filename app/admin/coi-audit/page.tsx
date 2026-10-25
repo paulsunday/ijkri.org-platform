@@ -2,7 +2,7 @@ import { requireRole } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
 import type { ConflictSeverity, ConflictType } from "@/lib/generated/prisma";
 
-import { overrideConflict } from "./actions";
+import { OverrideConflictForm } from "./CoiForms";
 
 const PAGE_SIZE = 25;
 
@@ -118,21 +118,7 @@ export default async function CoiAuditPage({ searchParams }: Props) {
               </div>
 
               {check.severity !== "HIGH" && !check.overriddenAt && (
-                <form action={overrideConflict} className="flex flex-col gap-2">
-                  <input type="hidden" name="conflictId" value={check.id} />
-                  <input
-                    name="overrideReason"
-                    placeholder="Override reason"
-                    required
-                    className="rounded-lg border p-2 text-sm"
-                  />
-                  <button
-                    type="submit"
-                    className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-                  >
-                    Override
-                  </button>
-                </form>
+                <OverrideConflictForm conflictId={check.id} />
               )}
             </div>
           </div>

@@ -3,7 +3,7 @@ import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 import type { MarketingAssetType } from "@/lib/generated/prisma";
 
-import { uploadMarketingTemplate } from "./actions";
+import { MarketingTemplateForm } from "./MarketingTemplateForm";
 
 const ASSET_TYPES: { value: MarketingAssetType; label: string }[] = [
   { value: "WHATSAPP_FLYER", label: "WhatsApp Flyer" },
@@ -69,36 +69,11 @@ export default async function MarketingTemplatesPage() {
                 </p>
               )}
 
-              <form
-                action={uploadMarketingTemplate}
-                encType="multipart/form-data"
-                className="mt-4 space-y-3"
-              >
-                <input type="hidden" name="assetType" value={asset.value} />
-
-                <input
-                  type="file"
-                  name="background"
-                  accept="image/png,image/jpeg,image/webp"
-                  required
-                  className="w-full rounded-lg border p-2 text-sm"
-                />
-
-                <input
-                  type="text"
-                  name="defaultCaption"
-                  placeholder="Default share caption (use {code} and {link})"
-                  defaultValue={current?.defaultCaption ?? ""}
-                  className="w-full rounded-lg border p-2 text-sm"
-                />
-
-                <button
-                  type="submit"
-                  className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-400"
-                >
-                  {current ? "Replace Template" : "Upload Template"}
-                </button>
-              </form>
+              <MarketingTemplateForm
+                assetType={asset.value}
+                defaultCaption={current?.defaultCaption ?? ""}
+                hasCurrentTemplate={Boolean(current)}
+              />
             </div>
           );
         })}

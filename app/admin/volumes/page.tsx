@@ -4,11 +4,10 @@ import { requireAnyRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 
 import {
-  createVolume,
-  deleteVolume,
-  toggleVolumePublished,
-  updateVolume,
-} from "./actions";
+  CreateVolumeForm,
+  UpdateVolumeForm,
+  VolumeActionButtons,
+} from "./VolumeForms";
 
 export default async function AdminVolumesPage() {
   await requireAnyRole(ADMIN_ROLES);
@@ -110,119 +109,7 @@ export default async function AdminVolumesPage() {
           Create Volume
         </h2>
 
-        <form
-          action={createVolume}
-          className="mt-6 grid gap-5 md:grid-cols-2"
-        >
-          <div className="md:col-span-2">
-            <label
-              htmlFor="journalId"
-              className="mb-2 block font-semibold"
-            >
-              Journal
-            </label>
-
-            <select
-              id="journalId"
-              name="journalId"
-              required
-              defaultValue=""
-              className="w-full rounded-lg border p-3"
-            >
-              <option value="" disabled>
-                Select journal
-              </option>
-
-              {journals.map((journal) => (
-                <option
-                  key={journal.id}
-                  value={journal.id}
-                >
-                  {journal.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label
-              htmlFor="number"
-              className="mb-2 block font-semibold"
-            >
-              Volume Number
-            </label>
-
-            <input
-              id="number"
-              name="number"
-              type="number"
-              min={1}
-              required
-              className="w-full rounded-lg border p-3"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="year"
-              className="mb-2 block font-semibold"
-            >
-              Year
-            </label>
-
-            <input
-              id="year"
-              name="year"
-              type="number"
-              min={1900}
-              max={2200}
-              required
-              defaultValue={new Date().getFullYear()}
-              className="w-full rounded-lg border p-3"
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <label
-              htmlFor="title"
-              className="mb-2 block font-semibold"
-            >
-              Title
-            </label>
-
-            <input
-              id="title"
-              name="title"
-              className="w-full rounded-lg border p-3"
-              placeholder="Optional volume title"
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <label
-              htmlFor="description"
-              className="mb-2 block font-semibold"
-            >
-              Description
-            </label>
-
-            <textarea
-              id="description"
-              name="description"
-              rows={5}
-              className="w-full rounded-lg border p-3"
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <button
-              type="submit"
-              className="rounded-lg bg-blue-700 px-6 py-3 font-semibold text-white hover:bg-blue-800"
-            >
-              Create Volume
-            </button>
-          </div>
-        </form>
+        <CreateVolumeForm journals={journals} />
       </section>
 
       <section className="rounded-xl border bg-white p-6 shadow-sm">
@@ -295,127 +182,23 @@ export default async function AdminVolumesPage() {
                     </p>
                   </div>
 
-                  <form
-                    action={updateVolume}
-                    className="mt-6 grid gap-4 md:grid-cols-2"
-                  >
-                    <input
-                      type="hidden"
-                      name="volumeId"
-                      value={volume.id}
-                    />
+                  <UpdateVolumeForm
+                    volume={{
+                      id: volume.id,
+                      number: volume.number,
+                      year: volume.year,
+                      title: volume.title,
+                      description: volume.description,
+                    }}
+                  />
 
-                    <div>
-                      <label
-                        htmlFor={`number-${volume.id}`}
-                        className="mb-2 block text-sm font-semibold"
-                      >
-                        Volume Number
-                      </label>
-
-                      <input
-                        id={`number-${volume.id}`}
-                        name="number"
-                        type="number"
-                        min={1}
-                        required
-                        defaultValue={volume.number}
-                        className="w-full rounded-lg border p-3"
-                      />
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor={`year-${volume.id}`}
-                        className="mb-2 block text-sm font-semibold"
-                      >
-                        Year
-                      </label>
-
-                      <input
-                        id={`year-${volume.id}`}
-                        name="year"
-                        type="number"
-                        min={1900}
-                        max={2200}
-                        required
-                        defaultValue={volume.year}
-                        className="w-full rounded-lg border p-3"
-                      />
-                    </div>
-
-                    <input
-                      name="title"
-                      defaultValue={volume.title || ""}
-                      placeholder="Volume title"
-                      className="rounded-lg border p-3"
-                    />
-
-                    <textarea
-                      name="description"
-                      defaultValue={
-                        volume.description || ""
-                      }
-                      rows={3}
-                      placeholder="Description"
-                      className="rounded-lg border p-3"
-                    />
-
-                    <div className="md:col-span-2">
-                      <button
-                        type="submit"
-                        className="rounded-lg bg-gray-800 px-5 py-3 font-semibold text-white hover:bg-black"
-                      >
-                        Save Changes
-                      </button>
-                    </div>
-                  </form>
-
-                  <div className="mt-6 flex flex-wrap gap-3">
-                    <form action={toggleVolumePublished}>
-                      <input
-                        type="hidden"
-                        name="volumeId"
-                        value={volume.id}
-                      />
-
-                      <button
-                        type="submit"
-                        className={`rounded-lg px-5 py-3 font-semibold text-white ${volume.isPublished
-                          ? "bg-yellow-600 hover:bg-yellow-700"
-                          : "bg-green-700 hover:bg-green-800"
-                          }`}
-                      >
-                        {volume.isPublished
-                          ? "Unpublish Volume"
-                          : "Publish Volume"}
-                      </button>
-                    </form>
-
-                    <Link
-                      href="/admin/issues"
-                      className="rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"
-                    >
-                      Manage Issues
-                    </Link>
-
-                    {articleCount === 0 && (
-                      <form action={deleteVolume}>
-                        <input
-                          type="hidden"
-                          name="volumeId"
-                          value={volume.id}
-                        />
-
-                        <button
-                          type="submit"
-                          className="rounded-lg bg-red-700 px-5 py-3 font-semibold text-white hover:bg-red-800"
-                        >
-                          Delete Volume
-                        </button>
-                      </form>
-                    )}
-                  </div>
+                  <VolumeActionButtons
+                    volume={{
+                      id: volume.id,
+                      isPublished: volume.isPublished,
+                      articleCount,
+                    }}
+                  />
                 </article>
               );
             })}

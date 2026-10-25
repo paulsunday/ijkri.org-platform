@@ -4,12 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAnyRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 
-import {
-  markDoiFailed,
-  markDoiRegistered,
-  resetDoiToPending,
-  submitDoiRegistration,
-} from "./actions";
+import { DoiRecordActions } from "./DoiForms";
 
 function formatDate(
   value: Date | null | undefined,
@@ -296,119 +291,15 @@ export default async function DoiRecordsPage() {
                   )}
 
                   {currentManager && (
-                    <div className="mt-6 flex flex-wrap gap-4">
-                      {article &&
-                        record.status !== "REGISTERED" && (
-                          <form
-                            action={submitDoiRegistration}
-                          >
-                            <input
-                              type="hidden"
-                              name="doiRecordId"
-                              value={record.id}
-                            />
-
-                            <button
-                              type="submit"
-                              className="rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"
-                            >
-                              Submit to Crossref
-                            </button>
-                          </form>
-                        )}
-
-                      {record.status !== "REGISTERED" && (
-                        <form action={markDoiRegistered}>
-                          <input
-                            type="hidden"
-                            name="doiRecordId"
-                            value={record.id}
-                          />
-
-                          <input
-                            type="hidden"
-                            name="userId"
-                            value={currentManager.id}
-                          />
-
-                          <button
-                            type="submit"
-                            className="rounded-lg bg-green-700 px-5 py-3 font-semibold text-white hover:bg-green-800"
-                          >
-                            Mark Registered Manually
-                          </button>
-                        </form>
-                      )}
-
-                      {record.status !== "PENDING" && (
-                        <form action={resetDoiToPending}>
-                          <input
-                            type="hidden"
-                            name="doiRecordId"
-                            value={record.id}
-                          />
-
-                          <input
-                            type="hidden"
-                            name="userId"
-                            value={currentManager.id}
-                          />
-
-                          <button
-                            type="submit"
-                            className="rounded-lg bg-yellow-600 px-5 py-3 font-semibold text-white hover:bg-yellow-700"
-                          >
-                            Reset to Pending
-                          </button>
-                        </form>
-                      )}
-                    </div>
+                    <DoiRecordActions
+                      record={{
+                        id: record.id,
+                        status: record.status,
+                        hasArticle: Boolean(article),
+                      }}
+                      currentManagerId={currentManager.id}
+                    />
                   )}
-
-                  {currentManager &&
-                    record.status !== "REGISTERED" && (
-                      <form
-                        action={markDoiFailed}
-                        className="mt-6 rounded-lg border border-red-200 bg-red-50 p-5"
-                      >
-                        <input
-                          type="hidden"
-                          name="doiRecordId"
-                          value={record.id}
-                        />
-
-                        <input
-                          type="hidden"
-                          name="userId"
-                          value={currentManager.id}
-                        />
-
-                        <label
-                          htmlFor={`failureReason-${record.id}`}
-                          className="mb-2 block font-semibold text-red-900"
-                        >
-                          Registration Failure
-                        </label>
-
-                        <div className="flex flex-col gap-3 md:flex-row">
-                          <input
-                            id={`failureReason-${record.id}`}
-                            name="failureReason"
-                            type="text"
-                            required
-                            placeholder="Describe the registration error..."
-                            className="flex-1 rounded-lg border p-3"
-                          />
-
-                          <button
-                            type="submit"
-                            className="rounded-lg bg-red-700 px-5 py-3 font-semibold text-white hover:bg-red-800"
-                          >
-                            Mark Failed
-                          </button>
-                        </div>
-                      </form>
-                    )}
                 </article>
               );
             })}

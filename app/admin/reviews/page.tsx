@@ -4,9 +4,9 @@ import { requireAnyRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 import {
-  cancelReviewerAssignment,
-  sendReviewerReminder,
-} from "./actions";
+  CancelReviewerAssignmentForm,
+  SendReviewerReminderForm,
+} from "./ReviewForms";
 
 type ReviewsPageProps = {
   searchParams: Promise<{
@@ -763,37 +763,15 @@ export default async function ReviewsPage({
                         <td className="px-5 py-5 align-top">
                           <div className="flex flex-col items-start gap-2">
                             {isOpenReview(assignment.status) && (
-                              <form action={sendReviewerReminder}>
-                                <input
-                                  type="hidden"
-                                  name="assignmentId"
-                                  value={assignment.id}
-                                />
-
-                                <button
-                                  type="submit"
-                                  className="rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-700"
-                                >
-                                  Send Reminder
-                                </button>
-                              </form>
+                              <SendReviewerReminderForm
+                                assignmentId={assignment.id}
+                              />
                             )}
 
                             {canRemoveAssignment(assignment.status) && (
-                              <form action={cancelReviewerAssignment}>
-                                <input
-                                  type="hidden"
-                                  name="assignmentId"
-                                  value={assignment.id}
-                                />
-
-                                <button
-                                  type="submit"
-                                  className="rounded-lg bg-red-700 px-3 py-2 text-sm font-semibold text-white hover:bg-red-800"
-                                >
-                                  Remove Assignment
-                                </button>
-                              </form>
+                              <CancelReviewerAssignmentForm
+                                assignmentId={assignment.id}
+                              />
                             )}
 
                             <Link

@@ -4,7 +4,7 @@ import { requireAnyRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 
-import { approveWithdrawal, rejectWithdrawal } from "./actions";
+import { WithdrawalReviewActions } from "./WithdrawalForms";
 
 function formatMoney(value: string | number, currency: string) {
   const numericValue = Number(value);
@@ -88,33 +88,7 @@ export default async function AdminWithdrawalsPage() {
                   </p>
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <form action={approveWithdrawal}>
-                    <input type="hidden" name="withdrawalId" value={withdrawal.id} />
-                    <button
-                      type="submit"
-                      className="w-full rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
-                    >
-                      Approve & Pay
-                    </button>
-                  </form>
-
-                  <form action={rejectWithdrawal} className="flex flex-col gap-2">
-                    <input type="hidden" name="withdrawalId" value={withdrawal.id} />
-                    <input
-                      name="reviewNotes"
-                      placeholder="Rejection reason"
-                      required
-                      className="rounded-lg border p-2 text-sm"
-                    />
-                    <button
-                      type="submit"
-                      className="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800"
-                    >
-                      Reject
-                    </button>
-                  </form>
-                </div>
+                <WithdrawalReviewActions withdrawalId={withdrawal.id} />
               </div>
             </div>
           ))}
