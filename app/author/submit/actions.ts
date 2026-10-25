@@ -8,6 +8,8 @@ import { requireAnyActionRole } from "@/lib/auth/permissions";
 import { AUTHOR_ROLES } from "@/lib/auth/role-groups";
 import { logger } from "@/lib/logger";
 import { generateManuscriptDisplayId } from "@/lib/manuscripts/generate-display-id";
+import { notifyStaffActionNeeded } from "@/lib/notifications/notify-staff";
+import { sendChatNotification } from "@/lib/notifications/notify-webhook";
 import { prisma } from "@/lib/prisma";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { assertHoneypotEmpty } from "@/lib/security/honeypot";
@@ -696,6 +698,14 @@ export async function submitManuscript(
           },
         });
 
+        await notifyStaffActionNeeded(tx, {
+          journalId: journal.id,
+          type: "SUBMISSION",
+          title: "New manuscript submitted",
+          message: `${manuscriptDisplayId}: "${title}" was submitted and needs screening.`,
+          link: `/admin/submissions/${submissionId}`,
+        });
+
         await tx.submissionAuthor.createMany({
           data: manuscriptAuthors.map(
             (manuscriptAuthor) => ({
@@ -889,6 +899,12 @@ export async function submitManuscript(
       submissionId,
     });
   }
+
+  await sendChatNotification({
+    title: "New manuscript submitted",
+    message: `**${manuscriptDisplayId}**: "${title}" by ${submittingUser.name}`,
+    link: `${appUrlForConfirmation}/admin/submissions/${submissionId}`,
+  });
 
   if (referral) {
     const referringReviewer = await prisma.user.findUnique({

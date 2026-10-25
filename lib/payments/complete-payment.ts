@@ -2,7 +2,15 @@ import { randomUUID } from "crypto";
 
 import { Prisma } from "@/lib/generated/prisma";
 
+import { notifyStaffActionNeeded } from "@/lib/notifications/notify-staff";
+import { sendChatNotification } from "@/lib/notifications/notify-webhook";
 import { prisma } from "@/lib/prisma";
+
+function getAppUrl() {
+    return (
+        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+    ).replace(/\/+$/, "");
+}
 
 export interface CompletePaymentInput {
     paymentId: string;
@@ -584,6 +592,16 @@ export async function completePayment(
                     },
                 });
 
+                await notifyStaffActionNeeded(tx, {
+                    journalId: payment.journalId,
+                    type: "PAYMENT",
+                    title: "Payment received",
+                    message: `${payment.user.name} paid ${payment.currency} ${paidAmount.toFixed(2)}${payment.invoice ? ` (Invoice ${payment.invoice.invoiceNumber})` : ""}.`,
+                    link: payment.invoiceId
+                        ? `/admin/invoices/${payment.invoiceId}`
+                        : `/admin/payments/${payment.id}`,
+                });
+
                 await tx.activityLog.create({
                     data: {
                         userId: payment.userId,
@@ -651,6 +669,28 @@ export async function completePayment(
                 timeout: 15_000,
             },
         );
+
+    /*
+     * Notify chat outside the transaction, and only on the request
+     * that actually completed the payment (never on a retry/duplicate
+     * webhook delivery that found it already PAID). In-app
+     * notifications to the author and staff are created inside the
+     * transaction above.
+     */
+    if (result.success && !result.alreadyProcessed) {
+        const amountLabel = `${payment.currency} ${paidAmount.toFixed(2)}`;
+        const invoiceLabel = payment.invoice
+            ? ` (Invoice ${payment.invoice.invoiceNumber})`
+            : "";
+
+        await sendChatNotification({
+            title: "Payment received",
+            message: `${payment.user.name} paid ${amountLabel}${invoiceLabel}.`,
+            link: payment.invoice
+                ? `${getAppUrl()}/admin/invoices/${payment.invoice.id}`
+                : `${getAppUrl()}/admin/payments/${payment.id}`,
+        });
+    }
 
     return result;
 }
