@@ -1,6 +1,8 @@
 ﻿import { requireAnyRole } from "@/lib/auth/permissions";
 import { AUTHOR_ROLES } from "@/lib/auth/role-groups";
 import { COUNTRIES } from "@/lib/constants/countries";
+import { HoneypotField } from "@/components/forms/honeypot-field";
+import { TurnstileWidget } from "@/components/forms/turnstile-widget";
 
 import { submitManuscript } from "./actions";
 
@@ -31,6 +33,8 @@ export default async function SubmitManuscriptPage({
         {ref && (
           <input type="hidden" name="referralCode" value={ref} />
         )}
+
+        <HoneypotField />
 
         {/* ===========================
             MANUSCRIPT DETAILS
@@ -494,6 +498,8 @@ export default async function SubmitManuscriptPage({
             </span>
           </label>
         </div>
+
+        <TurnstileWidget />
 
         <button
           type="submit"

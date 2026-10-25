@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
+import { assertHoneypotEmpty } from "@/lib/security/honeypot";
 
 function normalizeEmail(value: string) {
     return value.trim().toLowerCase();
@@ -50,6 +51,10 @@ function validateOptionalUrl(
 export async function submitReviewerApplication(
     formData: FormData,
 ) {
+    assertHoneypotEmpty(formData, {
+        event: "REVIEWER_APPLICATION",
+    });
+
     const fullName = String(
         formData.get("fullName") || "",
     ).trim();

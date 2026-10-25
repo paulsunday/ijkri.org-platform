@@ -10,6 +10,8 @@ import { logger } from "@/lib/logger";
 import { generateManuscriptDisplayId } from "@/lib/manuscripts/generate-display-id";
 import { prisma } from "@/lib/prisma";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { assertHoneypotEmpty } from "@/lib/security/honeypot";
+import { verifyTurnstileToken } from "@/lib/security/verify-turnstile";
 import {
   deleteJournalFile,
   uploadJournalFile,
@@ -435,6 +437,13 @@ export async function submitManuscript(
 ) {
   const submittingUser =
     await requireAnyActionRole(AUTHOR_ROLES);
+
+  assertHoneypotEmpty(formData, {
+    event: "MANUSCRIPT_SUBMISSION",
+    userId: submittingUser.id,
+  });
+
+  await verifyTurnstileToken(formData);
 
   try {
     await enforceRateLimit(

@@ -1,6 +1,7 @@
 ﻿import Link from "next/link";
 
 import { COUNTRIES } from "@/lib/constants/countries";
+import { HoneypotField } from "@/components/forms/honeypot-field";
 
 import { submitReviewerApplication } from "./actions";
 
@@ -142,6 +143,8 @@ export default async function ReviewerApplicationPage({
                         action={submitReviewerApplication}
                         className="mt-8 space-y-8"
                     >
+                        <HoneypotField />
+
                         <fieldset className="space-y-6">
                             <legend className="text-xl font-bold">
                                 Personal and institutional information
