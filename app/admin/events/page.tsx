@@ -112,6 +112,12 @@ export default async function EventsAdminPage({
                 journalId: selectedJournalId,
             },
 
+            include: {
+                _count: {
+                    select: { registrations: true },
+                },
+            },
+
             orderBy: {
                 startsAt: "desc",
             },
@@ -262,6 +268,13 @@ export default async function EventsAdminPage({
 
                                                 <p className="mt-3 max-w-2xl leading-7 text-slate-600">
                                                     {event.description}
+                                                </p>
+
+                                                <p className="mt-3 text-sm font-semibold text-slate-800">
+                                                    {event._count.registrations}{" "}
+                                                    {event._count.registrations === 1
+                                                        ? "person registered"
+                                                        : "people registered"}
                                                 </p>
                                             </div>
 

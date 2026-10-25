@@ -510,10 +510,29 @@ model Event {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   journal         Journal     @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  registrations   EventRegistration[]
 
   @@unique([journalId, slug])
   @@index([journalId])
   @@index([status])
+}
+
+/**
+ * One row per person who registered for an event. Registration
+ * emails were previously fire-and-forget with no persisted record,
+ * so there was no way to see how many people had registered.
+ */
+model EventRegistration {
+  id        String   @id @default(cuid())
+  eventId   String
+  name      String
+  email     String
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, email])
+  @@index([eventId])
 }
 
 model UserJournalRole {

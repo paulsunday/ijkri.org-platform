@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email/send-email";
+import { assertHoneypotEmpty } from "@/lib/security/honeypot";
 import {
   eventRegistrationConfirmedEmail,
   eventRegistrationNotificationEmail,
@@ -30,6 +31,8 @@ function formatSchedule(startsAt: Date, endsAt: Date | null) {
 }
 
 export async function registerForEvent(formData: FormData) {
+  assertHoneypotEmpty(formData, { event: "EVENT_REGISTRATION" });
+
   const slug = String(formData.get("slug") || "").trim();
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "")
@@ -70,6 +73,26 @@ export async function registerForEvent(formData: FormData) {
   if (!event || !event.isPublished) {
     throw new Error("Event not found.");
   }
+
+  /*
+   * Upsert so re-registering with the same email is a harmless
+   * no-op rather than a unique-constraint error, and the registrant
+   * count never double-counts the same person.
+   */
+  await prisma.eventRegistration.upsert({
+    where: {
+      eventId_email: {
+        eventId: event.id,
+        email,
+      },
+    },
+    create: {
+      eventId: event.id,
+      name,
+      email,
+    },
+    update: {},
+  });
 
   const scheduleText = formatSchedule(
     event.startsAt,

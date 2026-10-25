@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
+import { HoneypotField } from "@/components/forms/honeypot-field";
 
 import { registerForEvent } from "./actions";
 
@@ -196,6 +197,8 @@ export default async function EventDetailPage({
                     name="slug"
                     value={event.slug}
                   />
+
+                  <HoneypotField />
 
                   <label className="flex-1 text-sm font-semibold text-slate-800">
                     Full name
