@@ -198,16 +198,6 @@ export default async function EditorialBoardPage() {
 
             <div>
               <dt className="text-sm font-bold uppercase tracking-wider text-slate-500">
-                Board Members
-              </dt>
-
-              <dd className="mt-1 font-semibold">
-                {members.length}
-              </dd>
-            </div>
-
-            <div>
-              <dt className="text-sm font-bold uppercase tracking-wider text-slate-500">
                 Editorial Contact
               </dt>
 

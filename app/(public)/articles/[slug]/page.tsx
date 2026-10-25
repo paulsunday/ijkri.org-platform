@@ -693,12 +693,8 @@ export default async function PublicArticlePage({ params }: PageProps) {
                       <div
                         id={`author-${author.id}`}
                         key={author.id}
-                        className="scroll-mt-28 grid gap-4 px-6 py-6 md:grid-cols-[48px_minmax(0,1fr)] md:px-8"
+                        className="scroll-mt-28 px-6 py-6 md:px-8"
                       >
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-sm font-bold text-blue-800">
-                          {index + 1}
-                        </div>
-
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                             <h3 className="text-lg font-bold text-slate-950">
