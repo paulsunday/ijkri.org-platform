@@ -1,11 +1,17 @@
 import { Resend } from "resend";
 
+type EmailAttachment = {
+    filename: string;
+    content: Buffer | Uint8Array | string;
+};
+
 type SendEmailOptions = {
     to: string | string[];
     subject: string;
     html: string;
     text?: string;
     replyTo?: string;
+    attachments?: EmailAttachment[];
 };
 
 function getResendClient() {
@@ -26,6 +32,7 @@ export async function sendEmail({
     html,
     text,
     replyTo,
+    attachments,
 }: SendEmailOptions) {
     const from =
         process.env.EMAIL_FROM ||
@@ -45,6 +52,13 @@ export async function sendEmail({
         html,
         text,
         replyTo: resolvedReplyTo,
+        attachments: attachments?.map((attachment) => ({
+            filename: attachment.filename,
+            content:
+                typeof attachment.content === "string"
+                    ? attachment.content
+                    : Buffer.from(attachment.content),
+        })),
     });
 
     if (result.error) {
