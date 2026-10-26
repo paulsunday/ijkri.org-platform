@@ -21,5 +21,6 @@ export const ADMIN_NAV_LINKS = [
   ["Research Insights", "/admin/insights"],
   ["Academic Events", "/admin/events"],
   ["Newsletter", "/admin/newsletter"],
+  ["Site Pages", "/admin/static-pages"],
   ["Settings", "/admin/settings"],
 ] as const;

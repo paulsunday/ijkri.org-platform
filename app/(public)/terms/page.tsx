@@ -1,4 +1,7 @@
 import Link from "next/link";
+
+import { getStaticPageOverride } from "@/lib/static-pages/get-static-page";
+import { StaticPageOverrideView } from "@/components/static-pages/StaticPageOverrideView";
 import type { Metadata } from "next";
 
 const LAST_UPDATED = "August 15, 2026";
@@ -176,7 +179,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  const override = await getStaticPageOverride("TERMS");
+
+  if (override) {
+    return <StaticPageOverrideView override={override} />;
+  }
+
   return (
     <main className="bg-white">
       <section className="border-b border-slate-200 bg-slate-950 text-white">

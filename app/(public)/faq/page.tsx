@@ -1,4 +1,7 @@
 import Link from "next/link";
+
+import { getStaticPageOverride } from "@/lib/static-pages/get-static-page";
+import { StaticPageOverrideView } from "@/components/static-pages/StaticPageOverrideView";
 import type { Metadata } from "next";
 
 type FaqEntry = {
@@ -224,7 +227,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default function FaqPage() {
+export default async function FaqPage() {
+  const override = await getStaticPageOverride("FAQ");
+
+  if (override) {
+    return <StaticPageOverrideView override={override} />;
+  }
+
   return (
     <main className="bg-white">
       <section className="border-b border-slate-200 bg-slate-950 text-white">

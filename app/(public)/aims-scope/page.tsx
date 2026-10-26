@@ -1,5 +1,8 @@
 ﻿import Link from "next/link";
 
+import { getStaticPageOverride } from "@/lib/static-pages/get-static-page";
+import { StaticPageOverrideView } from "@/components/static-pages/StaticPageOverrideView";
+
 const subjectAreas = [
   {
     title: "Business, Management and Economics",
@@ -93,7 +96,13 @@ const acceptedArticleTypes = [
   "Book reviews, where formally commissioned",
 ];
 
-export default function AimsAndScopePage() {
+export default async function AimsAndScopePage() {
+  const override = await getStaticPageOverride("AIMS_SCOPE");
+
+  if (override) {
+    return <StaticPageOverrideView override={override} />;
+  }
+
   return (
     <main className="bg-white text-slate-950">
       <section className="border-b bg-slate-950 text-white">

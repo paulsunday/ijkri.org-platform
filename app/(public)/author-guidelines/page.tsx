@@ -1,5 +1,8 @@
 ﻿import Link from "next/link";
 
+import { getStaticPageOverride } from "@/lib/static-pages/get-static-page";
+import { StaticPageOverrideView } from "@/components/static-pages/StaticPageOverrideView";
+
 const manuscriptTypes = [
   {
     title: "Original Research Article",
@@ -409,7 +412,13 @@ const submissionChecklist = [
   "The corresponding author’s contact information is complete.",
 ];
 
-export default function AuthorGuidelinesPage() {
+export default async function AuthorGuidelinesPage() {
+  const override = await getStaticPageOverride("AUTHOR_GUIDELINES");
+
+  if (override) {
+    return <StaticPageOverrideView override={override} />;
+  }
+
   return (
     <main className="bg-white text-slate-950">
       <section className="border-b bg-slate-950 text-white">

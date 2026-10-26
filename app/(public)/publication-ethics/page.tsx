@@ -1,5 +1,8 @@
 ﻿import Link from "next/link";
 
+import { getStaticPageOverride } from "@/lib/static-pages/get-static-page";
+import { StaticPageOverrideView } from "@/components/static-pages/StaticPageOverrideView";
+
 const authorResponsibilities = [
   "Submit only original work that has not been published or submitted elsewhere.",
   "Present research honestly without fabrication, falsification, or inappropriate data manipulation.",
@@ -86,7 +89,13 @@ const trustPolicies = [
   },
 ];
 
-export default function PublicationEthicsPage() {
+export default async function PublicationEthicsPage() {
+  const override = await getStaticPageOverride("PUBLICATION_ETHICS");
+
+  if (override) {
+    return <StaticPageOverrideView override={override} />;
+  }
+
   return (
     <main className="bg-slate-50">
       <section className="relative overflow-hidden bg-slate-950 text-white">

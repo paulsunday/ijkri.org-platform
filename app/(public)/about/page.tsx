@@ -1,5 +1,8 @@
 ﻿import Link from "next/link";
 
+import { getStaticPageOverride } from "@/lib/static-pages/get-static-page";
+import { StaticPageOverrideView } from "@/components/static-pages/StaticPageOverrideView";
+
 const coreValues = [
   {
     title: "Academic Integrity",
@@ -68,7 +71,13 @@ const journalFacts = [
   },
 ];
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const override = await getStaticPageOverride("ABOUT");
+
+  if (override) {
+    return <StaticPageOverrideView override={override} />;
+  }
+
   return (
     <main className="bg-white text-slate-950">
       <section className="border-b bg-slate-950 text-white">

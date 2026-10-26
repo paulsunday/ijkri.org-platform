@@ -1,4 +1,7 @@
 import Link from "next/link";
+
+import { getStaticPageOverride } from "@/lib/static-pages/get-static-page";
+import { StaticPageOverrideView } from "@/components/static-pages/StaticPageOverrideView";
 import type { Metadata } from "next";
 
 const reasons = [
@@ -53,7 +56,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default function WhyIjkriPage() {
+export default async function WhyIjkriPage() {
+  const override = await getStaticPageOverride("WHY_IJKRI");
+
+  if (override) {
+    return <StaticPageOverrideView override={override} />;
+  }
+
   return (
     <main className="bg-white">
       <section className="relative overflow-hidden bg-slate-950 text-white">

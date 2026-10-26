@@ -292,6 +292,7 @@ model User {
   campaignsCreated          ReferralCampaign[]        @relation("ReferralCampaignCreatedBy")
 
   agreementSignatures AgreementSignature[]
+  staticPagesUpdated  StaticPage[]
 
   @@index([email])
   @@index([referredByReviewerId])
@@ -367,6 +368,7 @@ model Journal {
   events                Event[]
 
   manuscriptSequences ManuscriptSequence[]
+  staticPages         StaticPage[]
 
   @@index([slug])
   @@index([tenantId])
@@ -1887,4 +1889,39 @@ model AgreementSignature {
   @@index([agreementId])
   @@index([submissionAuthorId])
   @@index([userId])
+}
+
+enum StaticPageKey {
+  ABOUT
+  AIMS_SCOPE
+  AUTHOR_GUIDELINES
+  PEER_REVIEW
+  PUBLICATION_ETHICS
+  WHY_IJKRI
+  FAQ
+  TERMS
+  PRIVACY
+}
+
+/**
+ * Super-admin-editable override for an otherwise hardcoded public
+ * page. If no row exists for a given journal + key, the page falls
+ * back to its original built-in content — nothing breaks, and no
+ * content is lost, until an admin explicitly customizes a page.
+ */
+model StaticPage {
+  id            String        @id @default(cuid())
+  journalId     String
+  key           StaticPageKey
+  title         String
+  tagline       String?
+  body          String
+  updatedAt     DateTime      @updatedAt
+  createdAt     DateTime      @default(now())
+  updatedById   String?
+
+  journal   Journal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  updatedBy User?   @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([journalId, key])
 }
