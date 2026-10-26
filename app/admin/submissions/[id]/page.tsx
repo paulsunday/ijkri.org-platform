@@ -66,6 +66,10 @@ function formatStatus(value: string) {
     .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
+function formatLicenseType(value: string) {
+  return value === "CC_BY_4" ? "CC BY 4.0" : "Copyright Transfer";
+}
+
 export default async function SubmissionDetailsPage({
   params,
 }: PageProps) {
@@ -273,7 +277,7 @@ export default async function SubmissionDetailsPage({
               </p>
 
               <h2 className="mt-2 text-2xl font-bold">
-                {formatStatus(submission.agreement.licenseType)}
+                {formatLicenseType(submission.agreement.licenseType)}
               </h2>
             </div>
 
