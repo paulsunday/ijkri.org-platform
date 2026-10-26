@@ -230,7 +230,7 @@ export function buildStoragePath(
  * BLOB_READ_WRITE_TOKEN is supported as a fallback so the application can
  * initially operate with one connected Blob store.
  */
-function getBlobToken(visibility: FileVisibility): string | undefined {
+export function getBlobToken(visibility: FileVisibility): string | undefined {
   if (visibility === "private") {
     return (
       process.env.BLOB_PRIVATE_READ_WRITE_TOKEN ||

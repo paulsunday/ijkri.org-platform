@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { prisma } from "@/lib/prisma";
+import { getBlobToken } from "@/lib/storage/blob";
 
 type RouteContext = {
   params: Promise<{
@@ -80,7 +81,10 @@ export async function GET(_request: Request, { params }: RouteContext) {
     new URL(submission.agreement.pdfFileUrl).pathname.replace(/^\/+/, ""),
   );
 
-  const result = await get(pathname, { access: "private" });
+  const result = await get(pathname, {
+    access: "private",
+    token: getBlobToken("private"),
+  });
 
   if (!result || result.statusCode !== 200 || !result.stream) {
     return NextResponse.json(
