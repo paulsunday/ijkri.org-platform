@@ -112,6 +112,12 @@ export async function publishSubmission(
                         status: true,
                     },
                 },
+
+                agreement: {
+                    select: {
+                        status: true,
+                    },
+                },
             },
         });
 
@@ -153,6 +159,29 @@ export async function publishSubmission(
             `This article cannot be published until its APC invoice (${submission.invoice?.invoiceNumber}) is paid or waived. Current status: ${submission.invoice?.status
                 .replaceAll("_", " ")
                 .toLowerCase()}.`,
+        );
+    }
+
+    /*
+     * The agreement is only auto-sent once an APC invoice is paid
+     * or waived (see lib/agreements/send-agreement.ts). A
+     * submission with no invoice at all was never charged an APC
+     * in the first place (same case as apcSettled above), so it
+     * never gets an agreement either — mirroring that same "not
+     * blocked" treatment here avoids a dead end for a journal with
+     * no APC configured.
+     */
+    const agreementRequired = Boolean(submission.invoice);
+
+    const agreementSettled =
+        !agreementRequired ||
+        submission.agreement?.status === "SIGNED";
+
+    if (!agreementSettled) {
+        throw new Error(
+            submission.agreement
+                ? "This article cannot be published until the publication agreement has been signed by all required signers."
+                : "This article cannot be published until the publication agreement has been sent and signed.",
         );
     }
 

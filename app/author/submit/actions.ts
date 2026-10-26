@@ -7,8 +7,13 @@ import { redirect } from "next/navigation";
 import { requireAnyActionRole } from "@/lib/auth/permissions";
 import { AUTHOR_ROLES } from "@/lib/auth/role-groups";
 import { logger } from "@/lib/logger";
+import { generateManuscriptDisplayId } from "@/lib/manuscripts/generate-display-id";
+import { notifyStaffActionNeeded } from "@/lib/notifications/notify-staff";
+import { sendChatNotification } from "@/lib/notifications/notify-webhook";
 import { prisma } from "@/lib/prisma";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { assertHoneypotEmpty } from "@/lib/security/honeypot";
+import { verifyTurnstileToken } from "@/lib/security/verify-turnstile";
 import {
   deleteJournalFile,
   uploadJournalFile,
@@ -22,7 +27,10 @@ import { recordReferralEvent } from "@/lib/ambassador/referral-events";
 import { creditWallet } from "@/lib/ambassador/wallet";
 import { getRewardSettings } from "@/lib/ambassador/reward-settings";
 import { sendEmail } from "@/lib/email/send-email";
-import { referralSubmittedEmail } from "@/lib/email/templates";
+import {
+  manuscriptReceivedEmail,
+  referralSubmittedEmail,
+} from "@/lib/email/templates";
 import { resolveActiveCampaignBonus } from "@/lib/campaigns/resolve-active-campaign";
 import { applyCampaignBonus } from "@/lib/campaigns/apply-campaign-bonus";
 
@@ -313,6 +321,75 @@ function readSubmissionAuthors(
   return authors;
 }
 
+type SubmittedDeclarations = {
+  originalWork: boolean;
+  notUnderReview: boolean;
+  conflictOfInterest: boolean;
+  ethicsApproval: "OBTAINED" | "NOT_APPLICABLE";
+  policyConsent: boolean;
+};
+
+function readDeclarations(
+  formData: FormData,
+): SubmittedDeclarations {
+  const originalWork =
+    formData.get("declarationOriginalWork") === "on";
+
+  const notUnderReview =
+    formData.get("declarationNotUnderReview") === "on";
+
+  const conflictOfInterest =
+    formData.get("declarationConflictOfInterest") === "on";
+
+  const policyConsent =
+    formData.get("declarationPolicyConsent") === "on";
+
+  const ethicsApprovalValue = String(
+    formData.get("declarationEthicsApproval") || "",
+  );
+
+  if (!originalWork) {
+    throw new Error(
+      "Please confirm that this manuscript is original work.",
+    );
+  }
+
+  if (!notUnderReview) {
+    throw new Error(
+      "Please confirm that this manuscript is not under review elsewhere.",
+    );
+  }
+
+  if (!conflictOfInterest) {
+    throw new Error(
+      "Please confirm the conflict-of-interest declaration.",
+    );
+  }
+
+  if (
+    ethicsApprovalValue !== "OBTAINED" &&
+    ethicsApprovalValue !== "NOT_APPLICABLE"
+  ) {
+    throw new Error(
+      "Please select an ethics approval declaration.",
+    );
+  }
+
+  if (!policyConsent) {
+    throw new Error(
+      "Please confirm that you agree to the journal's policies.",
+    );
+  }
+
+  return {
+    originalWork,
+    notUnderReview,
+    conflictOfInterest,
+    ethicsApproval: ethicsApprovalValue,
+    policyConsent,
+  };
+}
+
 function validateManuscriptFile(
   manuscriptFile: File,
 ) {
@@ -362,6 +439,13 @@ export async function submitManuscript(
 ) {
   const submittingUser =
     await requireAnyActionRole(AUTHOR_ROLES);
+
+  assertHoneypotEmpty(formData, {
+    event: "MANUSCRIPT_SUBMISSION",
+    userId: submittingUser.id,
+  });
+
+  await verifyTurnstileToken(formData);
 
   try {
     await enforceRateLimit(
@@ -447,6 +531,9 @@ export async function submitManuscript(
   const manuscriptAuthors =
     readSubmissionAuthors(formData);
 
+  const declarations =
+    readDeclarations(formData);
+
   const manuscriptFileValue =
     formData.get("manuscriptFile");
 
@@ -470,6 +557,8 @@ export async function submitManuscript(
       },
       select: {
         id: true,
+        slug: true,
+        name: true,
         tenantId: true,
         isActive: true,
       },
@@ -502,6 +591,13 @@ export async function submitManuscript(
    * the permanent ID can be included in the storage path.
    */
   const submissionId = randomUUID();
+
+  /*
+   * Assigned inside the transaction below (it needs an atomic
+   * per-journal, per-year counter), but referenced after the
+   * transaction resolves for the confirmation email and redirect.
+   */
+  let manuscriptDisplayId = "";
 
   let manuscriptUpload:
     | UploadResult
@@ -573,9 +669,16 @@ export async function submitManuscript(
   try {
     await prisma.$transaction(
       async (tx) => {
+        manuscriptDisplayId = await generateManuscriptDisplayId(
+          tx,
+          journal.slug,
+          journal.id,
+        );
+
         await tx.submission.create({
           data: {
             id: submissionId,
+            displayId: manuscriptDisplayId,
             journalId: journal.id,
             authorId: submittingUser.id,
             title,
@@ -585,7 +688,22 @@ export async function submitManuscript(
             submittedAt: new Date(),
             referrerReviewerId: referral?.reviewerId,
             referrerAssignedAt: referral ? new Date() : null,
+            declarationOriginalWork: declarations.originalWork,
+            declarationNotUnderReview: declarations.notUnderReview,
+            declarationConflictOfInterest:
+              declarations.conflictOfInterest,
+            declarationEthicsApproval: declarations.ethicsApproval,
+            declarationPolicyConsent: declarations.policyConsent,
+            declarationsAcceptedAt: new Date(),
           },
+        });
+
+        await notifyStaffActionNeeded(tx, {
+          journalId: journal.id,
+          type: "SUBMISSION",
+          title: "New manuscript submitted",
+          message: `${manuscriptDisplayId}: "${title}" was submitted and needs screening.`,
+          link: `/admin/submissions/${submissionId}`,
         });
 
         await tx.submissionAuthor.createMany({
@@ -754,6 +872,39 @@ export async function submitManuscript(
   revalidatePath(
     `/author/submissions/${submissionId}`,
   );
+
+  const appUrlForConfirmation = (
+    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+  ).replace(/\/+$/, "");
+
+  const confirmationEmailContent = manuscriptReceivedEmail({
+    authorName: submittingUser.name,
+    journalName: journal.name,
+    manuscriptTitle: title,
+    manuscriptDisplayId,
+    submissionUrl: `${appUrlForConfirmation}/author/submissions/${submissionId}`,
+  });
+
+  try {
+    await sendEmail({
+      to: submittingUser.email,
+      subject: confirmationEmailContent.subject,
+      html: confirmationEmailContent.html,
+      text: confirmationEmailContent.text,
+    });
+  } catch (error) {
+    logger.error("Manuscript received confirmation email failed", error, {
+      event: "MANUSCRIPT_RECEIVED_EMAIL_FAILED",
+      userId: submittingUser.id,
+      submissionId,
+    });
+  }
+
+  await sendChatNotification({
+    title: "New manuscript submitted",
+    message: `**${manuscriptDisplayId}**: "${title}" by ${submittingUser.name}`,
+    link: `${appUrlForConfirmation}/admin/submissions/${submissionId}`,
+  });
 
   if (referral) {
     const referringReviewer = await prisma.user.findUnique({

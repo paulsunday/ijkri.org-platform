@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { prisma } from "@/lib/prisma";
+import { getBlobToken } from "@/lib/storage/blob";
 
 type RouteContext = {
   params: Promise<{
@@ -170,6 +171,7 @@ export async function GET(request: Request, { params }: RouteContext) {
 
   const result = await get(pathname, {
     access: "private",
+    token: getBlobToken("private"),
   });
 
   if (!result || result.statusCode !== 200 || !result.stream) {

@@ -233,6 +233,37 @@ export default async function AuthorSubmissionDetailsPage({
         </section>
       )}
 
+      {[
+        "ACCEPTED",
+        "COPYEDITING",
+        "TYPESETTING",
+        "PROOFREADING",
+        "AUTHOR_PROOF_APPROVAL",
+        "READY_FOR_PUBLICATION",
+        "PUBLISHED",
+      ].includes(submission.status) && (
+        <section className="rounded-xl border bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-6">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+                Letter of Acceptance
+              </p>
+
+              <p className="mt-2 text-sm text-gray-600">
+                Download your official acceptance letter as a PDF.
+              </p>
+            </div>
+
+            <Link
+              href={`/api/acceptance-letter/${submission.id}/download`}
+              className="rounded-lg bg-black px-5 py-2.5 font-semibold text-white hover:bg-gray-800"
+            >
+              Download Acceptance Letter
+            </Link>
+          </div>
+        </section>
+      )}
+
       {submission.invoice && (
         <section
           className={`rounded-xl border p-6 shadow-sm ${

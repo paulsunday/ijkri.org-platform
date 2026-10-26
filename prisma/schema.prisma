@@ -291,6 +291,8 @@ model User {
   marketingTemplatesCreated MarketingTemplate[]       @relation("MarketingTemplateCreatedBy")
   campaignsCreated          ReferralCampaign[]        @relation("ReferralCampaignCreatedBy")
 
+  agreementSignatures AgreementSignature[]
+
   @@index([email])
   @@index([referredByReviewerId])
 }
@@ -364,6 +366,8 @@ model Journal {
   newsletterSubscribers NewsletterSubscriber[]
   events                Event[]
 
+  manuscriptSequences ManuscriptSequence[]
+
   @@index([slug])
   @@index([tenantId])
   @@index([publisherId])
@@ -391,6 +395,15 @@ model JournalSettings {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   journal             Journal  @relation(fields: [journalId], references: [id], onDelete: Cascade)
+
+  /*
+   * Who must sign the publication agreement, and which license this
+   * journal offers by default. Snapshotted onto each
+   * PublicationAgreement at send time, so changing this later never
+   * retroactively alters an agreement already in flight.
+   */
+  agreementSignatureMode AgreementSignatureMode @default(CORRESPONDING_AUTHOR_ONLY)
+  defaultLicenseType     LicenseType            @default(CC_BY_4)
 }
 
 enum ResourceCategory {
@@ -508,10 +521,29 @@ model Event {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   journal         Journal     @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  registrations   EventRegistration[]
 
   @@unique([journalId, slug])
   @@index([journalId])
   @@index([status])
+}
+
+/**
+ * One row per person who registered for an event. Registration
+ * emails were previously fire-and-forget with no persisted record,
+ * so there was no way to see how many people had registered.
+ */
+model EventRegistration {
+  id        String   @id @default(cuid())
+  eventId   String
+  name      String
+  email     String
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, email])
+  @@index([eventId])
 }
 
 model UserJournalRole {
@@ -591,15 +623,30 @@ model Issue {
 
 model Submission {
   id                    String                 @id @default(cuid())
+  displayId             String?                @unique
   journalId             String
   authorId              String
   title                 String
   abstract              String
   manuscriptType        String?
   invoice               Invoice?
+  agreement             PublicationAgreement?
   status                SubmissionStatus       @default(DRAFT)
   coverLetter           String?
   submittedAt           DateTime?
+
+  /*
+   * Author declarations captured at submission time. "OBTAINED" or
+   * "NOT_APPLICABLE" for ethics approval (plain String rather than a
+   * new enum, since this is informational, not a workflow state).
+   */
+  declarationOriginalWork       Boolean?
+  declarationNotUnderReview     Boolean?
+  declarationConflictOfInterest Boolean?
+  declarationEthicsApproval     String?
+  declarationPolicyConsent      Boolean?
+  declarationsAcceptedAt        DateTime?
+
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
   currentReviewRound    Int                    @default(1)
@@ -629,6 +676,24 @@ model Submission {
   @@index([referrerReviewerId])
 }
 
+/**
+ * Tracks the last-used sequence number per journal per year so
+ * human-readable manuscript IDs (e.g. IJKRI-2026-001) can be handed
+ * out atomically without colliding under concurrent submissions.
+ */
+model ManuscriptSequence {
+  id         String   @id @default(cuid())
+  journalId  String
+  year       Int
+  lastNumber Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  journal Journal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+
+  @@unique([journalId, year])
+}
+
 model SubmissionAuthor {
   id              String   @id @default(cuid())
   submissionId    String
@@ -644,6 +709,7 @@ model SubmissionAuthor {
   updatedAt       DateTime @updatedAt
 
   submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  agreementSignatures AgreementSignature[]
 
   @@index([submissionId])
   @@index([submissionId, sortOrder])
@@ -1611,6 +1677,7 @@ enum NotificationType {
   PUBLICATION
   PAYMENT
   SYSTEM
+  AGREEMENT
 }
 
 enum ActivityType {
@@ -1738,4 +1805,86 @@ enum RefundStatus {
   SUCCESSFUL
   FAILED
   CANCELLED
+}
+
+enum LicenseType {
+  CC_BY_4
+  COPYRIGHT_TRANSFER
+}
+
+enum AgreementSignatureMode {
+  CORRESPONDING_AUTHOR_ONLY
+  ALL_AUTHORS
+}
+
+enum AgreementStatus {
+  DRAFT
+  SENT
+  PARTIALLY_SIGNED
+  SIGNED
+  DECLINED
+}
+
+/**
+ * The in-app copyright / publication agreement an author (or every
+ * co-author, depending on JournalSettings.agreementSignatureMode)
+ * must e-sign before a manuscript can be published. One per
+ * submission.
+ */
+model PublicationAgreement {
+  id              String                 @id @default(cuid())
+  submissionId    String                 @unique
+  licenseType     LicenseType
+  signatureMode   AgreementSignatureMode
+  templateVersion String
+  /*
+   * A snapshot of the full agreement text shown to signers, so a
+   * later edit to the template never changes what an already-sent
+   * or already-signed agreement legally says.
+   */
+  agreementText String
+  status        AgreementStatus @default(DRAFT)
+  pdfFileUrl    String?
+  pdfSha256     String?
+  sentAt        DateTime?
+  signedAt      DateTime?
+  declinedAt    DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  submission Submission           @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  signatures AgreementSignature[]
+
+  @@index([status])
+}
+
+/**
+ * One row per person required to sign. If `userId` is set, the
+ * signer is the logged-in corresponding author; if
+ * `submissionAuthorId` is set instead, the signer is a co-author
+ * with no account, who signs via an emailed tokenized link.
+ */
+model AgreementSignature {
+  id                 String    @id @default(cuid())
+  agreementId        String
+  submissionAuthorId String?
+  userId             String?
+  signerName         String
+  signerEmail        String
+  tokenHash          String?   @unique
+  tokenExpiresAt     DateTime?
+  typedLegalName     String?
+  ipAddress          String?
+  userAgent          String?
+  signedAt           DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  agreement        PublicationAgreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+  submissionAuthor  SubmissionAuthor?   @relation(fields: [submissionAuthorId], references: [id], onDelete: SetNull)
+  user              User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([agreementId])
+  @@index([submissionAuthorId])
+  @@index([userId])
 }

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
+import { isHoneypotFilled } from "@/lib/security/honeypot";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -15,6 +16,17 @@ export async function subscribeToNewsletter(
     _previousState: NewsletterActionState,
     formData: FormData,
 ): Promise<NewsletterActionState> {
+    if (isHoneypotFilled(formData, { event: "NEWSLETTER_SIGNUP" })) {
+        /*
+         * Pretend success so a bot gets no signal that it was
+         * detected, without ever writing a row for it.
+         */
+        return {
+            success: true,
+            message: "You're subscribed — thank you.",
+        };
+    }
+
     const email = String(formData.get("email") || "")
         .trim()
         .toLowerCase();

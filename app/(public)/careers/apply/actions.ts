@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { sendEmail } from "@/lib/email/send-email";
 import { careerApplicationReceivedEmail } from "@/lib/email/templates";
 import { prisma } from "@/lib/prisma";
+import { assertHoneypotEmpty } from "@/lib/security/honeypot";
 
 const ALLOWED_POSITIONS = [
     "EDITOR_IN_CHIEF",
@@ -106,6 +107,10 @@ function getAppUrl() {
 export async function submitCareerApplication(
     formData: FormData,
 ) {
+    assertHoneypotEmpty(formData, {
+        event: "CAREER_APPLICATION",
+    });
+
     const position = String(
         formData.get("position") || "",
     ).trim();

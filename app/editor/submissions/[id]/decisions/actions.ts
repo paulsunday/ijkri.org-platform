@@ -13,6 +13,7 @@ import {
 } from "@/lib/email/templates";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { renderAcceptanceLetterPdf } from "@/lib/letters/render-acceptance-letter";
 import { createApcInvoice } from "@/lib/payments/create-apc-invoice";
 import type { Invoice } from "@/lib/generated/prisma";
 import { recordReferralEvent } from "@/lib/ambassador/referral-events";
@@ -44,6 +45,7 @@ async function deliverDecisionEmail({
   editorId,
   decision,
   emailContent,
+  attachments,
 }: {
   to: string;
   submissionId: string;
@@ -55,6 +57,7 @@ async function deliverDecisionEmail({
     html: string;
     text: string;
   };
+  attachments?: { filename: string; content: Uint8Array }[];
 }) {
   try {
     const result = await sendEmail({
@@ -62,6 +65,7 @@ async function deliverDecisionEmail({
       subject: emailContent.subject,
       html: emailContent.html,
       text: emailContent.text,
+      attachments,
     });
 
     await prisma.activityLog.create({
@@ -173,6 +177,11 @@ export async function sendEditorialDecision(formData: FormData) {
           id: true,
           name: true,
           shortName: true,
+          issnOnline: true,
+          issnPrint: true,
+          publisher: {
+            select: { name: true },
+          },
         },
       },
     },
@@ -483,6 +492,42 @@ export async function sendEditorialDecision(formData: FormData) {
         : null,
     });
 
+    let acceptanceLetterAttachment:
+      | { filename: string; content: Uint8Array }[]
+      | undefined;
+
+    try {
+      const acceptanceLetterPdf = await renderAcceptanceLetterPdf({
+        manuscriptDisplayId:
+          submission.displayId ?? submission.id,
+        manuscriptTitle: submission.title,
+        authorName: submission.author.name,
+        journalName: submission.journal.name,
+        journalIssn:
+          submission.journal.issnOnline ??
+          submission.journal.issnPrint,
+        publisherName: submission.journal.publisher?.name,
+        decisionDate: new Date(),
+        editorName: editor.name,
+      });
+
+      acceptanceLetterAttachment = [
+        {
+          filename: `Acceptance-Letter-${submission.displayId ?? submission.id}.pdf`,
+          content: acceptanceLetterPdf,
+        },
+      ];
+    } catch (error) {
+      logger.error(
+        "Acceptance letter PDF generation failed",
+        error,
+        {
+          event: "ACCEPTANCE_LETTER_PDF_FAILED",
+          submissionId,
+        },
+      );
+    }
+
     await deliverDecisionEmail({
       to: submission.author.email,
       submissionId,
@@ -490,6 +535,7 @@ export async function sendEditorialDecision(formData: FormData) {
       editorId: editor.id,
       decision,
       emailContent,
+      attachments: acceptanceLetterAttachment,
     });
   }
 

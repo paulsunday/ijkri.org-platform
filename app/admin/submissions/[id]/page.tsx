@@ -40,11 +40,34 @@ function invoiceStatusBadgeClass(status: string) {
   }
 }
 
+function agreementStatusBadgeClass(status: string) {
+  switch (status) {
+    case "SIGNED":
+      return "bg-green-100 text-green-800";
+
+    case "PARTIALLY_SIGNED":
+      return "bg-yellow-100 text-yellow-800";
+
+    case "SENT":
+      return "bg-blue-100 text-blue-800";
+
+    case "DECLINED":
+      return "bg-red-100 text-red-800";
+
+    default:
+      return "bg-gray-200 text-gray-700";
+  }
+}
+
 function formatStatus(value: string) {
   return value
     .replaceAll("_", " ")
     .toLowerCase()
     .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function formatLicenseType(value: string) {
+  return value === "CC_BY_4" ? "CC BY 4.0" : "Copyright Transfer";
 }
 
 export default async function SubmissionDetailsPage({
@@ -69,6 +92,14 @@ export default async function SubmissionDetailsPage({
       },
 
       invoice: true,
+
+      agreement: {
+        include: {
+          signatures: {
+            orderBy: { createdAt: "asc" },
+          },
+        },
+      },
     },
   });
 
@@ -233,6 +264,70 @@ export default async function SubmissionDetailsPage({
                 Manage Invoice
               </Link>
             </div>
+          </div>
+        </section>
+      )}
+
+      {submission.agreement && (
+        <section className="rounded-xl border bg-white p-8 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-5">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                Publication Agreement
+              </p>
+
+              <h2 className="mt-2 text-2xl font-bold">
+                {formatLicenseType(submission.agreement.licenseType)}
+              </h2>
+            </div>
+
+            <div className="flex flex-col items-end gap-3">
+              <span
+                className={`rounded-full px-4 py-2 text-sm font-semibold ${agreementStatusBadgeClass(
+                  submission.agreement.status,
+                )}`}
+              >
+                {formatStatus(submission.agreement.status)}
+              </span>
+
+              {submission.agreement.status === "SIGNED" && (
+                <Link
+                  href={`/api/agreements/${submission.id}/download`}
+                  className="rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-slate-50"
+                >
+                  Download Signed PDF
+                </Link>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-3">
+            {submission.agreement.signatures.map((signature) => (
+              <div
+                key={signature.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4"
+              >
+                <div>
+                  <p className="font-semibold">{signature.signerName}</p>
+
+                  <p className="text-sm text-slate-500">
+                    {signature.signerEmail || "No email on file — cannot be reached"}
+                  </p>
+                </div>
+
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    signature.signedAt
+                      ? "bg-green-100 text-green-800"
+                      : "bg-gray-200 text-gray-700"
+                  }`}
+                >
+                  {signature.signedAt
+                    ? `Signed ${signature.signedAt.toLocaleDateString()}`
+                    : "Awaiting signature"}
+                </span>
+              </div>
+            ))}
           </div>
         </section>
       )}

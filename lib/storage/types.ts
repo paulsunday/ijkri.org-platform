@@ -35,7 +35,8 @@ export type FileCategory =
   | "ISSUE_COVER"
   | "MARKETING_TEMPLATE"
   | "CAMPAIGN_BANNER"
-  | "BOARD_MEMBER_PHOTO";
+  | "BOARD_MEMBER_PHOTO"
+  | "AGREEMENT";
 
 /**
  * Storage visibility.

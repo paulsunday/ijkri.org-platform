@@ -6,6 +6,19 @@ import { requireAnyActionRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { sendPublicationAgreement } from "@/lib/agreements/send-agreement";
+
+async function sendAgreementSafely(submissionId: string) {
+    try {
+        await sendPublicationAgreement(submissionId);
+    } catch (error) {
+        logger.error(
+            "Failed to send publication agreement after invoice settled",
+            error,
+            { event: "AGREEMENT_SEND_FAILED", submissionId },
+        );
+    }
+}
 
 export type InvoiceActionState = {
     success: boolean;
@@ -158,6 +171,8 @@ export async function waiveInvoice(
 
     refreshInvoicePages(invoice.id, invoice.submissionId);
 
+    await sendAgreementSafely(invoice.submissionId);
+
     return `Invoice ${invoice.invoiceNumber} waived.`;
     });
 }
@@ -247,6 +262,8 @@ export async function recordManualPayment(
     });
 
     refreshInvoicePages(invoice.id, invoice.submissionId);
+
+    await sendAgreementSafely(invoice.submissionId);
 
     return `Invoice ${invoice.invoiceNumber} marked as paid.`;
     });

@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 
+import { HoneypotField } from "@/components/forms/honeypot-field";
 import {
     subscribeToNewsletter,
     type NewsletterActionState,
@@ -32,6 +33,8 @@ export default function NewsletterSignup({
                 action={formAction}
                 className="flex flex-col gap-3 sm:flex-row"
             >
+                <HoneypotField />
+
                 <input
                     type="email"
                     name="email"

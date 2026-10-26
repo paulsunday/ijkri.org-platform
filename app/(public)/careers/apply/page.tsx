@@ -1,6 +1,7 @@
 ﻿import Link from "next/link";
 
 import { COUNTRIES } from "@/lib/constants/countries";
+import { HoneypotField } from "@/components/forms/honeypot-field";
 
 import { submitCareerApplication } from "./actions";
 
@@ -250,6 +251,8 @@ export default async function CareerApplicationPage({
                         action={submitCareerApplication}
                         className="mt-8 space-y-10"
                     >
+                        <HoneypotField />
+
                         <fieldset className="space-y-6">
                             <legend className="text-xl font-bold">
                                 Position

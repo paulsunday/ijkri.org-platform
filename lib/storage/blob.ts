@@ -55,6 +55,7 @@ const CATEGORY_FOLDER_MAP = {
   MARKETING_TEMPLATE: STORAGE_FOLDERS.MARKETING,
   CAMPAIGN_BANNER: STORAGE_FOLDERS.MARKETING,
   BOARD_MEMBER_PHOTO: STORAGE_FOLDERS.BOARD_MEMBERS,
+  AGREEMENT: STORAGE_FOLDERS.AGREEMENTS,
 } as const satisfies Record<FileCategory, StorageFolder>;
 
 /**
@@ -229,7 +230,7 @@ export function buildStoragePath(
  * BLOB_READ_WRITE_TOKEN is supported as a fallback so the application can
  * initially operate with one connected Blob store.
  */
-function getBlobToken(visibility: FileVisibility): string | undefined {
+export function getBlobToken(visibility: FileVisibility): string | undefined {
   if (visibility === "private") {
     return (
       process.env.BLOB_PRIVATE_READ_WRITE_TOKEN ||

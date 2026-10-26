@@ -22,6 +22,7 @@ export const MAX_FILE_SIZE = {
     MARKETING_TEMPLATE: 10 * MB,
     CAMPAIGN_BANNER: 5 * MB,
     BOARD_MEMBER_PHOTO: 5 * MB,
+    AGREEMENT: 10 * MB,
 } as const;
 
 /**
@@ -39,6 +40,7 @@ export const STORAGE_FOLDERS = {
     COVERS: "covers",
     MARKETING: "marketing",
     BOARD_MEMBERS: "board-members",
+    AGREEMENTS: "agreements",
 } as const;
 
 /**
@@ -111,6 +113,10 @@ export const ALLOWED_EXTENSIONS = {
         "png",
         "jpg",
         "jpeg",
+    ],
+
+    AGREEMENT: [
+        "pdf",
     ],
 } as const;
 
@@ -207,4 +213,5 @@ export const PRIVATE_FILE_TYPES = [
     "PROOF",
     "SUPPLEMENTARY",
     "RESPONSE_LETTER",
+    "AGREEMENT",
 ] as const;

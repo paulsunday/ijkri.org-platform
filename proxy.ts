@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 const PUBLIC_ROUTES = [
   "/",
   "/about",
+  "/agreements",
   "/aims-scope",
   "/archives",
   "/articles",
