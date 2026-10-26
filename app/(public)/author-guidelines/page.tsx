@@ -433,9 +433,8 @@ export default async function AuthorGuidelinesPage() {
 
           <p className="mt-6 max-w-3xl text-lg leading-8 text-slate-300">
             Authors should read these instructions carefully before submitting
-            a manuscript to the International Journal of Advanced Research and
-            Innovation. Manuscripts that do not meet the journal requirements
-            may be returned before peer review.
+            a manuscript to IJKRI. Manuscripts that do not meet the journal
+            requirements may be returned before peer review.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-4">

@@ -112,8 +112,7 @@ export default function ContactPage() {
 
           <p className="mt-6 max-w-3xl text-lg leading-8 text-slate-300">
             Authors, reviewers, readers, editors, institutions and
-            research partners may contact the International Journal of
-            Advanced Research and Innovation for editorial, technical,
+            research partners may contact IJKRI for editorial, technical,
             publication or general enquiries.
           </p>
 
