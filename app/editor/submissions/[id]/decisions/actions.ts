@@ -9,6 +9,7 @@ import { sendEmail } from "@/lib/email/send-email";
 import {
   manuscriptAcceptedEmail,
   manuscriptRejectedEmail,
+  revisionReminderEmail,
   revisionRequestedEmail,
 } from "@/lib/email/templates";
 import { prisma } from "@/lib/prisma";
@@ -586,4 +587,131 @@ export async function sendEditorialDecision(formData: FormData) {
   revalidatePath("/admin/submissions");
 
   redirect(`/editor/submissions/${submissionId}`);
+}
+
+export async function sendAuthorRevisionReminder(formData: FormData) {
+  const editor = await requireAnyActionRole(EDITORIAL_ROLES);
+
+  const submissionId = String(formData.get("submissionId") || "").trim();
+
+  if (!submissionId) {
+    throw new Error("Submission ID is missing.");
+  }
+
+  const submission = await prisma.submission.findUnique({
+    where: {
+      id: submissionId,
+    },
+
+    include: {
+      author: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+
+      journal: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+
+      decisions: {
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 1,
+        select: {
+          revisionDeadline: true,
+        },
+      },
+    },
+  });
+
+  if (!submission) {
+    throw new Error("Submission not found.");
+  }
+
+  if (submission.status !== "REVISION_REQUIRED") {
+    throw new Error(
+      "A revision reminder can only be sent while the submission is awaiting revision.",
+    );
+  }
+
+  if (!isSuperAdmin(editor)) {
+    const editorJournalRole = await prisma.userJournalRole.findFirst({
+      where: {
+        userId: editor.id,
+        journalId: submission.journalId,
+        role: {
+          in: [...EDITOR_ROLES],
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!editorJournalRole) {
+      throw new Error("You do not have editorial permission for this journal.");
+    }
+  }
+
+  const revisionDeadline = submission.decisions[0]?.revisionDeadline ?? null;
+
+  const submissionUrl = `${getAppUrl()}/author/submissions/${submissionId}`;
+
+  const emailContent = revisionReminderEmail({
+    authorName: submission.author.name,
+    journalName: submission.journal.name,
+    manuscriptTitle: submission.title,
+    revisionDeadline,
+    submissionUrl,
+  });
+
+  const result = await sendEmail({
+    to: submission.author.email,
+    subject: emailContent.subject,
+    html: emailContent.html,
+    text: emailContent.text,
+  });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.notification.create({
+      data: {
+        userId: submission.authorId,
+        type: "DECISION",
+        title: "Revision reminder",
+        message: `A reminder was sent regarding the pending revision for "${submission.title}".`,
+        link: `/author/submissions/${submissionId}/revision`,
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        userId: editor.id,
+        action: "UPDATE",
+        entity: "Submission",
+        entityId: submissionId,
+
+        metadata: {
+          event: "REVISION_REMINDER_SENT",
+          submissionId,
+          submissionTitle: submission.title,
+          authorId: submission.authorId,
+          authorEmail: submission.author.email,
+          journalId: submission.journalId,
+          revisionDeadline: revisionDeadline?.toISOString() || null,
+          resendMessageId: result?.id ?? null,
+        },
+      },
+    });
+  });
+
+  revalidatePath(`/editor/submissions/${submissionId}`);
+
+  revalidatePath(`/editor/submissions/${submissionId}/decisions`);
 }

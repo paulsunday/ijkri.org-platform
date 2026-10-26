@@ -1187,6 +1187,97 @@ export function revisionRequestedEmail({
   };
 }
 
+export function revisionReminderEmail({
+  authorName,
+  journalName: selectedJournalName,
+  manuscriptTitle,
+  revisionDeadline,
+  submissionUrl,
+}: {
+  authorName: string;
+  journalName: string;
+  manuscriptTitle: string;
+  revisionDeadline: Date | null;
+  submissionUrl: string;
+}) {
+  const safeAuthorName = escapeHtml(authorName);
+  const safeJournalName = escapeHtml(selectedJournalName);
+  const safeManuscriptTitle = escapeHtml(manuscriptTitle);
+
+  const now = new Date();
+
+  const isOverdue = Boolean(revisionDeadline && revisionDeadline < now);
+
+  const formattedDeadline = revisionDeadline
+    ? new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    }).format(revisionDeadline)
+    : "No deadline specified";
+
+  const safeDeadline = escapeHtml(formattedDeadline);
+
+  const statusMessage = isOverdue
+    ? "The deadline for submitting this revision has passed, and we have not yet received your revised manuscript."
+    : "We have not yet received your revised manuscript and response to reviewers.";
+
+  return {
+    subject: isOverdue
+      ? `${journalShortName}: Overdue revision reminder for your manuscript`
+      : `${journalShortName}: Reminder – revision pending for your manuscript`,
+
+    text: [
+      `Hello ${authorName},`,
+      "",
+      `This is a reminder regarding your manuscript submitted to ${selectedJournalName}.`,
+      "",
+      `Manuscript: ${manuscriptTitle}`,
+      `Revision deadline: ${formattedDeadline}`,
+      "",
+      statusMessage,
+      "",
+      `Open your submission: ${submissionUrl}`,
+      "",
+      "Please contact the editorial office promptly if you need a justified extension.",
+    ].join("\n"),
+
+    html: emailLayout({
+      heading: isOverdue ? "Overdue revision reminder" : "Revision reminder",
+      content: `
+        <p>Hello ${safeAuthorName},</p>
+
+        <p>
+          This is a reminder regarding your manuscript submitted to
+          <strong>${safeJournalName}</strong>.
+        </p>
+
+        ${informationBox({
+        title: "Manuscript title",
+        content: safeManuscriptTitle,
+      })}
+
+        ${informationBox({
+        title: "Revision deadline",
+        content: safeDeadline,
+      })}
+
+        <p>${escapeHtml(statusMessage)}</p>
+
+        ${emailButton({
+        url: submissionUrl,
+        label: "Open Submission",
+      })}
+
+        <p>
+          Please contact the editorial office promptly if you need a
+          justified extension.
+        </p>
+      `,
+    }),
+  };
+}
+
 export function manuscriptAcceptedEmail({
   authorName,
   journalName: selectedJournalName,

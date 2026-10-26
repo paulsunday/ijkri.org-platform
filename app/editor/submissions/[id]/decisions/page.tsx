@@ -8,7 +8,10 @@ import {
 import { EDITORIAL_ROLES } from "@/lib/auth/role-groups";
 import { prisma } from "@/lib/prisma";
 
-import { sendEditorialDecision } from "./actions";
+import {
+  sendAuthorRevisionReminder,
+  sendEditorialDecision,
+} from "./actions";
 import { rateReviewQuality } from "./rate-review-actions";
 
 type PageProps = {
@@ -350,6 +353,47 @@ export default async function EditorialDecisionPage({
           </div>
         </div>
       </section>
+
+      {submission.status === "REVISION_REQUIRED" && (
+        <section className="rounded-xl border border-amber-300 bg-amber-50 p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="font-semibold text-amber-900">
+                Awaiting Author Revision
+              </h2>
+
+              <p className="mt-2 text-sm text-amber-800">
+                The author has not yet submitted a revised manuscript.
+                {submission.decisions[0]?.revisionDeadline && (
+                  <>
+                    {" "}
+                    Revision deadline:{" "}
+                    <strong>
+                      {formatDate(submission.decisions[0].revisionDeadline)}
+                    </strong>
+                    .
+                  </>
+                )}
+              </p>
+            </div>
+
+            <form action={sendAuthorRevisionReminder}>
+              <input
+                type="hidden"
+                name="submissionId"
+                value={submission.id}
+              />
+
+              <button
+                type="submit"
+                className="rounded-lg bg-amber-700 px-5 py-3 font-semibold text-white hover:bg-amber-800"
+              >
+                Send Reminder to Author
+              </button>
+            </form>
+          </div>
+        </section>
+      )}
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl border bg-white p-5 shadow-sm">
