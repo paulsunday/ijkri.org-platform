@@ -3,6 +3,8 @@ import Link from "next/link";
 import { requireRole } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
 
+import { DEFAULT_STATIC_PAGE_CONTENT } from "@/lib/static-pages/default-content";
+
 import { STATIC_PAGE_DEFS } from "./page-defs";
 import { resetStaticPage, saveStaticPage } from "./actions";
 
@@ -45,6 +47,7 @@ export default async function StaticPagesAdminPage() {
       <div className="space-y-6">
         {STATIC_PAGE_DEFS.map((def) => {
           const override = overrideByKey.get(def.key);
+          const defaults = DEFAULT_STATIC_PAGE_CONTENT[def.key];
 
           return (
             <section
@@ -105,7 +108,7 @@ export default async function StaticPagesAdminPage() {
                       type="text"
                       name="title"
                       required
-                      defaultValue={override?.title ?? def.label}
+                      defaultValue={override?.title ?? defaults.title}
                       className="w-full rounded-lg border p-3"
                     />
                   </div>
@@ -118,7 +121,7 @@ export default async function StaticPagesAdminPage() {
                     <input
                       type="text"
                       name="tagline"
-                      defaultValue={override?.tagline ?? ""}
+                      defaultValue={override?.tagline ?? defaults.tagline}
                       className="w-full rounded-lg border p-3"
                     />
                   </div>
@@ -132,7 +135,7 @@ export default async function StaticPagesAdminPage() {
                       name="body"
                       rows={14}
                       required
-                      defaultValue={override?.body ?? ""}
+                      defaultValue={override?.body ?? defaults.body}
                       placeholder="Write the full page content here. Line breaks are preserved."
                       className="w-full rounded-lg border p-3 font-mono text-sm"
                     />
