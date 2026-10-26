@@ -226,16 +226,6 @@ export default async function PublicIssuePage({
       )}
 
       <section className="mt-10">
-        <div className="border-b pb-5">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">
-            Published articles
-          </p>
-
-          <h2 className="mt-2 text-3xl font-bold text-gray-950">
-            Table of Contents
-          </h2>
-        </div>
-
         {issue.articles.length === 0 ? (
           <div className="mt-6 rounded-xl border border-yellow-300 bg-yellow-50 p-6">
             <p className="font-semibold text-yellow-900">
@@ -244,7 +234,7 @@ export default async function PublicIssuePage({
           </div>
         ) : (
           <div className="mt-6 divide-y rounded-2xl border bg-white px-6 shadow-sm sm:px-8">
-            {issue.articles.map((article, index) => {
+            {issue.articles.map((article) => {
               const authors = article.authors
                 .map((author) => author.fullName)
                 .join(", ");
@@ -256,11 +246,7 @@ export default async function PublicIssuePage({
 
               return (
                 <article key={article.id} className="py-8 first:pt-6 last:pb-6">
-                  <div className="grid gap-4 sm:grid-cols-[52px_minmax(0,1fr)]">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-sm font-bold text-gray-700">
-                      {index + 1}
-                    </div>
-
+                  <div className="grid gap-4">
                     <div className="min-w-0">
                       {article.category && (
                         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
