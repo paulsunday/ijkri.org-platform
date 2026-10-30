@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import {
   changeArticleStatus,
   deleteArticle,
+  replaceArticlePdfFile,
   updateArticle,
   updateCorrespondingAuthor,
 } from "./actions";
@@ -48,20 +49,26 @@ type ArticleForUpdate = {
   pdfUrl: string | null;
   issn: string | null;
   accessType: string;
+  status: string;
 };
 
 export function UpdateArticleForm({
   article,
   compatibleIssues,
+  canEdit,
 }: {
   article: ArticleForUpdate;
   compatibleIssues: IssueOption[];
+  canEdit: boolean;
 }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(
     updateArticle,
     IDLE_FORM_ACTION_STATE,
   );
+
+  const isPublished = article.status === "PUBLISHED";
+  const fieldsDisabled = pending || !canEdit;
 
   useEffect(() => {
     if (state.success) {
@@ -78,6 +85,13 @@ export function UpdateArticleForm({
 
       <ActionBanner state={state} />
 
+      {!canEdit && (
+        <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+          This article is published. Only a super admin can edit it — ask a
+          super admin to make this correction, or return it to Draft first.
+        </div>
+      )}
+
       <div>
         <label
           htmlFor={`title-${article.id}`}
@@ -91,7 +105,7 @@ export function UpdateArticleForm({
           name="title"
           required
           defaultValue={article.title}
-          disabled={pending}
+          disabled={fieldsDisabled}
           className="w-full rounded-lg border bg-white p-3 disabled:opacity-50"
         />
       </div>
@@ -110,7 +124,7 @@ export function UpdateArticleForm({
           required
           rows={8}
           defaultValue={article.abstract}
-          disabled={pending}
+          disabled={fieldsDisabled}
           className="w-full rounded-lg border bg-white p-3 disabled:opacity-50"
         />
       </div>
@@ -128,7 +142,7 @@ export function UpdateArticleForm({
             id={`issue-${article.id}`}
             name="issueId"
             defaultValue={article.issueId || ""}
-            disabled={pending}
+            disabled={fieldsDisabled}
             className="w-full rounded-lg border bg-white p-3 disabled:opacity-50"
           >
             <option value="">No issue assigned</option>
@@ -155,7 +169,7 @@ export function UpdateArticleForm({
             name="publishedAt"
             type="date"
             defaultValue={article.publishedAtInput}
-            disabled={pending}
+            disabled={fieldsDisabled}
             className="w-full rounded-lg border bg-white p-3 disabled:opacity-50"
           />
         </div>
@@ -175,7 +189,7 @@ export function UpdateArticleForm({
             name="doi"
             defaultValue={article.doi || ""}
             placeholder="10.xxxx/xxxxx"
-            disabled={pending}
+            disabled={fieldsDisabled}
             className="w-full rounded-lg border bg-white p-3 disabled:opacity-50"
           />
         </div>
@@ -194,7 +208,7 @@ export function UpdateArticleForm({
             type="url"
             defaultValue={article.pdfUrl || ""}
             placeholder="https://..."
-            disabled={pending}
+            disabled={fieldsDisabled}
             className="w-full rounded-lg border bg-white p-3 disabled:opacity-50"
           />
         </div>
@@ -213,7 +227,7 @@ export function UpdateArticleForm({
           name="issn"
           defaultValue={article.issn || ""}
           placeholder="0000-000X"
-          disabled={pending}
+          disabled={fieldsDisabled}
           className="w-full rounded-lg border bg-white p-3 disabled:opacity-50"
         />
 
@@ -237,7 +251,7 @@ export function UpdateArticleForm({
           name="accessType"
           required
           defaultValue={article.accessType}
-          disabled={pending}
+          disabled={fieldsDisabled}
           className="w-full rounded-lg border bg-white p-3 disabled:opacity-50"
         >
           <option value="OPEN_ACCESS">
@@ -260,13 +274,97 @@ export function UpdateArticleForm({
         </p>
       </div>
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-lg bg-blue-700 px-6 py-3 font-semibold text-white hover:bg-blue-800 disabled:opacity-50"
+      {canEdit && (
+        <button
+          type="submit"
+          disabled={fieldsDisabled}
+          className="rounded-lg bg-blue-700 px-6 py-3 font-semibold text-white hover:bg-blue-800 disabled:opacity-50"
+        >
+          {pending
+            ? isPublished
+              ? "Republishing…"
+              : "Saving…"
+            : isPublished
+              ? "Save & Republish"
+              : "Save Article Changes"}
+        </button>
+      )}
+    </form>
+  );
+}
+
+export function ReplacePdfFileForm({
+  articleId,
+  status,
+  canEdit,
+}: {
+  articleId: string;
+  status: string;
+  canEdit: boolean;
+}) {
+  const router = useRouter();
+  const [state, formAction, pending] = useActionState(
+    replaceArticlePdfFile,
+    IDLE_FORM_ACTION_STATE,
+  );
+
+  const isPublished = status === "PUBLISHED";
+
+  useEffect(() => {
+    if (state.success) {
+      router.refresh();
+    }
+  }, [state.success, router]);
+
+  if (!canEdit) {
+    return null;
+  }
+
+  return (
+    <form
+      action={formAction}
+      className="mt-5 rounded-xl bg-gray-50 p-5"
+    >
+      <input type="hidden" name="articleId" value={articleId} />
+
+      <ActionBanner state={state} />
+
+      <label
+        htmlFor={`pdf-file-${articleId}`}
+        className="mb-2 block font-semibold"
       >
-        {pending ? "Saving…" : "Save Article Changes"}
-      </button>
+        Replace PDF File
+      </label>
+
+      <p className="mb-3 text-sm text-gray-500">
+        {isPublished
+          ? "Upload a corrected PDF to immediately replace the live file readers download. Citation metadata is re-embedded automatically."
+          : "Upload a PDF to replace the file currently attached to this article."}
+      </p>
+
+      <div className="flex flex-wrap items-center gap-4">
+        <input
+          id={`pdf-file-${articleId}`}
+          name="file"
+          type="file"
+          accept="application/pdf,.pdf"
+          required
+          disabled={pending}
+          className="block flex-1 rounded-lg border bg-white p-2.5 text-sm disabled:opacity-50"
+        />
+
+        <button
+          type="submit"
+          disabled={pending}
+          className="rounded-lg bg-slate-900 px-5 py-3 font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+        >
+          {pending
+            ? "Uploading…"
+            : isPublished
+              ? "Replace File & Republish"
+              : "Replace File"}
+        </button>
+      </div>
     </form>
   );
 }

@@ -3,11 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 
-import { requireAnyActionRole } from "@/lib/auth/permissions";
+import {
+    isSuperAdmin,
+    requireAnyActionRole,
+} from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 import { embedPublishedArticlePdfMetadata } from "@/lib/pdf/publish-metadata";
 import { prisma } from "@/lib/prisma";
 import { processAmbassadorPublicationEvent } from "@/lib/ambassador/process-publication-event";
+import { uploadJournalFile } from "@/lib/storage/blob";
 import {
     runFormAction,
     type FormActionState,
@@ -192,6 +196,15 @@ export async function updateArticle(
         administrator.id,
         article.journalId,
     );
+
+    if (
+        article.status === "PUBLISHED" &&
+        !isSuperAdmin(administrator)
+    ) {
+        throw new Error(
+            "Only a super admin can edit a published article. Return it to Draft first, or ask a super admin to make this correction.",
+        );
+    }
 
     if (issn && !ISSN_PATTERN.test(issn)) {
         throw new Error(
@@ -394,7 +407,10 @@ export async function updateArticle(
                     entity: "Article",
                     entityId: articleId,
                     metadata: {
-                        event: "ARTICLE_UPDATED",
+                        event:
+                            article.status === "PUBLISHED"
+                                ? "ARTICLE_REPUBLISHED"
+                                : "ARTICLE_UPDATED",
                         previousTitle: article.title,
                         title,
                         previousSlug: article.slug,
@@ -425,8 +441,203 @@ export async function updateArticle(
         refreshArticlePages(updatedArticle.slug);
     }
 
+    if (article.status === "PUBLISHED") {
+        /*
+         * The live PDF may have the old title/DOI/authors baked
+         * into its embedded citation metadata, so refresh it to
+         * match the correction. Never blocks the save that already
+         * committed above.
+         */
+        after(() =>
+            embedPublishedArticlePdfMetadata(articleId),
+        );
+
+        return "Article updated and republished.";
+    }
+
     return "Article updated.";
     }, { action: "updateArticle" });
+}
+
+export async function replaceArticlePdfFile(
+    _previousState: FormActionState,
+    formData: FormData,
+): Promise<FormActionState> {
+    return runFormAction(async () => {
+    const administrator =
+        await requireAnyActionRole(ADMIN_ROLES);
+
+    const articleId = String(
+        formData.get("articleId") || "",
+    ).trim();
+
+    if (!articleId) {
+        throw new Error("Article ID is missing.");
+    }
+
+    const article = await prisma.article.findUnique({
+        where: {
+            id: articleId,
+        },
+        select: {
+            id: true,
+            journalId: true,
+            slug: true,
+            status: true,
+            submissionId: true,
+            pdfUrl: true,
+        },
+    });
+
+    if (!article) {
+        throw new Error("Article not found.");
+    }
+
+    await verifyArticleAdminPermission(
+        administrator.id,
+        article.journalId,
+    );
+
+    if (
+        article.status === "PUBLISHED" &&
+        !isSuperAdmin(administrator)
+    ) {
+        throw new Error(
+            "Only a super admin can replace the file on a published article. Return it to Draft first, or ask a super admin to make this correction.",
+        );
+    }
+
+    const file = formData.get("file");
+
+    if (!(file instanceof File) || file.size === 0) {
+        throw new Error(
+            "Please select a PDF file to upload.",
+        );
+    }
+
+    const upload = await uploadJournalFile({
+        file,
+        category: "FINAL_ARTICLE",
+        visibility: article.submissionId
+            ? "private"
+            : "public",
+
+        metadata: {
+            journalId: article.journalId,
+            articleId: article.id,
+            category: "FINAL_ARTICLE",
+        },
+    });
+
+    await prisma.$transaction(async (tx) => {
+        let nextPdfUrl = upload.url;
+
+        if (article.submissionId) {
+            /*
+             * Mirrors embedPublishedArticlePdfMetadata's lookup so a
+             * manual replacement lands on the same ProductionFile the
+             * public download route already serves, instead of
+             * orphaning a second copy.
+             */
+            const finalProductionFile =
+                await tx.productionFile.findFirst({
+                    where: {
+                        submissionId: article.submissionId,
+                        fileType: {
+                            in: [
+                                "PDF_GALLEY",
+                                "FINAL_PUBLICATION_FILE",
+                                "PROOF_FILE",
+                            ],
+                        },
+                    },
+                    orderBy: {
+                        updatedAt: "desc",
+                    },
+                    select: {
+                        id: true,
+                    },
+                });
+
+            if (finalProductionFile) {
+                await tx.productionFile.update({
+                    where: {
+                        id: finalProductionFile.id,
+                    },
+                    data: {
+                        fileUrl: upload.url,
+                        fileName:
+                            upload.originalFilename,
+                        mimeType: upload.mimeType,
+                        fileSize: upload.size,
+                    },
+                });
+
+                nextPdfUrl = `/api/production-files/${finalProductionFile.id}/download`;
+            } else {
+                const created =
+                    await tx.productionFile.create({
+                        data: {
+                            submissionId:
+                                article.submissionId,
+                            uploadedById:
+                                administrator.id,
+                            fileType:
+                                "FINAL_PUBLICATION_FILE",
+                            fileName:
+                                upload.originalFilename,
+                            fileUrl: upload.url,
+                            mimeType: upload.mimeType,
+                            fileSize: upload.size,
+                            isFinal: true,
+                            description:
+                                "Super admin replacement file for the published article",
+                        },
+                    });
+
+                nextPdfUrl = `/api/production-files/${created.id}/download`;
+            }
+        }
+
+        await tx.article.update({
+            where: {
+                id: articleId,
+            },
+            data: {
+                pdfUrl: nextPdfUrl,
+            },
+        });
+
+        await tx.activityLog.create({
+            data: {
+                userId: administrator.id,
+                action: "UPDATE",
+                entity: "Article",
+                entityId: articleId,
+                metadata: {
+                    event:
+                        article.status === "PUBLISHED"
+                            ? "ARTICLE_PDF_FILE_REPLACED_AND_REPUBLISHED"
+                            : "ARTICLE_PDF_FILE_REPLACED",
+                    previousPdfUrl: article.pdfUrl,
+                    fileName: upload.originalFilename,
+                },
+            },
+        });
+    });
+
+    refreshArticlePages(article.slug);
+
+    if (article.status === "PUBLISHED") {
+        after(() =>
+            embedPublishedArticlePdfMetadata(articleId),
+        );
+
+        return "PDF file replaced and republished.";
+    }
+
+    return "PDF file replaced.";
+    }, { action: "replaceArticlePdfFile" });
 }
 
 export async function updateCorrespondingAuthor(

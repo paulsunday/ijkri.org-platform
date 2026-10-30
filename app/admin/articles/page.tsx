@@ -1,6 +1,6 @@
 ﻿import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { requireAnyRole } from "@/lib/auth/permissions";
+import { isSuperAdmin, requireAnyRole } from "@/lib/auth/permissions";
 import { ADMIN_ROLES } from "@/lib/auth/role-groups";
 import {
   formatAuthorStatusLabel,
@@ -9,6 +9,7 @@ import {
 
 import {
   ArticleActionButtons,
+  ReplacePdfFileForm,
   UpdateArticleForm,
   UpdateCorrespondingAuthorForm,
 } from "./ArticleForms";
@@ -98,7 +99,8 @@ function statusClass(status: string) {
 }
 
 export default async function AdminArticlesPage() {
-  await requireAnyRole(ADMIN_ROLES);
+  const administrator = await requireAnyRole(ADMIN_ROLES);
+  const canEditPublished = isSuperAdmin(administrator);
 
   const [articles, issues] = await Promise.all([
     prisma.article.findMany({
@@ -268,6 +270,10 @@ export default async function AdminArticlesPage() {
                   issue.journalId === article.journalId,
               );
 
+              const canEditArticle =
+                article.status !== "PUBLISHED" ||
+                canEditPublished;
+
               const authorNames =
                 article.authors
                   .map((author) => author.fullName)
@@ -405,8 +411,16 @@ export default async function AdminArticlesPage() {
                       pdfUrl: article.pdfUrl,
                       issn: article.issn,
                       accessType: article.accessType,
+                      status: article.status,
                     }}
                     compatibleIssues={compatibleIssues}
+                    canEdit={canEditArticle}
+                  />
+
+                  <ReplacePdfFileForm
+                    articleId={article.id}
+                    status={article.status}
+                    canEdit={canEditArticle}
                   />
 
                   {article.authors.length > 0 && (
