@@ -70,6 +70,9 @@ export default function NotificationBell() {
     let active = true;
 
     async function poll() {
+      // Skip background tabs; polling resumes when the tab is visible.
+      if (document.visibilityState === "hidden") return;
+
       const result = await fetchNotifications();
 
       if (active && result) {
@@ -83,9 +86,12 @@ export default function NotificationBell() {
 
     const interval = window.setInterval(poll, POLL_INTERVAL_MS);
 
+    document.addEventListener("visibilitychange", poll);
+
     return () => {
       active = false;
       window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", poll);
     };
   }, []);
 

@@ -7,10 +7,15 @@ type InitializePaystackPaymentInput = {
     reference: string;
     callbackUrl: string;
     userId: string;
-    purpose: "APC" | "SUBSCRIPTION" | "ARTICLE_PURCHASE";
+    purpose:
+        | "APC"
+        | "SUBSCRIPTION"
+        | "ARTICLE_PURCHASE"
+        | "RESEARCH_TOOLKIT";
     invoiceId?: string;
     subscriptionId?: string;
     articlePurchaseId?: string;
+    toolkitAccessId?: string;
 };
 
 type InitializePaystackPaymentResponse = {
@@ -32,6 +37,7 @@ export async function initializePaystackPayment({
     invoiceId,
     subscriptionId,
     articlePurchaseId,
+    toolkitAccessId,
     userId,
     purpose,
 }: InitializePaystackPaymentInput) {
@@ -58,6 +64,7 @@ export async function initializePaystackPayment({
                     invoiceId,
                     subscriptionId,
                     articlePurchaseId,
+                    toolkitAccessId,
                     userId,
                     purpose,
                 },

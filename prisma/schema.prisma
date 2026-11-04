@@ -103,6 +103,7 @@ model Payment {
   invoiceId         String?
   subscriptionId    String?
   articlePurchaseId String?
+  toolkitAccessId   String?
   providerStatus    String?
   providerChannel   String?
   providerFees      Decimal?        @db.Decimal(10, 2)
@@ -134,6 +135,7 @@ model Payment {
   invoice         Invoice?            @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   subscription    Subscription?       @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
   articlePurchase ArticlePurchase?    @relation(fields: [articlePurchaseId], references: [id], onDelete: SetNull)
+  toolkitAccess   ToolkitAccess?      @relation(fields: [toolkitAccessId], references: [id], onDelete: SetNull)
   refunds         Refund[]
   webhookLogs     PaymentWebhookLog[]
 
@@ -142,6 +144,7 @@ model Payment {
   @@index([invoiceId])
   @@index([subscriptionId])
   @@index([articlePurchaseId])
+  @@index([toolkitAccessId])
   @@index([purpose])
   @@index([status])
   @@index([createdAt])
@@ -294,6 +297,10 @@ model User {
   agreementSignatures AgreementSignature[]
   staticPagesUpdated  StaticPage[]
 
+  toolkitAccess     ToolkitAccess[]
+  researchTopics    ResearchTopic[]
+  topicReservations TopicReservation[]
+
   @@index([email])
   @@index([referredByReviewerId])
 }
@@ -369,6 +376,14 @@ model Journal {
 
   manuscriptSequences ManuscriptSequence[]
   staticPages         StaticPage[]
+
+  toolkitPrice           Decimal @default(2.00) @db.Decimal(10, 2)
+  topicReservationMonths Int     @default(9)
+
+  toolkitAccess           ToolkitAccess[]
+  researchTopics          ResearchTopic[]
+  topicReservations       TopicReservation[]
+  studiedTopicSignatures  StudiedTopicSignature[]
 
   @@index([slug])
   @@index([tenantId])
@@ -1680,6 +1695,7 @@ enum NotificationType {
   PAYMENT
   SYSTEM
   AGREEMENT
+  RESEARCH_TOOLKIT
 }
 
 enum ActivityType {
@@ -1757,6 +1773,7 @@ enum PaymentPurpose {
   APC
   SUBSCRIPTION
   ARTICLE_PURCHASE
+  RESEARCH_TOOLKIT
 }
 
 enum PaymentStatus {
@@ -1924,4 +1941,134 @@ model StaticPage {
   updatedBy User?   @relation(fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@unique([journalId, key])
+}
+
+enum DegreeLevel {
+  ND
+  HND
+  BSC
+  PGD
+  MSC
+  MPHIL
+  PHD
+}
+
+enum TopicReservationStatus {
+  ACTIVE
+  RELEASED
+  CONVERTED
+}
+
+/**
+ * One-time entitlement granting a user full access to the Research
+ * Topic Formulation Workbench for a journal (checker, objective
+ * generator, suggestions, reservation). Mirrors ArticlePurchase's
+ * grantedAt/revokedAt shape rather than a boolean, so a refund or
+ * admin revocation can cleanly turn access back off.
+ */
+model ToolkitAccess {
+  id        String    @id @default(cuid())
+  journalId String
+  userId    String
+  amount    Decimal   @db.Decimal(10, 2)
+  currency  Currency  @default(USD)
+  grantedAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  journal  Journal   @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments Payment[]
+
+  @@unique([userId, journalId])
+  @@index([journalId])
+}
+
+/**
+ * One row per topic a student works through in the toolkit: the raw
+ * title they typed, the AI-extracted variable breakdown, the
+ * deterministic checklist findings run against it, and the generated
+ * (and student-edited) objectives/questions/hypotheses.
+ */
+model ResearchTopic {
+  id                String       @id @default(cuid())
+  journalId         String
+  userId            String
+  rawTopicText      String
+  degreeLevel       DegreeLevel
+  discipline        String?
+  breakdown         Json?
+  checkerFindings   Json?
+  objectives        Json?
+  researchQuestions Json?
+  hypotheses        Json?
+  signatureKey      String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  journal     Journal           @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reservation TopicReservation?
+
+  @@index([journalId])
+  @@index([userId])
+  @@index([signatureKey])
+}
+
+/**
+ * A student's timestamped first claim on a topic. Only one ACTIVE
+ * reservation may exist per journal+signatureKey at a time — enforced
+ * by a partial unique index added by hand in the migration (Prisma
+ * cannot express a conditional unique constraint declaratively).
+ * Auto-released by the topic-expiry cron job if expiresAt passes with
+ * no recorded proposal seminar.
+ */
+model TopicReservation {
+  id            String                 @id @default(cuid())
+  topicId       String                 @unique
+  journalId     String
+  userId        String
+  signatureKey  String
+  status        TopicReservationStatus @default(ACTIVE)
+  reservedAt    DateTime               @default(now())
+  expiresAt     DateTime
+  seminarHeldAt DateTime?
+  releasedAt    DateTime?
+  releaseReason String?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+
+  topic   ResearchTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  journal Journal       @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([journalId])
+  @@index([userId])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([signatureKey])
+}
+
+/**
+ * The "gap finder" corpus: a running count of every variable/sector/
+ * location combination that has been checked or reserved on this
+ * platform. Starts empty for every journal and grows only from real
+ * student activity (no seed dataset) — upserted (count += 1) every
+ * time a formulation check or reservation happens.
+ */
+model StudiedTopicSignature {
+  id          String   @id @default(cuid())
+  journalId   String
+  variableKey String
+  sector      String   @default("")
+  locationKey String   @default("")
+  count       Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  journal Journal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+
+  @@unique([journalId, variableKey, sector, locationKey])
+  @@index([journalId])
 }

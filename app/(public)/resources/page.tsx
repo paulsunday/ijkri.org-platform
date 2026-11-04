@@ -117,6 +117,37 @@ export default async function ResourcesPage({
         </div>
       </section>
 
+      <section className="border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
+          <div className="flex flex-col gap-6 rounded-2xl border border-amber-200 bg-amber-50 p-8 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.18em] text-amber-700">
+                New
+              </p>
+
+              <h2 className="mt-2 text-2xl font-bold text-amber-950">
+                Topic Formulation Workbench
+              </h2>
+
+              <p className="mt-2 max-w-2xl text-amber-900">
+                Check your research topic for missing variables, scope
+                problems, and vague phrasing; auto-generate your
+                objectives, research questions, and hypotheses; find
+                unstudied variable/sector/location combinations; and
+                reserve your topic with a timestamped first claim.
+              </p>
+            </div>
+
+            <Link
+              href="/toolkit"
+              className="shrink-0 rounded-lg bg-amber-500 px-6 py-3 text-center font-bold text-slate-950 hover:bg-amber-400"
+            >
+              Open Workbench →
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <section className="border-b border-slate-200 bg-slate-50">
         <div className="mx-auto max-w-7xl px-6 py-8 lg:px-8">
           <div className="flex flex-wrap items-center gap-3">

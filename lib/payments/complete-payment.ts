@@ -566,6 +566,44 @@ export async function completePayment(
                     });
                 }
 
+                /*
+                 * Grant access to the Research Topic Formulation
+                 * Workbench.
+                 */
+                if (
+                    payment.purpose ===
+                    "RESEARCH_TOOLKIT" &&
+                    payment.toolkitAccessId
+                ) {
+                    const toolkitAccess =
+                        await tx.toolkitAccess.findUnique(
+                            {
+                                where: {
+                                    id: payment.toolkitAccessId,
+                                },
+                                select: {
+                                    id: true,
+                                },
+                            },
+                        );
+
+                    if (!toolkitAccess) {
+                        throw new Error(
+                            "The toolkit access record linked to this payment could not be found.",
+                        );
+                    }
+
+                    await tx.toolkitAccess.update({
+                        where: {
+                            id: toolkitAccess.id,
+                        },
+                        data: {
+                            grantedAt: paidAt,
+                            revokedAt: null,
+                        },
+                    });
+                }
+
                 const paymentDescription =
                     payment.invoice
                         ? `Invoice ${payment.invoice.invoiceNumber}`
@@ -575,7 +613,10 @@ export async function completePayment(
                             : payment.purpose ===
                                 "ARTICLE_PURCHASE"
                                 ? "your article purchase"
-                                : "your payment";
+                                : payment.purpose ===
+                                    "RESEARCH_TOOLKIT"
+                                    ? "your research toolkit access"
+                                    : "your payment";
 
                 await tx.notification.create({
                     data: {

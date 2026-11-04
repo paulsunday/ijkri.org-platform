@@ -67,6 +67,8 @@ function buildRedirectUrl({
         payment.articlePurchase
     ) {
         path = `/articles/${payment.articlePurchase.article.slug}`;
+    } else if (payment.purpose === "RESEARCH_TOOLKIT") {
+        path = "/toolkit";
     } else if (payment.invoice) {
         path = `/author/invoices/${payment.invoice.id}`;
     }
