@@ -5,10 +5,26 @@ import { ApiError, GoogleGenAI } from "@google/genai";
 import { logger } from "@/lib/logger";
 
 /*
- * Free-tier friendly default. Override with GEMINI_MODEL if Google
- * renames models or you move to a paid tier.
+ * Free-tier friendly defaults, tried in order. Override the first with
+ * GEMINI_MODEL, or the whole list with GEMINI_FALLBACK_MODELS
+ * (comma-separated), if Google renames models or you move to paid.
  */
 const DEFAULT_MODEL = "gemini-3.5-flash-lite";
+const DEFAULT_FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-3.8-flash"];
+
+function getModelChain(): string[] {
+    const fallbacks = process.env.GEMINI_FALLBACK_MODELS
+        ? process.env.GEMINI_FALLBACK_MODELS.split(",").map((m) => m.trim())
+        : DEFAULT_FALLBACK_MODELS;
+
+    return [
+        ...new Set(
+            [process.env.GEMINI_MODEL || DEFAULT_MODEL, ...fallbacks].filter(
+                Boolean,
+            ),
+        ),
+    ];
+}
 
 /** Message shown to users when the AI service can't be reached. */
 export const AI_UNAVAILABLE_MESSAGE =
@@ -53,25 +69,66 @@ export async function generateStructuredJson<T>({
     const ai = new GoogleGenAI({ apiKey });
 
     let text: string | undefined;
+    let lastError: unknown;
 
-    try {
-        const response = await ai.models.generateContent({
-            model: process.env.GEMINI_MODEL || DEFAULT_MODEL,
-            contents: prompt,
-            config: {
-                systemInstruction: system,
-                responseMimeType: "application/json",
-                responseJsonSchema: schema,
-                maxOutputTokens: 8000,
-            },
-        });
+    /*
+     * Free-tier models are often briefly overloaded (503) or rate
+     * limited (429). Retry once, then move on to the next model.
+     */
+    attempts: for (const model of getModelChain()) {
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            try {
+                const response = await ai.models.generateContent({
+                    model,
+                    contents: prompt,
+                    config: {
+                        systemInstruction: system,
+                        responseMimeType: "application/json",
+                        responseJsonSchema: schema,
+                        maxOutputTokens: 8000,
+                    },
+                });
 
-        text = response.text;
-    } catch (error) {
-        logger.error("Gemini request failed", error, {
+                text = response.text;
+                lastError = undefined;
+                break attempts;
+            } catch (error) {
+                lastError = error;
+
+                const status =
+                    error instanceof ApiError ? error.status : undefined;
+
+                logger.warn("Gemini attempt failed", {
+                    event: "AI_ATTEMPT_FAILED",
+                    feature,
+                    model,
+                    attempt,
+                    status,
+                });
+
+                // Bad request / bad key: another try won't help.
+                if (status === 400 || status === 401 || status === 403) {
+                    break attempts;
+                }
+
+                // Retry the same model only for temporary overloads.
+                if (status !== 503 && status !== 500) {
+                    break;
+                }
+
+                if (attempt === 1) {
+                    await new Promise((resolve) => setTimeout(resolve, 1500));
+                }
+            }
+        }
+    }
+
+    if (lastError) {
+        logger.error("Gemini request failed", lastError, {
             event: "AI_REQUEST_FAILED",
             feature,
-            status: error instanceof ApiError ? error.status : undefined,
+            status:
+                lastError instanceof ApiError ? lastError.status : undefined,
         });
 
         throw new AiUnavailableError();
