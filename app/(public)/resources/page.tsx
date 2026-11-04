@@ -26,11 +26,26 @@ function categoryLabel(value: string) {
 }
 
 export const metadata: Metadata = {
-  title: "Research Resources",
+  title: "Research Resources: Methodology, Data Analysis & Project Topic Guides",
   description:
-    "Guides on research methodology, data analysis, academic writing, and publishing from IJKRI.",
+    "Free guides on research methodology, data analysis, academic writing and publishing — plus a free research topic checker and objectives generator for BSc, MSc and PhD students.",
+  keywords: [
+    "research methodology",
+    "data analysis guide",
+    "academic writing",
+    "project topic",
+    "specific objectives",
+    "research resources",
+  ],
   alternates: {
     canonical: "/resources",
+  },
+  openGraph: {
+    title: "Research Resources | IJKRI",
+    description:
+      "Free research methodology, data analysis and academic writing guides, plus a free topic checker.",
+    url: "/resources",
+    type: "website",
   },
 };
 

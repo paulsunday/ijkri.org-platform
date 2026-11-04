@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
-    "https://ijkri.org";
+    "https://www.ijkri.org";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const generatedAt = new Date();
@@ -117,5 +117,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             priority: 0.9,
         }));
 
-    return [...staticPages, ...articlePages];
+    const [resources, insights] = await Promise.all([
+        prisma.resourceGuide.findMany({
+            where: { isPublished: true, body: { not: null } },
+            select: { slug: true, updatedAt: true },
+        }),
+        prisma.insight.findMany({
+            where: { isPublished: true },
+            select: { slug: true, updatedAt: true },
+        }),
+    ]);
+
+    const resourcePages: MetadataRoute.Sitemap = resources.map((resource) => ({
+        url: `${siteUrl}/resources/${resource.slug}`,
+        lastModified: resource.updatedAt,
+        changeFrequency: "monthly",
+        priority: 0.7,
+    }));
+
+    const insightPages: MetadataRoute.Sitemap = insights.map((insight) => ({
+        url: `${siteUrl}/insights/${insight.slug}`,
+        lastModified: insight.updatedAt,
+        changeFrequency: "monthly",
+        priority: 0.6,
+    }));
+
+    return [...staticPages, ...articlePages, ...resourcePages, ...insightPages];
 }

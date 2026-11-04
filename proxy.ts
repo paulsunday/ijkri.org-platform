@@ -31,6 +31,12 @@ const PUBLIC_ROUTES = [
   "/why-ijkri",
 ];
 
+/*
+ * Public only at this exact path; sub-pages stay protected
+ * (e.g. /toolkit is a public landing page, /toolkit/[id] is private).
+ */
+const PUBLIC_EXACT_ROUTES = ["/toolkit"];
+
 const AUTH_ROUTES = [
   "/login",
   "/register",
@@ -51,9 +57,9 @@ export const proxy = auth((request) => {
   const { pathname } = request.nextUrl;
   const isAuthenticated = Boolean(request.auth?.user);
 
-  const isPublicRoute = PUBLIC_ROUTES.some((route) =>
-    matchesRoute(pathname, route),
-  );
+  const isPublicRoute =
+    PUBLIC_EXACT_ROUTES.includes(pathname) ||
+    PUBLIC_ROUTES.some((route) => matchesRoute(pathname, route));
 
   const isAuthenticationRoute = AUTH_ROUTES.some((route) =>
     matchesRoute(pathname, route),

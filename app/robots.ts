@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
-    "https://ijkri.org";
+    "https://www.ijkri.org";
 
 export default function robots(): MetadataRoute.Robots {
     return {
@@ -22,6 +22,9 @@ export default function robots(): MetadataRoute.Robots {
                     "/editorial-board",
                     "/contact",
                     "/articles",
+                    "/resources",
+                    "/insights",
+                    "/toolkit",
                     "/feed.xml",
                     "/api/oai",
                     "/api/production-files/",
@@ -39,6 +42,9 @@ export default function robots(): MetadataRoute.Robots {
                     "/register",
                     "/forgot-password",
                     "/reset-password",
+                    // Students' private topic pages; the /toolkit landing
+                    // page itself stays indexable.
+                    "/toolkit/",
                 ],
             },
         ],

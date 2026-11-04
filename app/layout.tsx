@@ -80,7 +80,10 @@ export const metadata: Metadata = {
   },
 
   alternates: {
-    canonical: siteUrl,
+    // "./" = each page's own URL. A fixed homepage URL here made every
+    // page without its own canonical look like a duplicate of the
+    // homepage to Google.
+    canonical: "./",
 
     types: {
       "application/rss+xml": `${siteUrl}/feed.xml`,
@@ -161,12 +164,8 @@ export const metadata: Metadata = {
   },
 
   verification: {
-    /*
-     * Add your Google Search Console verification value here
-     * when available:
-     *
-     * google: "YOUR_GOOGLE_VERIFICATION_CODE",
-     */
+    // Google Search Console "HTML tag" code (the content="..." value).
+    google: process.env.GOOGLE_SITE_VERIFICATION || undefined,
   },
 
   other: {

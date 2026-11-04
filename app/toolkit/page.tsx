@@ -1,16 +1,34 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
-import { requireCurrentUser } from "@/lib/auth/current-user";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import { hasToolkitAccess } from "@/lib/payments/toolkit-access";
 import { prisma } from "@/lib/prisma";
 
+import ToolkitLanding from "./ToolkitLanding";
 import UnlockCard from "./UnlockCard";
 
 export const metadata: Metadata = {
-    title: "Research Topic Formulation Workbench",
+    title: "Free Research Topic Checker & Objectives Generator",
     description:
-        "Check, formulate, and reserve your research topic — formulation checker, objective generator, topic suggestions, and topic reservation.",
+        "Check your project topic free, build a topic from your variables, and generate specific objectives, research questions and hypotheses with validated scales. For BSc, MSc and PhD students.",
+    keywords: [
+        "research topic checker",
+        "project topic generator",
+        "specific objectives generator",
+        "research questions and hypotheses",
+        "validated scales",
+        "project topics for final year students",
+        "Nigeria",
+    ],
+    alternates: { canonical: "/toolkit" },
+    openGraph: {
+        title: "Free Research Topic Checker & Objectives Generator | IJKRI",
+        description:
+            "Will your project topic pass? Check it free, then get your specific objectives, research questions and hypotheses.",
+        url: "/toolkit",
+        type: "website",
+    },
 };
 
 function formatDate(value: Date) {
@@ -54,7 +72,12 @@ export default async function ToolkitPage({ searchParams }: ToolkitPageProps) {
     const { payment, message } = await searchParams;
     const banner = payment ? PAYMENT_BANNER[payment] : undefined;
 
-    const user = await requireCurrentUser();
+    const user = await getCurrentUser();
+
+    // Logged-out visitors (and search engines) get the public landing page.
+    if (!user) {
+        return <ToolkitLanding />;
+    }
 
     const journal = await prisma.journal.findFirst({
         where: {
