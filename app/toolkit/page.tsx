@@ -27,7 +27,33 @@ const RESERVATION_STATUS_LABEL: Record<string, string> = {
     CONVERTED: "Converted",
 };
 
-export default async function ToolkitPage() {
+type ToolkitPageProps = {
+    searchParams: Promise<{ payment?: string; message?: string }>;
+};
+
+const PAYMENT_BANNER: Record<string, { style: string; fallback: string }> = {
+    success: {
+        style: "border-green-200 bg-green-50 text-green-900",
+        fallback: "Payment received — the full workbench is unlocked.",
+    },
+    pending: {
+        style: "border-amber-200 bg-amber-50 text-amber-900",
+        fallback: "Your payment is still being processed.",
+    },
+    failed: {
+        style: "border-red-200 bg-red-50 text-red-800",
+        fallback: "Your payment could not be completed.",
+    },
+    error: {
+        style: "border-red-200 bg-red-50 text-red-800",
+        fallback: "We couldn't start the payment. Please try again.",
+    },
+};
+
+export default async function ToolkitPage({ searchParams }: ToolkitPageProps) {
+    const { payment, message } = await searchParams;
+    const banner = payment ? PAYMENT_BANNER[payment] : undefined;
+
     const user = await requireCurrentUser();
 
     const journal = await prisma.journal.findFirst({
@@ -114,6 +140,15 @@ export default async function ToolkitPage() {
                     </Link>
                 </div>
             </header>
+
+            {banner ? (
+                <div
+                    role="status"
+                    className={`mt-6 rounded-lg border p-4 text-sm ${banner.style}`}
+                >
+                    {message?.slice(0, 300) || banner.fallback}
+                </div>
+            ) : null}
 
             {!access ? (
                 <div className="mt-8 space-y-6">

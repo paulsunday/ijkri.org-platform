@@ -1,6 +1,10 @@
 import CurrencyChoice from "@/components/payments/CurrencyChoice";
 import type { Prisma } from "@/lib/generated/prisma";
-import type { CheckoutCurrency } from "@/lib/payments/checkout-currency";
+import {
+    getOfferedCheckoutCurrencies,
+    PAYMENTS_UNAVAILABLE_MESSAGE,
+    type CheckoutCurrency,
+} from "@/lib/payments/checkout-currency";
 
 import { initializeToolkitAccess } from "./purchase-actions";
 
@@ -20,6 +24,12 @@ export default function UnlockCard({
     title?: string;
     lockedItems?: string[];
 }) {
+    const canPay =
+        getOfferedCheckoutCurrencies({
+            baseCurrency: pricing.currency,
+            ngnExchangeRate: pricing.ngnExchangeRate,
+        }).length > 0;
+
     return (
         <section className="rounded-2xl bg-slate-950 p-6 text-white sm:p-8">
             <p className="text-sm font-bold uppercase tracking-[0.18em] text-amber-400">
@@ -43,6 +53,7 @@ export default function UnlockCard({
                 ))}
             </ul>
 
+            {canPay ? (
             <form action={initializeToolkitAccess} className="mt-6 max-w-xl">
                 <CurrencyChoice
                     baseAmount={pricing.toolkitPrice}
@@ -55,11 +66,14 @@ export default function UnlockCard({
                     type="submit"
                     className="rounded-lg bg-amber-500 px-6 py-3 font-bold text-slate-950 hover:bg-amber-400"
                 >
-                    {pricing.ngnExchangeRate
-                        ? "Unlock now"
-                        : `Unlock for ${pricing.currency} ${pricing.toolkitPrice.toFixed(2)}`}
+                    Unlock now
                 </button>
             </form>
+            ) : (
+                <p className="mt-6 rounded-lg bg-slate-800 p-3 text-sm text-amber-300">
+                    {PAYMENTS_UNAVAILABLE_MESSAGE}
+                </p>
+            )}
         </section>
     );
 }

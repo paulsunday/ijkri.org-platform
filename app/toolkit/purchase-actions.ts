@@ -9,6 +9,7 @@ import {
     resolveCheckoutPrice,
 } from "@/lib/payments/checkout-currency";
 import { initializePaystackPayment } from "@/lib/payments/initialize-payment";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
 function getApplicationUrl() {
@@ -24,6 +25,13 @@ function getApplicationUrl() {
     }
 
     return applicationUrl.replace(/\/$/, "");
+}
+
+/** Sends the student back to the toolkit page with a readable error. */
+function redirectWithPaymentError(message: string): never {
+    redirect(
+        `/toolkit?payment=error&message=${encodeURIComponent(message)}`,
+    );
 }
 
 function generatePaymentReference() {
@@ -65,12 +73,20 @@ export async function initializeToolkitAccess(formData: FormData) {
         );
     }
 
-    const price = resolveCheckoutPrice({
-        baseAmount: journal.toolkitPrice,
-        baseCurrency: journal.currency,
-        chosenCurrency: parseCheckoutCurrency(formData.get("currency")),
-        ngnExchangeRate: journal.ngnExchangeRate,
-    });
+    let price: ReturnType<typeof resolveCheckoutPrice>;
+
+    try {
+        price = resolveCheckoutPrice({
+            baseAmount: journal.toolkitPrice,
+            baseCurrency: journal.currency,
+            chosenCurrency: parseCheckoutCurrency(formData.get("currency")),
+            ngnExchangeRate: journal.ngnExchangeRate,
+        });
+    } catch (error) {
+        redirectWithPaymentError(
+            error instanceof Error ? error.message : "Payment is unavailable.",
+        );
+    }
 
     let toolkitAccess = await prisma.toolkitAccess.findUnique({
         where: {
@@ -235,8 +251,15 @@ export async function initializeToolkitAccess(formData: FormData) {
             },
         });
 
-        throw new Error(
-            `Unable to initialise payment: ${failureReason}`,
+        logger.error("Toolkit payment could not start", error, {
+            event: "TOOLKIT_PAYMENT_INIT_FAILED",
+            paymentId: payment.id,
+        });
+
+        redirectWithPaymentError(
+            /currency/i.test(failureReason)
+                ? "That currency isn't available for payment yet. Please pay in Naira."
+                : "We couldn't start the payment. Please try again in a moment.",
         );
     }
 
