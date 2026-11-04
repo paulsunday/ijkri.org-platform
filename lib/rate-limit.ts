@@ -19,7 +19,8 @@ type RateLimitName =
   | "withdrawal-request"
   | "certificate-download"
   | "bank-resolve"
-  | "general-api";
+  | "general-api"
+  | "toolkit-ai";
 
 type RateLimitResult = {
   success: boolean;
@@ -91,6 +92,10 @@ const limiters: Record<RateLimitName, Ratelimit | null> = {
   "bank-resolve": createLimiter(10, "1 h", "bank-resolve"),
 
   "general-api": createLimiter(100, "1 m", "general-api"),
+
+  // AI-backed toolkit actions; protects the free Gemini quota now that
+  // the checker and builder are open to unpaid users.
+  "toolkit-ai": createLimiter(15, "1 h", "toolkit-ai"),
 };
 
 export async function checkRateLimit(

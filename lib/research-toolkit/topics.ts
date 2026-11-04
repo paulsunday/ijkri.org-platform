@@ -1,7 +1,5 @@
 import "server-only";
 
-import { redirect } from "next/navigation";
-
 import type {
     DegreeLevelInput,
     TopicBreakdown,
@@ -27,10 +25,10 @@ export function isDegreeLevel(value: string): value is DegreeLevelInput {
 }
 
 /**
- * Returns the toolkit's journal id, or redirects to the unlock page when
- * the user hasn't paid for access.
+ * Returns the toolkit's journal id. Free features (checker, builder,
+ * plan preview) only need this; paid ones also call requireToolkitPaid.
  */
-export async function requireToolkitJournal(userId: string): Promise<string> {
+export async function getToolkitJournalId(): Promise<string> {
     const journal = await prisma.journal.findFirst({
         where: { isActive: true },
         orderBy: { createdAt: "asc" },
@@ -43,16 +41,20 @@ export async function requireToolkitJournal(userId: string): Promise<string> {
         );
     }
 
-    const access = await hasToolkitAccess({
-        userId,
-        journalId: journal.id,
-    });
-
-    if (!access) {
-        redirect("/toolkit");
-    }
-
     return journal.id;
+}
+
+export const UNLOCK_REQUIRED_MESSAGE =
+    "This is part of the full workbench. Unlock it with a one-time payment from the toolkit page.";
+
+/** Throws a friendly error unless the user has paid for the toolkit. */
+export async function requireToolkitPaid(
+    userId: string,
+    journalId: string,
+): Promise<void> {
+    if (!(await hasToolkitAccess({ userId, journalId }))) {
+        throw new Error(UNLOCK_REQUIRED_MESSAGE);
+    }
 }
 
 /**

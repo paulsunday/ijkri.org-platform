@@ -5,9 +5,10 @@ import { redirect, unstable_rethrow } from "next/navigation";
 import { extractTopicBreakdown } from "@/lib/ai/formulation-checker";
 import { requireActionUser } from "@/lib/auth/current-user";
 import { logger } from "@/lib/logger";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import {
     isDegreeLevel,
-    requireToolkitJournal,
+    getToolkitJournalId,
     saveCheckedTopic,
 } from "@/lib/research-toolkit/topics";
 
@@ -75,7 +76,9 @@ async function runFormulationCheck({
         throw new Error("Select a valid degree level.");
     }
 
-    const journalId = await requireToolkitJournal(user.id);
+    const journalId = await getToolkitJournalId();
+
+    await enforceRateLimit("toolkit-ai", user.id);
 
     const breakdown = await extractTopicBreakdown({
         topicText,

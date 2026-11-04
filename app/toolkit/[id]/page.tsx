@@ -1,13 +1,17 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 
 import type { TopicBreakdown } from "@/lib/ai/formulation-checker";
 import { requireCurrentUser } from "@/lib/auth/current-user";
+import { hasToolkitAccess } from "@/lib/payments/toolkit-access";
 import { prisma } from "@/lib/prisma";
 import type { FormulationPlan } from "@/lib/research-toolkit/formulation-plan";
 import type { Finding } from "@/lib/research-toolkit/rules";
 
+import UnlockCard from "../UnlockCard";
 import FormulationPlanView from "./FormulationPlanView";
+import PlanPreview, { type PlanPreviewData } from "./PlanPreview";
 import {
     EditFormulationForm,
     GenerateObjectivesForm,
@@ -36,6 +40,43 @@ const RESERVATION_STATUS_LABEL: Record<string, string> = {
     RELEASED: "Released",
     CONVERTED: "Converted",
 };
+
+function buildPreview({
+    objectives,
+    researchQuestions,
+    hypotheses,
+    plan,
+}: {
+    objectives: { general: string; specific: string[] };
+    researchQuestions: string[];
+    hypotheses: string[];
+    plan: FormulationPlan | null;
+}): PlanPreviewData {
+    const variables = plan?.variables ?? [];
+    const firstVariable =
+        variables.find((v) => v.role === "INDEPENDENT" && v.proxies.length) ??
+        variables.find((v) => v.proxies.length);
+
+    const totalProxies = variables.reduce(
+        (total, v) => total + v.proxies.length,
+        0,
+    );
+
+    return {
+        generalObjective: objectives.general,
+        firstObjective: objectives.specific[0] ?? "",
+        firstQuestion: researchQuestions[0] ?? "",
+        firstHypothesis: hypotheses[0] ?? "",
+        firstProxy: firstVariable
+            ? { ...firstVariable.proxies[0], variableName: firstVariable.name }
+            : null,
+        lockedObjectives: Math.max(0, objectives.specific.length - 1),
+        lockedProxies: Math.max(0, totalProxies - 1),
+        lockedTheories: plan?.theories.length ?? 0,
+        lockedTips: plan?.otherAssistance.length ?? 0,
+        hasMethodology: Boolean(plan?.methodology.researchDesign),
+    };
+}
 
 type TopicPageProps = {
     params: Promise<{ id: string }>;
@@ -92,6 +133,25 @@ export default async function TopicPage({ params }: TopicPageProps) {
         8,
         Math.max(2, dimensionCount || 4),
     );
+
+    const [paid, pricing] = await Promise.all([
+        hasToolkitAccess({ userId: user.id, journalId: topic.journalId }),
+        prisma.journal.findUnique({
+            where: { id: topic.journalId },
+            select: {
+                toolkitPrice: true,
+                currency: true,
+                ngnExchangeRate: true,
+            },
+        }),
+    ]);
+
+    // Free taster: only these fields are rendered, so the rest of the
+    // plan never reaches an unpaid user's browser.
+    const preview: PlanPreviewData | null =
+        !paid && objectives
+            ? buildPreview({ objectives, researchQuestions, hypotheses, plan })
+            : null;
 
     return (
         <main className="mx-auto max-w-4xl px-6 py-16 lg:px-8">
@@ -196,15 +256,32 @@ export default async function TopicPage({ params }: TopicPageProps) {
                             Objectives, Questions & Hypotheses
                         </h2>
 
-                        <div className="mt-4">
-                            <GenerateObjectivesForm
-                                topicId={topic.id}
-                                defaultCount={defaultObjectiveCount}
-                                hasExisting={Boolean(objectives)}
-                            />
-                        </div>
+                        {paid || !plan ? (
+                            <div className="mt-4">
+                                <GenerateObjectivesForm
+                                    topicId={topic.id}
+                                    defaultCount={defaultObjectiveCount}
+                                    hasExisting={Boolean(objectives)}
+                                />
+                            </div>
+                        ) : null}
 
-                        {objectives ? (
+                        {preview ? (
+                            <div className="mt-6">
+                                <PlanPreview preview={preview} />
+                            </div>
+                        ) : null}
+
+                        {!paid && objectives && pricing ? (
+                            <div className="mt-6">
+                                <UnlockCard
+                                    pricing={pricing}
+                                    title="See your full plan"
+                                />
+                            </div>
+                        ) : null}
+
+                        {paid && objectives ? (
                             <div className="mt-8">
                                 <EditFormulationForm
                                     // Remount after regeneration so the
@@ -222,7 +299,7 @@ export default async function TopicPage({ params }: TopicPageProps) {
                         ) : null}
                     </section>
 
-                    {plan ? (
+                    {paid && plan ? (
                         <div className="mt-12">
                             <FormulationPlanView plan={plan} />
                         </div>
@@ -273,7 +350,21 @@ export default async function TopicPage({ params }: TopicPageProps) {
                                     pool.
                                 </p>
 
-                                <ReserveTopicForm topicId={topic.id} />
+                                {paid ? (
+                                    <ReserveTopicForm topicId={topic.id} />
+                                ) : (
+                                    <p className="text-sm font-semibold text-amber-950">
+                                        🔒 Topic reservation is part of the
+                                        full workbench — unlock it from the{" "}
+                                        <Link
+                                            href="/toolkit"
+                                            className="underline"
+                                        >
+                                            toolkit page
+                                        </Link>
+                                        .
+                                    </p>
+                                )}
                             </div>
                         )}
                     </section>

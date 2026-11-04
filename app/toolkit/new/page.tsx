@@ -1,9 +1,6 @@
-import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 
 import { requireCurrentUser } from "@/lib/auth/current-user";
-import { hasToolkitAccess } from "@/lib/payments/toolkit-access";
-import { prisma } from "@/lib/prisma";
 
 import NewTopicForm from "./NewTopicForm";
 
@@ -12,32 +9,8 @@ export const metadata: Metadata = {
 };
 
 export default async function NewTopicPage() {
-    const user = await requireCurrentUser();
-
-    const journal = await prisma.journal.findFirst({
-        where: {
-            isActive: true,
-        },
-        orderBy: {
-            createdAt: "asc",
-        },
-        select: {
-            id: true,
-        },
-    });
-
-    if (!journal) {
-        redirect("/toolkit");
-    }
-
-    const access = await hasToolkitAccess({
-        userId: user.id,
-        journalId: journal.id,
-    });
-
-    if (!access) {
-        redirect("/toolkit");
-    }
+    // Free to try; only login is required.
+    await requireCurrentUser();
 
     return (
         <main className="mx-auto max-w-3xl px-6 py-16 lg:px-8">

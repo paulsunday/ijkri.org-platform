@@ -1,12 +1,11 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
-import CurrencyChoice from "@/components/payments/CurrencyChoice";
 import { requireCurrentUser } from "@/lib/auth/current-user";
 import { hasToolkitAccess } from "@/lib/payments/toolkit-access";
 import { prisma } from "@/lib/prisma";
 
-import { initializeToolkitAccess } from "./purchase-actions";
+import UnlockCard from "./UnlockCard";
 
 export const metadata: Metadata = {
     title: "Research Topic Formulation Workbench",
@@ -66,60 +65,6 @@ export default async function ToolkitPage() {
         journalId: journal.id,
     });
 
-    if (!access) {
-        return (
-            <main className="bg-white">
-                <section className="relative overflow-hidden bg-slate-950 text-white">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(245,158,11,0.18),transparent_35%)]" />
-
-                    <div className="relative mx-auto max-w-3xl px-6 py-20 text-center lg:px-8">
-                        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-amber-400">
-                            Research Resources
-                        </p>
-
-                        <h1 className="mt-5 text-4xl font-bold tracking-tight sm:text-5xl">
-                            Research Topic Formulation Workbench
-                        </h1>
-
-                        <p className="mt-6 text-lg leading-8 text-slate-300">
-                            Check your topic for missing variables,
-                            and unmeasurable constructs;
-                            auto-generate your objectives, research
-                            questions, and hypotheses; find unstudied
-                            variable/sector/location combinations; and
-                            reserve your topic with a timestamped first
-                            claim.
-                        </p>
-
-                        <form action={initializeToolkitAccess} className="mt-10 max-w-xl">
-                            <CurrencyChoice
-                                baseAmount={journal.toolkitPrice}
-                                baseCurrency={journal.currency}
-                                ngnExchangeRate={journal.ngnExchangeRate}
-                                tone="dark"
-                            />
-
-                            <button
-                                type="submit"
-                                className="rounded-lg bg-amber-500 px-8 py-4 text-lg font-bold text-slate-950 hover:bg-amber-400"
-                            >
-                                {journal.ngnExchangeRate
-                                    ? "Unlock the workbench"
-                                    : `Unlock for ${journal.currency} ${journal.toolkitPrice.toFixed(2)}`}
-                            </button>
-                        </form>
-
-                        <p className="mt-4 text-sm text-slate-400">
-                            One-time payment. Unlocks the formulation
-                            checker, objective generator, topic
-                            suggestions, and topic reservation.
-                        </p>
-                    </div>
-                </section>
-            </main>
-        );
-    }
-
     const topics = await prisma.researchTopic.findMany({
         where: {
             userId: user.id,
@@ -158,7 +103,7 @@ export default async function ToolkitPage() {
                         href="/toolkit/suggestions"
                         className="rounded-lg border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 hover:border-slate-950"
                     >
-                        Topic Suggestions
+                        {access ? "Topic Suggestions" : "🔒 Topic Suggestions"}
                     </Link>
 
                     <Link
@@ -169,6 +114,26 @@ export default async function ToolkitPage() {
                     </Link>
                 </div>
             </header>
+
+            {!access ? (
+                <div className="mt-8 space-y-6">
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-950">
+                        <h2 className="text-lg font-bold">
+                            Try it free
+                        </h2>
+
+                        <p className="mt-1 text-sm leading-6">
+                            Check your topic or build one from your
+                            variables, and preview your objectives plan —
+                            no payment needed. Unlock the full plan, topic
+                            suggestions and topic reservation whenever
+                            you&apos;re ready.
+                        </p>
+                    </div>
+
+                    <UnlockCard pricing={journal} />
+                </div>
+            ) : null}
 
             {topics.length === 0 ? (
                 <div className="mt-10 rounded-2xl border border-dashed border-slate-300 p-16 text-center">

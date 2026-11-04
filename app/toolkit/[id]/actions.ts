@@ -18,6 +18,11 @@ import {
 import { Prisma } from "@/lib/generated/prisma";
 import { hasToolkitAccess } from "@/lib/payments/toolkit-access";
 import { prisma } from "@/lib/prisma";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import {
+    requireToolkitPaid,
+    UNLOCK_REQUIRED_MESSAGE,
+} from "@/lib/research-toolkit/topics";
 import { generateFormulation } from "@/lib/research-toolkit/generate-objectives";
 
 async function loadOwnedTopic(topicId: string, userId: string) {
@@ -31,17 +36,15 @@ async function loadOwnedTopic(topicId: string, userId: string) {
         throw new Error("Topic not found.");
     }
 
-    // Access can be revoked after a topic was created (e.g. a refund).
-    const access = await hasToolkitAccess({
-        userId,
-        journalId: topic.journalId,
-    });
+    return topic;
+}
 
-    if (!access) {
-        throw new Error(
-            "Your access to the workbench is not active. Unlock it from the toolkit page.",
-        );
-    }
+/** Topic actions that are part of the paid workbench. */
+async function loadPaidTopic(topicId: string, userId: string) {
+    const topic = await loadOwnedTopic(topicId, userId);
+
+    // Re-checked per action: access can be revoked (e.g. a refund).
+    await requireToolkitPaid(userId, topic.journalId);
 
     return topic;
 }
@@ -69,6 +72,18 @@ export async function generateObjectives(
                 "Run the formulation checker before generating objectives.",
             );
         }
+
+        // Free taster: one plan per topic. Regenerating is paid.
+        const paid = await hasToolkitAccess({
+            userId: user.id,
+            journalId: topic.journalId,
+        });
+
+        if (!paid && topic.formulationPlan) {
+            throw new Error(UNLOCK_REQUIRED_MESSAGE);
+        }
+
+        await enforceRateLimit("toolkit-ai", user.id);
 
         const breakdown = topic.breakdown as unknown as TopicBreakdown;
 
@@ -156,7 +171,7 @@ export async function saveFormulation(
 
         const topicId = String(formData.get("topicId") || "").trim();
 
-        const topic = await loadOwnedTopic(topicId, user.id);
+        const topic = await loadPaidTopic(topicId, user.id);
 
         const generalObjective = String(
             formData.get("generalObjective") || "",
@@ -203,7 +218,7 @@ export async function reserveTopic(
 
         const topicId = String(formData.get("topicId") || "").trim();
 
-        const topic = await loadOwnedTopic(topicId, user.id);
+        const topic = await loadPaidTopic(topicId, user.id);
 
         if (!topic.signatureKey) {
             throw new Error(

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 
 import { requireCurrentUser } from "@/lib/auth/current-user";
-import { requireToolkitJournal } from "@/lib/research-toolkit/topics";
 
 import BuildTopicForm from "./BuildTopicForm";
 
@@ -10,9 +9,8 @@ export const metadata: Metadata = {
 };
 
 export default async function BuildTopicPage() {
-    const user = await requireCurrentUser();
-
-    await requireToolkitJournal(user.id);
+    // Free to try; only login is required.
+    await requireCurrentUser();
 
     return (
         <main className="mx-auto max-w-3xl px-6 py-16 lg:px-8">

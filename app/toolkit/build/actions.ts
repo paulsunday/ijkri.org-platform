@@ -9,9 +9,10 @@ import {
 } from "@/lib/ai/topic-builder";
 import { requireActionUser } from "@/lib/auth/current-user";
 import { logger } from "@/lib/logger";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import {
     isDegreeLevel,
-    requireToolkitJournal,
+    getToolkitJournalId,
     saveCheckedTopic,
 } from "@/lib/research-toolkit/topics";
 
@@ -65,7 +66,9 @@ export async function generateTopicCandidates(
             throw new Error("Select a valid degree level.");
         }
 
-        await requireToolkitJournal(user.id);
+        await getToolkitJournalId();
+
+        await enforceRateLimit("toolkit-ai", user.id);
 
         const candidates = await buildTopicsFromVariables({
             ...values,
@@ -153,7 +156,7 @@ export async function chooseTopicCandidate(formData: FormData) {
         throw new Error("That topic could not be saved. Please build it again.");
     }
 
-    const journalId = await requireToolkitJournal(user.id);
+    const journalId = await getToolkitJournalId();
 
     const topicId = await saveCheckedTopic({
         journalId,

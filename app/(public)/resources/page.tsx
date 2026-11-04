@@ -134,7 +134,8 @@ export default async function ResourcesPage({
                 problems, and vague phrasing; auto-generate your
                 objectives, research questions, and hypotheses; find
                 unstudied variable/sector/location combinations; and
-                reserve your topic with a timestamped first claim.
+                reserve your topic with a timestamped first claim. Check
+                your topic and preview your objectives free.
               </p>
             </div>
 
@@ -142,7 +143,7 @@ export default async function ResourcesPage({
               href="/toolkit"
               className="shrink-0 rounded-lg bg-amber-500 px-6 py-3 text-center font-bold text-slate-950 hover:bg-amber-400"
             >
-              Open Workbench →
+              Try it free →
             </Link>
           </div>
         </div>
