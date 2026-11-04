@@ -64,7 +64,10 @@ export default async function TopicPage({ params }: TopicPageProps) {
     }
 
     const breakdown = topic.breakdown as unknown as TopicBreakdown | null;
-    const findings = (topic.checkerFindings as unknown as Finding[]) || [];
+    // Scope findings were dropped from the checklist; hide old saved ones.
+    const findings = (
+        (topic.checkerFindings as unknown as Finding[]) || []
+    ).filter((finding) => finding.code !== "SCOPE_TOO_BROAD");
 
     const objectives = topic.objectives as unknown as {
         general: string;
@@ -113,9 +116,8 @@ export default async function TopicPage({ params }: TopicPageProps) {
                         {findings.length === 0 ? (
                             <p className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4 text-green-900">
                                 No issues found — this topic has a clear
-                                independent and dependent variable, a
-                                scope appropriate for your degree level,
-                                and no vague phrasing.
+                                independent and dependent variable and no
+                                vague phrasing.
                             </p>
                         ) : (
                             <div className="mt-4 space-y-3">

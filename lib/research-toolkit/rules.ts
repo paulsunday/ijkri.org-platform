@@ -1,7 +1,4 @@
-import type {
-    DegreeLevelInput,
-    TopicBreakdown,
-} from "@/lib/ai/formulation-checker";
+import type { TopicBreakdown } from "@/lib/ai/formulation-checker";
 
 export type FindingSeverity = "ERROR" | "WARNING";
 
@@ -10,6 +7,7 @@ export type FindingCode =
     | "MISSING_DV"
     | "VAGUE_PHRASING"
     | "UNMEASURABLE_VARIABLE"
+    // No longer raised; kept so findings saved before Nov 2026 still type-check.
     | "SCOPE_TOO_BROAD"
     | "SUBVARIABLE_MISMATCH";
 
@@ -20,42 +18,6 @@ export type Finding = {
     suggestion: string;
 };
 
-const LOCATION_TIER_RANK: Record<string, number> = {
-    UNSPECIFIED: 0,
-    ORGANIZATION: 1,
-    CITY_LGA: 2,
-    STATE: 3,
-    REGION: 4,
-    COUNTRY: 5,
-    MULTI_COUNTRY: 6,
-};
-
-/**
- * Highest location-tier rank each degree level may reasonably claim
- * to cover in a single project — e.g. an MSc student scoping a study
- * "in Nigeria" (COUNTRY) is over scope, which is the exact complaint
- * supervisors raise most often at proposal stage.
- */
-export const DEGREE_LEVEL_MAX_SCOPE_RANK: Record<DegreeLevelInput, number> = {
-    ND: LOCATION_TIER_RANK.ORGANIZATION,
-    HND: LOCATION_TIER_RANK.ORGANIZATION,
-    BSC: LOCATION_TIER_RANK.CITY_LGA,
-    PGD: LOCATION_TIER_RANK.CITY_LGA,
-    MSC: LOCATION_TIER_RANK.STATE,
-    MPHIL: LOCATION_TIER_RANK.REGION,
-    PHD: LOCATION_TIER_RANK.COUNTRY,
-};
-
-const DEGREE_LEVEL_LABEL: Record<DegreeLevelInput, string> = {
-    ND: "ND",
-    HND: "HND",
-    BSC: "BSc",
-    PGD: "PGD",
-    MSC: "MSc",
-    MPHIL: "MPhil",
-    PHD: "PhD",
-};
-
 /**
  * Runs the formulation checklist against an AI-extracted breakdown.
  * The AI's job is extraction only; pass/fail judgment stays here, in
@@ -63,7 +25,6 @@ const DEGREE_LEVEL_LABEL: Record<DegreeLevelInput, string> = {
  */
 export function runFormulationChecks(
     breakdown: TopicBreakdown,
-    degreeLevel: DegreeLevelInput,
 ): Finding[] {
     const findings: Finding[] = [];
 
@@ -106,19 +67,6 @@ export function runFormulationChecks(
             message: `These variables are abstract constructs with no stated way to measure them: ${breakdown.unmeasurableConstructs.join(", ")}.`,
             suggestion:
                 "Operationalize each construct — name the dimension, scale, or indicator you will use to measure it.",
-        });
-    }
-
-    const scopeRank = LOCATION_TIER_RANK[breakdown.location.tier] ?? 0;
-    const maxScopeRank = DEGREE_LEVEL_MAX_SCOPE_RANK[degreeLevel];
-
-    if (scopeRank > maxScopeRank) {
-        findings.push({
-            code: "SCOPE_TOO_BROAD",
-            severity: "ERROR",
-            message: `"${breakdown.location.raw || "the stated location"}" is too broad a scope for a ${DEGREE_LEVEL_LABEL[degreeLevel]} study.`,
-            suggestion:
-                "Narrow the location to a single organization, city/LGA, or state appropriate for this degree level — a national or multi-state scope is rarely achievable within an ND/HND/BSc/PGD/MSc project.",
         });
     }
 

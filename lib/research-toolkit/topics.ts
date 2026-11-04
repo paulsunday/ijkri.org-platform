@@ -86,7 +86,7 @@ export async function saveCheckedTopic({
             degreeLevel,
             discipline: discipline || null,
             breakdown,
-            checkerFindings: runFormulationChecks(breakdown, degreeLevel),
+            checkerFindings: runFormulationChecks(breakdown),
             signatureKey: buildSignatureKey({
                 independentVariableNames,
                 dependentVariableNames: breakdown.dependentVariables,

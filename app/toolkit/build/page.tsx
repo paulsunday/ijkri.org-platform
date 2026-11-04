@@ -26,7 +26,7 @@ export default async function BuildTopicPage() {
 
             <p className="mt-3 leading-7 text-slate-600">
                 Tell us the variables you want to study. We&apos;ll draft
-                three well-formulated topics, scoped to your degree level,
+                three well-formulated topics,
                 with each variable broken into the dimensions used in
                 validated scales.
             </p>

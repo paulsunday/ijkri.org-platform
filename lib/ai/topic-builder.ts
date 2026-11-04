@@ -53,15 +53,15 @@ Write exactly 3 alternative topic titles built ONLY from the variables the stude
 
 Rules for every title:
 - Use clear relationship framing: "Effect of [independent variable] on [dependent variable] among/of [population] in [location]" (or "Influence of…", "Relationship between… and…" where more accurate). Never use vague framing such as "the role of", "an assessment of", "a study of".
-- Keep the student's independent and dependent variables. You may vary the population, sector, location and wording between the three alternatives, but do not swap in different variables.
-- Scope must suit the degree level: ND/HND/BSc → one organization or local government area; PGD/MSc → one state; MPhil/PhD → a region or a country. If the student gave a location, keep it unless it is far too broad for the degree level; then narrow it and say so in the rationale.
+- Keep the student's independent and dependent variables. You may vary the population, sector and wording between the three alternatives, but do not swap in different variables.
+- Keep the student's location exactly as given (a state, city, organization or country are all acceptable). Never narrow or replace it. If no location was given, you may suggest a suitable one.
 - If the student named a moderating or mediating variable, include it in the title.
 
 For each title also return its "breakdown" exactly as a topic-structure extraction of that title would:
 - "independentVariables": each with "subVariables" = its standard dimensions as found in validated literature scales (e.g. transformational leadership → idealized influence, inspirational motivation, intellectual stimulation, individualized consideration). Use 2-6 dimensions. Leave "subVariables" empty only if the construct has no accepted dimensions.
 - "dependentVariables", "moderatingVariables", "population", "sector", "location" ("raw" + "tier"): from the title.
 - "vagueTermsFound" and "unmeasurableConstructs": empty arrays unless genuinely present.
-- "rationale": one or two sentences on why this formulation is researchable and appropriate for the degree level.
+- "rationale": one or two sentences on why this formulation is clear and researchable.
 
 Never invent facts about the student's context. Never cite sources here.`;
 

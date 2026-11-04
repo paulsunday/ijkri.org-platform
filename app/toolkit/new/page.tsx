@@ -52,8 +52,7 @@ export default async function NewTopicPage() {
             <p className="mt-3 leading-7 text-slate-600">
                 Type your working topic/title exactly as you have it. The
                 checker will flag a missing independent/dependent
-                variable, unmeasurable constructs, scope that&apos;s too broad
-                for your degree level, mismatched sub-variables, and vague
+                variable, unmeasurable constructs, mismatched sub-variables, and vague
                 phrasing.
             </p>
 

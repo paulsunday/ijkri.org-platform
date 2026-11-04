@@ -83,7 +83,7 @@ export default async function ToolkitPage() {
 
                         <p className="mt-6 text-lg leading-8 text-slate-300">
                             Check your topic for missing variables,
-                            unmeasurable constructs, and scope problems;
+                            and unmeasurable constructs;
                             auto-generate your objectives, research
                             questions, and hypotheses; find unstudied
                             variable/sector/location combinations; and

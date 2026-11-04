@@ -30,7 +30,7 @@ function breakdown(overrides: Partial<TopicBreakdown> = {}): TopicBreakdown {
 
 describe("runFormulationChecks", () => {
     it("passes a well-formed topic with no findings", () => {
-        const findings = runFormulationChecks(breakdown(), "MSC");
+        const findings = runFormulationChecks(breakdown());
 
         expect(findings).toHaveLength(0);
     });
@@ -38,7 +38,6 @@ describe("runFormulationChecks", () => {
     it("flags a missing independent variable", () => {
         const findings = runFormulationChecks(
             breakdown({ independentVariables: [] }),
-            "MSC",
         );
 
         expect(findings.map((f) => f.code)).toContain("MISSING_IV");
@@ -47,7 +46,6 @@ describe("runFormulationChecks", () => {
     it("flags a missing dependent variable", () => {
         const findings = runFormulationChecks(
             breakdown({ dependentVariables: [] }),
-            "MSC",
         );
 
         expect(findings.map((f) => f.code)).toContain("MISSING_DV");
@@ -56,7 +54,6 @@ describe("runFormulationChecks", () => {
     it("flags vague phrasing found by the extractor", () => {
         const findings = runFormulationChecks(
             breakdown({ vagueTermsFound: ["role of"] }),
-            "MSC",
         );
 
         expect(findings.map((f) => f.code)).toContain("VAGUE_PHRASING");
@@ -65,7 +62,6 @@ describe("runFormulationChecks", () => {
     it("flags unmeasurable constructs", () => {
         const findings = runFormulationChecks(
             breakdown({ unmeasurableConstructs: ["organizational culture"] }),
-            "MSC",
         );
 
         expect(findings.map((f) => f.code)).toContain(
@@ -73,30 +69,9 @@ describe("runFormulationChecks", () => {
         );
     });
 
-    it("flags a country-wide scope for an MSc study", () => {
+    it("never flags location breadth", () => {
         const findings = runFormulationChecks(
             breakdown({ location: { raw: "Nigeria", tier: "COUNTRY" } }),
-            "MSC",
-        );
-
-        expect(findings.map((f) => f.code)).toContain("SCOPE_TOO_BROAD");
-    });
-
-    it("allows a country-wide scope for a PhD study", () => {
-        const findings = runFormulationChecks(
-            breakdown({ location: { raw: "Nigeria", tier: "COUNTRY" } }),
-            "PHD",
-        );
-
-        expect(findings.map((f) => f.code)).not.toContain("SCOPE_TOO_BROAD");
-    });
-
-    it("allows an organization-level scope for a BSc study", () => {
-        const findings = runFormulationChecks(
-            breakdown({
-                location: { raw: "First Bank Enugu", tier: "ORGANIZATION" },
-            }),
-            "BSC",
         );
 
         expect(findings.map((f) => f.code)).not.toContain("SCOPE_TOO_BROAD");
@@ -110,7 +85,6 @@ describe("runFormulationChecks", () => {
                     { name: "Leadership style", subVariables: ["x"] },
                 ],
             }),
-            "MSC",
         );
 
         expect(findings.map((f) => f.code)).toContain(
@@ -126,7 +100,6 @@ describe("runFormulationChecks", () => {
                     { name: "Leadership style", subVariables: ["x", "y"] },
                 ],
             }),
-            "MSC",
         );
 
         expect(findings.map((f) => f.code)).not.toContain(
