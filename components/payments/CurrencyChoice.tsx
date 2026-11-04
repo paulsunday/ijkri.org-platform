@@ -32,18 +32,50 @@ export default function CurrencyChoice({
 }: CurrencyChoiceProps) {
     const dark = tone === "dark";
 
-    const options = getOfferedCheckoutCurrencies({
+    const offered = getOfferedCheckoutCurrencies({
         baseCurrency,
         ngnExchangeRate,
-    }).map((currency) => ({
-        currency,
-        price: resolveCheckoutPrice({
+    });
+
+    /*
+     * A Naira-only Paystack account can't charge dollars, but payers who
+     * think in dollars still get a "Pay in US Dollars" option: it shows
+     * the dollar price and goes on to Paystack, which charges the Naira
+     * equivalent (the server falls back to NGN for an unsupported USD).
+     */
+    const currencies: CheckoutCurrency[] =
+        baseCurrency === "USD" &&
+        !offered.includes("USD") &&
+        offered.includes("NGN")
+            ? ["USD", "NGN"]
+            : offered;
+
+    const options = currencies.map((currency) => {
+        const charged = resolveCheckoutPrice({
             baseAmount,
             baseCurrency,
             chosenCurrency: currency,
             ngnExchangeRate,
-        }),
-    }));
+        });
+
+        return {
+            currency,
+            // What the payer sees for this option.
+            displayAmount: currency === "USD" ? baseAmount : charged.amount,
+            // Set when Paystack will charge a different currency.
+            chargedNote:
+                charged.currency !== currency
+                    ? `Charged as ${formatCheckoutMoney(charged.amount, charged.currency)} at checkout`
+                    : null,
+            price: charged,
+        };
+    });
+
+    // Default to the option that is charged as shown.
+    const defaultIndex = Math.max(
+        0,
+        options.findIndex((option) => !option.chargedNote),
+    );
 
     if (options.length === 0) {
         return (
@@ -101,7 +133,7 @@ export default function CurrencyChoice({
                             type="radio"
                             name="currency"
                             value={option.currency}
-                            defaultChecked={index === 0}
+                            defaultChecked={index === defaultIndex}
                             className="h-4 w-4"
                         />
 
@@ -111,10 +143,19 @@ export default function CurrencyChoice({
                             </span>
                             <span className="block text-lg font-bold">
                                 {formatCheckoutMoney(
-                                    option.price.amount,
+                                    option.displayAmount,
                                     option.currency,
                                 )}
                             </span>
+                            {option.chargedNote ? (
+                                <span
+                                    className={`block text-xs ${
+                                        dark ? "text-slate-400" : "text-slate-500"
+                                    }`}
+                                >
+                                    {option.chargedNote}
+                                </span>
+                            ) : null}
                         </span>
                     </label>
                 ))}
