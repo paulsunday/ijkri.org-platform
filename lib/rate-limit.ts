@@ -2,6 +2,7 @@ import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
 import { RateLimitError } from "@/lib/errors";
+import { logger } from "@/lib/logger";
 
 type RateLimitName =
   | "login"
@@ -108,7 +109,26 @@ export async function checkRateLimit(
     };
   }
 
-  return limiter.limit(identifier);
+  try {
+    return await limiter.limit(identifier);
+  } catch (error) {
+    /*
+     * Upstash unreachable (outage, deleted database, bad URL). Fail
+     * open so logins and sign-ups keep working, and log loudly so the
+     * missing protection gets fixed.
+     */
+    logger.error("Rate limiter unavailable; allowing request", error, {
+      event: "RATE_LIMITER_UNAVAILABLE",
+      limiter: name,
+    });
+
+    return {
+      success: true,
+      limit: 0,
+      remaining: 0,
+      reset: Date.now(),
+    };
+  }
 }
 
 export async function enforceRateLimit(

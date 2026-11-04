@@ -1,8 +1,7 @@
 import "server-only";
 
-import Anthropic from "@anthropic-ai/sdk";
+import { generateStructuredJson } from "@/lib/ai/gemini";
 
-const MODEL = "claude-opus-5";
 
 export type LocationTier =
     | "ORGANIZATION"
@@ -154,48 +153,10 @@ ${input.topicText}`;
 export async function extractTopicBreakdown(
     input: ExtractTopicBreakdownInput,
 ): Promise<TopicBreakdown> {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-
-    if (!apiKey) {
-        throw new Error("ANTHROPIC_API_KEY is not configured.");
-    }
-
-    const client = new Anthropic({
-        apiKey,
-    });
-
-    const response = await client.messages.parse({
-        model: MODEL,
-        max_tokens: 4000,
+    return generateStructuredJson<TopicBreakdown>({
         system: SYSTEM_PROMPT,
-        thinking: {
-            type: "adaptive",
-        },
-        output_config: {
-            format: {
-                type: "json_schema",
-                schema: TOPIC_BREAKDOWN_SCHEMA,
-            },
-        },
-        messages: [
-            {
-                role: "user",
-                content: buildUserPrompt(input),
-            },
-        ],
+        prompt: buildUserPrompt(input),
+        schema: TOPIC_BREAKDOWN_SCHEMA,
+        feature: "formulation-checker",
     });
-
-    if (response.stop_reason === "refusal") {
-        throw new Error(
-            "The AI declined to analyze this topic. Please rephrase it and try again.",
-        );
-    }
-
-    if (!response.parsed_output) {
-        throw new Error(
-            "The AI response could not be parsed into the expected format.",
-        );
-    }
-
-    return response.parsed_output as TopicBreakdown;
 }

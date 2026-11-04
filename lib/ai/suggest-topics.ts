@@ -1,8 +1,7 @@
 import "server-only";
 
-import Anthropic from "@anthropic-ai/sdk";
+import { generateStructuredJson } from "@/lib/ai/gemini";
 
-const MODEL = "claude-opus-5";
 
 export type SuggestedTopic = {
     title: string;
@@ -81,52 +80,14 @@ ${known}`;
 export async function suggestTopics(
     input: SuggestTopicsInput,
 ): Promise<SuggestedTopic[]> {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-
-    if (!apiKey) {
-        throw new Error("ANTHROPIC_API_KEY is not configured.");
-    }
-
-    const client = new Anthropic({
-        apiKey,
-    });
-
-    const response = await client.messages.parse({
-        model: MODEL,
-        max_tokens: 4000,
+    const result = await generateStructuredJson<{
+        suggestions: SuggestedTopic[];
+    }>({
         system: SYSTEM_PROMPT,
-        thinking: {
-            type: "adaptive",
-        },
-        output_config: {
-            format: {
-                type: "json_schema",
-                schema: SUGGEST_TOPICS_SCHEMA,
-            },
-        },
-        messages: [
-            {
-                role: "user",
-                content: buildUserPrompt(input),
-            },
-        ],
+        prompt: buildUserPrompt(input),
+        schema: SUGGEST_TOPICS_SCHEMA,
+        feature: "suggest-topics",
     });
 
-    if (response.stop_reason === "refusal") {
-        throw new Error(
-            "The AI declined to generate suggestions. Please rephrase your interest area and try again.",
-        );
-    }
-
-    if (!response.parsed_output) {
-        throw new Error(
-            "The AI response could not be parsed into the expected format.",
-        );
-    }
-
-    return (
-        response.parsed_output as {
-            suggestions: SuggestedTopic[];
-        }
-    ).suggestions;
+    return result.suggestions ?? [];
 }
