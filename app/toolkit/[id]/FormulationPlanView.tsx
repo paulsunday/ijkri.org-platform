@@ -1,6 +1,9 @@
-import type {
-    FormulationPlan,
-    VariableRole,
+import {
+    getMeasurementType,
+    type FormulationPlan,
+    type MeasurementType,
+    type VariableProxy,
+    type VariableRole,
 } from "@/lib/research-toolkit/formulation-plan";
 
 const ROLE_LABEL: Record<VariableRole, string> = {
@@ -18,6 +21,56 @@ const METHODOLOGY_LABELS: [keyof FormulationPlan["methodology"], string][] = [
     ["analysisTechnique", "Data analysis"],
 ];
 
+const MEASUREMENT_LABEL: Record<MeasurementType, string> = {
+    VALIDATED_SCALE: "Questionnaire · validated scale",
+    SECONDARY_DATA: "Secondary data",
+    RESEARCHER_DEVELOPED: "Questionnaire · researcher-developed",
+};
+
+function MeasurementCell({ proxy }: { proxy: VariableProxy }) {
+    const type = getMeasurementType(proxy);
+
+    return (
+        <>
+            <span
+                className={`mb-1 inline-block rounded px-1.5 py-0.5 text-xs font-semibold ${
+                    type === "SECONDARY_DATA"
+                        ? "bg-sky-100 text-sky-900"
+                        : "bg-slate-100 text-slate-700"
+                }`}
+            >
+                {MEASUREMENT_LABEL[type]}
+            </span>
+
+            {type === "SECONDARY_DATA" ? (
+                <>
+                    {proxy.formula ? (
+                        <span className="block font-mono text-xs">
+                            {proxy.formula}
+                        </span>
+                    ) : null}
+
+                    {proxy.dataSource ? (
+                        <span className="block text-slate-500">
+                            Source: {proxy.dataSource}
+                        </span>
+                    ) : null}
+                </>
+            ) : (
+                <>
+                    <span className="block">{proxy.scaleName}</span>
+
+                    {proxy.scaleSource ? (
+                        <span className="block text-slate-500">
+                            {proxy.scaleSource}
+                        </span>
+                    ) : null}
+                </>
+            )}
+        </>
+    );
+}
+
 /** Read-only display of the AI-built formulation plan. */
 export default function FormulationPlanView({
     plan,
@@ -32,10 +85,12 @@ export default function FormulationPlanView({
                 </h2>
 
                 <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                    Scales marked <strong>Verify</strong> must be checked
-                    against the original source before you cite them. Even
-                    the established ones: confirm the exact author, year and
-                    items in the paper itself — AI can get citations wrong.
+                    Scales and data sources marked <strong>Verify</strong>{" "}
+                    must be checked before you cite them. Even the
+                    established ones: confirm the exact author, year and
+                    items in the original paper, and that the data source
+                    publishes the figures for your period — AI can get
+                    citations wrong.
                 </p>
 
                 <div className="mt-4 space-y-6">
@@ -60,7 +115,7 @@ export default function FormulationPlanView({
                                                 Operational definition
                                             </th>
                                             <th className="py-2 font-semibold">
-                                                Measurement scale
+                                                How it is measured
                                             </th>
                                         </tr>
                                     </thead>
@@ -80,15 +135,9 @@ export default function FormulationPlanView({
                                                 </td>
 
                                                 <td className="py-3">
-                                                    <span className="block">
-                                                        {proxy.scaleName}
-                                                    </span>
-
-                                                    {proxy.scaleSource ? (
-                                                        <span className="block text-slate-500">
-                                                            {proxy.scaleSource}
-                                                        </span>
-                                                    ) : null}
+                                                    <MeasurementCell
+                                                        proxy={proxy}
+                                                    />
 
                                                     <span
                                                         className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-bold ${

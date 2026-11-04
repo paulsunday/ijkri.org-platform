@@ -58,7 +58,7 @@ Rules for every title:
 - If the student named a moderating or mediating variable, include it in the title.
 
 For each title also return its "breakdown" exactly as a topic-structure extraction of that title would:
-- "independentVariables": each with "subVariables" = its standard dimensions as found in validated literature scales (e.g. transformational leadership → idealized influence, inspirational motivation, intellectual stimulation, individualized consideration). Use 2-6 dimensions. Leave "subVariables" empty only if the construct has no accepted dimensions.
+- "independentVariables": each with "subVariables" = its standard measurable proxies. For questionnaire constructs, use the dimensions of a validated literature scale (e.g. transformational leadership → idealized influence, inspirational motivation, intellectual stimulation, individualized consideration). For variables measured with secondary data, use the standard indicators (e.g. capital structure → debt-to-equity ratio, debt-to-assets ratio; financial performance → ROA, ROE). Use 2-6. Leave "subVariables" empty only if there are no accepted proxies.
 - "dependentVariables", "moderatingVariables", "population", "sector", "location" ("raw" + "tier"): from the title.
 - "vagueTermsFound" and "unmeasurableConstructs": empty arrays unless genuinely present.
 - "rationale": one or two sentences on why this formulation is clear and researchable.

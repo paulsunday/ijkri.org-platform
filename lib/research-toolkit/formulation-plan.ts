@@ -1,6 +1,6 @@
 /*
  * The AI-built "formulation plan" stored on a ResearchTopic: variables
- * broken into measurable proxies (with validated scales), N specific
+ * broken into measurable proxies (validated scales or secondary data), N specific
  * objectives aligned with research questions and hypotheses, plus
  * theory, framework and methodology guidance.
  */
@@ -13,13 +13,41 @@ export type VariableRole =
     | "MODERATING"
     | "MEDIATING";
 
+export type MeasurementType =
+    | "VALIDATED_SCALE"
+    | "SECONDARY_DATA"
+    | "RESEARCHER_DEVELOPED";
+
 export type VariableProxy = {
     name: string;
     definition: string;
+    /** Missing on plans generated before secondary-data support. */
+    measurementType?: MeasurementType;
     scaleName: string;
     scaleSource: string;
+    /** Secondary data only: where the figures come from. */
+    dataSource?: string;
+    /** Secondary data only: how the proxy is computed. */
+    formula?: string;
     confidence: ScaleConfidence;
 };
+
+const MEASUREMENT_TYPES: MeasurementType[] = [
+    "VALIDATED_SCALE",
+    "SECONDARY_DATA",
+    "RESEARCHER_DEVELOPED",
+];
+
+/** How a proxy is measured, defaulting older plans to a scale. */
+export function getMeasurementType(proxy: VariableProxy): MeasurementType {
+    if (proxy.measurementType && MEASUREMENT_TYPES.includes(proxy.measurementType)) {
+        return proxy.measurementType;
+    }
+
+    return proxy.scaleName.startsWith("Researcher-developed")
+        ? "RESEARCHER_DEVELOPED"
+        : "VALIDATED_SCALE";
+}
 
 export type PlanVariable = {
     role: VariableRole;
@@ -79,17 +107,33 @@ export function normalizeFormulationPlan(
                 : ("INDEPENDENT" as const),
             name: text(variable?.name),
             proxies: list<VariableProxy>(variable?.proxies)
-                .map((proxy) => ({
-                    name: text(proxy?.name),
-                    definition: text(proxy?.definition),
-                    scaleName: text(proxy?.scaleName),
-                    scaleSource: text(proxy?.scaleSource),
-                    // Anything not explicitly "ESTABLISHED" must be verified.
-                    confidence:
-                        proxy?.confidence === "ESTABLISHED"
-                            ? ("ESTABLISHED" as const)
-                            : ("VERIFY" as const),
-                }))
+                .map((proxy) => {
+                    const cleaned: VariableProxy = {
+                        name: text(proxy?.name),
+                        definition: text(proxy?.definition),
+                        scaleName: text(proxy?.scaleName),
+                        scaleSource: text(proxy?.scaleSource),
+                        dataSource: text(proxy?.dataSource),
+                        formula: text(proxy?.formula),
+                        // Anything not explicitly "ESTABLISHED" must be verified.
+                        confidence:
+                            proxy?.confidence === "ESTABLISHED"
+                                ? "ESTABLISHED"
+                                : "VERIFY",
+                    };
+
+                    cleaned.measurementType = getMeasurementType({
+                        ...cleaned,
+                        measurementType: proxy?.measurementType,
+                    });
+
+                    // Researcher-developed items always need checking.
+                    if (cleaned.measurementType === "RESEARCHER_DEVELOPED") {
+                        cleaned.confidence = "VERIFY";
+                    }
+
+                    return cleaned;
+                })
                 .filter((proxy) => proxy.name),
         }))
         .filter((variable) => variable.name);

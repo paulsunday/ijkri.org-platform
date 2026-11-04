@@ -90,8 +90,10 @@ export function GenerateObjectivesForm({
 
             <p className="text-xs text-slate-500">
                 Breaks your independent and dependent variables into
-                measurable proxies from validated scales, then writes one
-                objective, research question and hypothesis per proxy.
+                measurable proxies — sourcing a validated scale from the
+                literature, or stating that secondary data is needed — then
+                writes one objective, research question and hypothesis per
+                proxy.
                 {hasExisting
                     ? " Regenerating replaces your current objectives and any edits."
                     : ""}

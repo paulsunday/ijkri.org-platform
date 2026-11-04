@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    getMeasurementType,
     normalizeFormulationPlan,
     parseObjectiveCount,
     type FormulationPlan,
@@ -78,6 +79,63 @@ describe("normalizeFormulationPlan", () => {
         expect(plan.variables).toEqual([]);
         expect(plan.specificObjectives).toEqual([]);
         expect(plan.methodology.analysisTechnique).toBe("");
+    });
+});
+
+describe("measurement types", () => {
+    const proxy = (overrides: Record<string, unknown>) => ({
+        name: "ROA",
+        definition: "d",
+        scaleName: "",
+        scaleSource: "",
+        confidence: "ESTABLISHED",
+        ...overrides,
+    });
+
+    function normalize(proxies: Record<string, unknown>[]) {
+        return normalizeFormulationPlan(
+            {
+                variables: [
+                    {
+                        role: "DEPENDENT",
+                        name: "Financial performance",
+                        proxies: proxies as never,
+                    },
+                ],
+            },
+            2,
+        ).variables[0].proxies;
+    }
+
+    it("keeps secondary-data proxies with their source and formula", () => {
+        const [roa] = normalize([
+            proxy({
+                measurementType: "SECONDARY_DATA",
+                dataSource: " Audited annual reports ",
+                formula: "ROA = Net income ÷ Total assets",
+            }),
+        ]);
+
+        expect(roa.measurementType).toBe("SECONDARY_DATA");
+        expect(roa.dataSource).toBe("Audited annual reports");
+        expect(roa.formula).toBe("ROA = Net income ÷ Total assets");
+    });
+
+    it("treats older plans without a type as validated scales", () => {
+        const [legacy] = normalize([proxy({ scaleName: "MLQ" })]);
+
+        expect(getMeasurementType(legacy)).toBe("VALIDATED_SCALE");
+    });
+
+    it("always flags researcher-developed items for verification", () => {
+        const [item] = normalize([
+            proxy({
+                measurementType: "RESEARCHER_DEVELOPED",
+                confidence: "ESTABLISHED",
+            }),
+        ]);
+
+        expect(item.confidence).toBe("VERIFY");
     });
 });
 
