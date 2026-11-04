@@ -164,6 +164,9 @@ export default async function AdminSettingsPage({
             journal.subscriptionAmount,
           ),
           articlePrice: formatDecimal(journal.articlePrice),
+          ngnExchangeRate: journal.ngnExchangeRate
+            ? journal.ngnExchangeRate.toString()
+            : "",
         }}
         settings={
           settings

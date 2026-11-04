@@ -115,6 +115,9 @@ model Payment {
   status            PaymentStatus   @default(PENDING)
   amount            Decimal         @db.Decimal(10, 2)
   currency          Currency        @default(USD)
+  // Rate used to convert the journal's price into `currency` at
+  // checkout (e.g. NGN per USD); null when no conversion happened.
+  exchangeRate      Decimal?        @db.Decimal(12, 4)
   internalReference String          @unique
   providerReference String?         @unique
   receiptNumber     String?         @unique
@@ -361,6 +364,10 @@ model Journal {
   subscriptionAmount Decimal  @default(6.00) @db.Decimal(10, 2)
   articlePrice       Decimal  @default(2.00) @db.Decimal(10, 2)
   currency           Currency @default(USD)
+
+  // Naira per 1 unit of `currency`. When set, payers can choose to pay
+  // the Naira equivalent; when null, only `currency` is offered.
+  ngnExchangeRate Decimal? @db.Decimal(12, 4)
 
   ambassadors   ReviewerAmbassador[]
   rewardSetting AmbassadorRewardSetting?
@@ -1809,6 +1816,7 @@ enum PaymentProvider {
 
 enum Currency {
   USD
+  NGN
 }
 
 enum ArticleAccessType {

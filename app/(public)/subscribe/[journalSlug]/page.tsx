@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import CurrencyChoice from "@/components/payments/CurrencyChoice";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { prisma } from "@/lib/prisma";
 
@@ -44,6 +45,7 @@ export default async function SubscribePage({
             name: true,
             currency: true,
             subscriptionAmount: true,
+            ngnExchangeRate: true,
             isActive: true,
         },
     });
@@ -163,6 +165,12 @@ export default async function SubscribePage({
                                 type="hidden"
                                 name="journalSlug"
                                 value={journalSlug}
+                            />
+
+                            <CurrencyChoice
+                                baseAmount={journal.subscriptionAmount}
+                                baseCurrency={journal.currency}
+                                ngnExchangeRate={journal.ngnExchangeRate}
                             />
 
                             <button

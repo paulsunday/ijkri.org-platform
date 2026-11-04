@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
+import CurrencyChoice from "@/components/payments/CurrencyChoice";
 import { requireCurrentUser } from "@/lib/auth/current-user";
 import { hasToolkitAccess } from "@/lib/payments/toolkit-access";
 import { prisma } from "@/lib/prisma";
@@ -41,6 +42,7 @@ export default async function ToolkitPage() {
             id: true,
             toolkitPrice: true,
             currency: true,
+            ngnExchangeRate: true,
         },
     });
 
@@ -89,13 +91,21 @@ export default async function ToolkitPage() {
                             claim.
                         </p>
 
-                        <form action={initializeToolkitAccess} className="mt-10">
+                        <form action={initializeToolkitAccess} className="mt-10 max-w-xl">
+                            <CurrencyChoice
+                                baseAmount={journal.toolkitPrice}
+                                baseCurrency={journal.currency}
+                                ngnExchangeRate={journal.ngnExchangeRate}
+                                tone="dark"
+                            />
+
                             <button
                                 type="submit"
                                 className="rounded-lg bg-amber-500 px-8 py-4 text-lg font-bold text-slate-950 hover:bg-amber-400"
                             >
-                                Unlock for {journal.currency}{" "}
-                                {journal.toolkitPrice.toFixed(2)}
+                                {journal.ngnExchangeRate
+                                    ? "Unlock the workbench"
+                                    : `Unlock for ${journal.currency} ${journal.toolkitPrice.toFixed(2)}`}
                             </button>
                         </form>
 

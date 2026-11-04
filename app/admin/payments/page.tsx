@@ -142,6 +142,37 @@ function formatMoney(
     }).format(numericAmount);
 }
 
+type CurrencyGroup = {
+    currency: string;
+    _sum?: Partial<Record<string, Prisma.Decimal | null>> | null;
+    _avg?: Partial<Record<string, Prisma.Decimal | null>> | null;
+};
+
+/**
+ * Formats per-currency totals ("US$120.00 · ₦45,000.00") so Naira and
+ * Dollar payments are never added together.
+ */
+function formatMoneyByCurrency(
+    groups: CurrencyGroup[],
+    aggregate: "_sum" | "_avg",
+    field: string,
+): string {
+    const parts = groups
+        .map((group) => ({
+            currency: group.currency,
+            value: group[aggregate]?.[field] ?? null,
+        }))
+        .filter((part) => part.value !== null);
+
+    if (parts.length === 0) {
+        return formatMoney(0);
+    }
+
+    return parts
+        .map((part) => formatMoney(part.value, part.currency))
+        .join(" · ");
+}
+
 function formatDate(date: Date | null | undefined): string {
     if (!date) {
         return "—";
@@ -523,7 +554,8 @@ export default async function AdminPaymentsPage({
             },
         }),
 
-        prisma.payment.aggregate({
+        prisma.payment.groupBy({
+            by: ["currency"],
             where: {
                 ...accessWhere,
                 status: PaymentStatus.PAID,
@@ -533,7 +565,8 @@ export default async function AdminPaymentsPage({
             },
         }),
 
-        prisma.payment.aggregate({
+        prisma.payment.groupBy({
+            by: ["currency"],
             where: {
                 ...accessWhere,
                 status: PaymentStatus.PAID,
@@ -546,7 +579,8 @@ export default async function AdminPaymentsPage({
             },
         }),
 
-        prisma.payment.aggregate({
+        prisma.payment.groupBy({
+            by: ["currency"],
             where: {
                 ...accessWhere,
                 status: PaymentStatus.PAID,
@@ -559,7 +593,8 @@ export default async function AdminPaymentsPage({
             },
         }),
 
-        prisma.payment.aggregate({
+        prisma.payment.groupBy({
+            by: ["currency"],
             where: {
                 ...accessWhere,
                 status: PaymentStatus.PAID,
@@ -591,7 +626,8 @@ export default async function AdminPaymentsPage({
             },
         }),
 
-        prisma.payment.aggregate({
+        prisma.payment.groupBy({
+            by: ["currency"],
             where: {
                 ...accessWhere,
                 status: {
@@ -649,7 +685,8 @@ export default async function AdminPaymentsPage({
             },
         }),
 
-        prisma.payment.aggregate({
+        prisma.payment.groupBy({
+            by: ["currency"],
             where: {
                 ...accessWhere,
                 status: PaymentStatus.PAID,
@@ -712,30 +749,22 @@ export default async function AdminPaymentsPage({
     const summaryCards = [
         {
             label: "Total revenue",
-            value: formatMoney(
-                totalRevenueAggregate._sum.paidAmount,
-            ),
+            value: formatMoneyByCurrency(totalRevenueAggregate, "_sum", "paidAmount"),
             description: "All successfully completed payments",
         },
         {
             label: "Revenue today",
-            value: formatMoney(
-                todayRevenueAggregate._sum.paidAmount,
-            ),
+            value: formatMoneyByCurrency(todayRevenueAggregate, "_sum", "paidAmount"),
             description: "Paid transactions since 00:00 UTC",
         },
         {
             label: "Revenue this week",
-            value: formatMoney(
-                weekRevenueAggregate._sum.paidAmount,
-            ),
+            value: formatMoneyByCurrency(weekRevenueAggregate, "_sum", "paidAmount"),
             description: "Paid transactions since Monday",
         },
         {
             label: "Revenue this month",
-            value: formatMoney(
-                monthRevenueAggregate._sum.paidAmount,
-            ),
+            value: formatMoneyByCurrency(monthRevenueAggregate, "_sum", "paidAmount"),
             description: "Paid transactions this calendar month",
         },
         {
@@ -750,9 +779,7 @@ export default async function AdminPaymentsPage({
         },
         {
             label: "Refunded amount",
-            value: formatMoney(
-                refundedPaymentsAggregate._sum.refundedAmount,
-            ),
+            value: formatMoneyByCurrency(refundedPaymentsAggregate, "_sum", "refundedAmount"),
             description: "Full and partial refunds",
         },
         {
@@ -772,9 +799,7 @@ export default async function AdminPaymentsPage({
         },
         {
             label: "Average payment",
-            value: formatMoney(
-                averagePaymentAggregate._avg.paidAmount,
-            ),
+            value: formatMoneyByCurrency(averagePaymentAggregate, "_avg", "paidAmount"),
             description: "Average successful transaction",
         },
         {

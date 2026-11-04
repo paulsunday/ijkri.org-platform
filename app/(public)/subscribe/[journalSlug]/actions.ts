@@ -4,6 +4,10 @@ import { randomUUID } from "crypto";
 import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/auth/current-user";
+import {
+    parseCheckoutCurrency,
+    resolveCheckoutPrice,
+} from "@/lib/payments/checkout-currency";
 import { initializePaystackPayment } from "@/lib/payments/initialize-payment";
 import { prisma } from "@/lib/prisma";
 
@@ -71,6 +75,7 @@ export async function initializeSubscriptionPayment(
             isActive: true,
             subscriptionAmount: true,
             currency: true,
+            ngnExchangeRate: true,
         },
     });
 
@@ -92,6 +97,13 @@ export async function initializeSubscriptionPayment(
         );
     }
 
+    const price = resolveCheckoutPrice({
+        baseAmount: journal.subscriptionAmount,
+        baseCurrency: journal.currency,
+        chosenCurrency: parseCheckoutCurrency(formData.get("currency")),
+        ngnExchangeRate: journal.ngnExchangeRate,
+    });
+
     /*
      * Reuse a recently initialised Paystack checkout session
      * instead of creating several payment attempts when a
@@ -107,6 +119,7 @@ export async function initializeSubscriptionPayment(
             userId: user.id,
             purpose: "SUBSCRIPTION",
             provider: "PAYSTACK",
+            currency: price.currency,
             status: {
                 in: ["PENDING", "PROCESSING"],
             },
@@ -175,8 +188,9 @@ export async function initializeSubscriptionPayment(
             provider: "PAYSTACK",
             status: "PENDING",
 
-            amount: journal.subscriptionAmount,
-            currency: journal.currency,
+            amount: price.amount,
+            currency: price.currency,
+            exchangeRate: price.exchangeRate,
 
             customerEmail: user.email,
             internalReference,
@@ -195,8 +209,8 @@ export async function initializeSubscriptionPayment(
         const paystackResponse =
             await initializePaystackPayment({
                 email: user.email,
-                amount,
-                currency: journal.currency,
+                amount: price.amount.toNumber(),
+                currency: price.currency,
                 reference: internalReference,
                 callbackUrl,
                 subscriptionId: subscription.id,

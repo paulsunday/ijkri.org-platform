@@ -353,6 +353,24 @@ export async function updateJournalSettings(
         "Single article price",
     );
 
+    const ngnExchangeRateRaw = String(
+        formData.get("ngnExchangeRate") || "",
+    ).trim();
+
+    const ngnExchangeRate = ngnExchangeRateRaw
+        ? nonNegativeAmount(
+            formData,
+            "ngnExchangeRate",
+            "Naira exchange rate",
+        )
+        : null;
+
+    if (ngnExchangeRate && ngnExchangeRate.isZero()) {
+        throw new Error(
+            "Naira exchange rate must be greater than zero, or left blank.",
+        );
+    }
+
     const currencyValue = String(
         formData.get("currency") || "",
     ).trim();
@@ -479,6 +497,7 @@ export async function updateJournalSettings(
                 apcAmount,
                 subscriptionAmount,
                 articlePrice,
+                ngnExchangeRate,
                 currency: currencyValue as
                     (typeof CURRENCIES)[number],
             },

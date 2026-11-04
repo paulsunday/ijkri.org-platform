@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import CurrencyChoice from "@/components/payments/CurrencyChoice";
 import { requireAnyRole } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
 import { initializeInvoicePayment } from "../actions";
@@ -81,6 +82,7 @@ export default async function InvoiceDetailsPage({
                 select: {
                     id: true,
                     name: true,
+                    ngnExchangeRate: true,
                 },
             },
 
@@ -236,11 +238,22 @@ export default async function InvoiceDetailsPage({
                         invoice.status !== "WAIVED" &&
                         invoice.status !== "PARTIALLY_WAIVED" &&
                         invoice.status !== "VOID" && (
-                            <form action={initializeInvoicePayment}>
+                            <form
+                                action={initializeInvoicePayment}
+                                className="w-full"
+                            >
                                 <input
                                     type="hidden"
                                     name="invoiceId"
                                     value={invoice.id}
+                                />
+
+                                <CurrencyChoice
+                                    baseAmount={invoice.amount}
+                                    baseCurrency={invoice.currency}
+                                    ngnExchangeRate={
+                                        invoice.journal.ngnExchangeRate
+                                    }
                                 />
 
                                 <button

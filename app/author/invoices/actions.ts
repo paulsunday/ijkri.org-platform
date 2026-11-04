@@ -4,6 +4,10 @@ import { randomUUID } from "crypto";
 import { redirect } from "next/navigation";
 
 import { requireAnyRole } from "@/lib/auth/permissions";
+import {
+    parseCheckoutCurrency,
+    resolveCheckoutPrice,
+} from "@/lib/payments/checkout-currency";
 import { initializePaystackPayment } from "@/lib/payments/initialize-payment";
 import { prisma } from "@/lib/prisma";
 
@@ -63,6 +67,7 @@ export async function initializeInvoicePayment(
                 select: {
                     id: true,
                     name: true,
+                    ngnExchangeRate: true,
                 },
             },
             submission: {
@@ -105,13 +110,21 @@ export async function initializeInvoicePayment(
         );
     }
 
-    const amount = invoice.amount.toNumber();
-
-    if (!Number.isFinite(amount) || amount <= 0) {
+    if (
+        !Number.isFinite(invoice.amount.toNumber()) ||
+        invoice.amount.toNumber() <= 0
+    ) {
         throw new Error(
             "The invoice amount is invalid.",
         );
     }
+
+    const price = resolveCheckoutPrice({
+        baseAmount: invoice.amount,
+        baseCurrency: invoice.currency,
+        chosenCurrency: parseCheckoutCurrency(formData.get("currency")),
+        ngnExchangeRate: invoice.journal.ngnExchangeRate,
+    });
 
     /*
      * Reuse a recently initialised Paystack checkout session
@@ -127,6 +140,7 @@ export async function initializeInvoicePayment(
             invoiceId: invoice.id,
             userId: user.id,
             provider: "PAYSTACK",
+            currency: price.currency,
             status: {
                 in: ["PENDING", "PROCESSING"],
             },
@@ -182,8 +196,9 @@ export async function initializeInvoicePayment(
             provider: "PAYSTACK",
             status: "PENDING",
 
-            amount: invoice.amount,
-            currency: invoice.currency,
+            amount: price.amount,
+            currency: price.currency,
+            exchangeRate: price.exchangeRate,
 
             customerEmail: invoice.user.email,
             internalReference,
@@ -202,8 +217,8 @@ export async function initializeInvoicePayment(
         const paystackResponse =
             await initializePaystackPayment({
                 email: invoice.user.email,
-                amount,
-                currency: invoice.currency,
+                amount: price.amount.toNumber(),
+                currency: price.currency,
                 reference: internalReference,
                 callbackUrl,
                 invoiceId: invoice.id,

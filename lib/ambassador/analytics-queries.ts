@@ -123,8 +123,9 @@ export async function getTopInstitutions(limit = 10) {
     .slice(0, limit);
 }
 
+/** Referral revenue in the journal's base currency (USD). */
 export async function getReferralRevenue(): Promise<number> {
-  const result = await prisma.payment.aggregate({
+  const payments = await prisma.payment.findMany({
     where: {
       purpose: "APC",
       status: "PAID",
@@ -132,10 +133,21 @@ export async function getReferralRevenue(): Promise<number> {
         submission: { referrerReviewerId: { not: null } },
       },
     },
-    _sum: { paidAmount: true, amount: true },
+    select: {
+      paidAmount: true,
+      amount: true,
+      exchangeRate: true,
+    },
   });
 
-  return Number(result._sum.paidAmount ?? result._sum.amount ?? 0);
+  // Naira payments store the rate they were converted at; divide it
+  // back out so every payment is counted in USD.
+  return payments.reduce((total, payment) => {
+    const paid = Number(payment.paidAmount ?? payment.amount);
+    const rate = payment.exchangeRate ? Number(payment.exchangeRate) : 1;
+
+    return total + paid / rate;
+  }, 0);
 }
 
 export async function getAverageReviewCompletionTimeHours(): Promise<number | null> {

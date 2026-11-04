@@ -41,6 +41,7 @@ type JournalForSettings = {
   apcAmount: string;
   subscriptionAmount: string;
   articlePrice: string;
+  ngnExchangeRate: string;
 };
 
 type SettingsForSettings = {
@@ -330,6 +331,32 @@ export function SettingsForm({
               className="w-full rounded-lg border px-3 py-2.5 text-sm"
             />
           </div>
+        </div>
+
+        <div className="mt-5 max-w-sm">
+          <label
+            htmlFor="ngnExchangeRate"
+            className="mb-1.5 block text-sm font-semibold text-slate-700"
+          >
+            Naira exchange rate (₦ per 1 {journal.currency})
+          </label>
+
+          <input
+            id="ngnExchangeRate"
+            name="ngnExchangeRate"
+            type="number"
+            min="0"
+            step="0.0001"
+            placeholder="e.g. 1550"
+            defaultValue={journal.ngnExchangeRate}
+            disabled={pending}
+            className="w-full rounded-lg border px-3 py-2.5 text-sm"
+          />
+
+          <p className="mt-1.5 text-xs text-slate-500">
+            When set, payers can choose to pay in Naira at this rate.
+            Leave blank to accept {journal.currency} only.
+          </p>
         </div>
       </section>
 

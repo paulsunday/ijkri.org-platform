@@ -4,6 +4,10 @@ import { randomUUID } from "crypto";
 import { redirect } from "next/navigation";
 
 import { requireCurrentUser } from "@/lib/auth/current-user";
+import {
+    parseCheckoutCurrency,
+    resolveCheckoutPrice,
+} from "@/lib/payments/checkout-currency";
 import { initializePaystackPayment } from "@/lib/payments/initialize-payment";
 import { prisma } from "@/lib/prisma";
 
@@ -28,7 +32,7 @@ function generatePaymentReference() {
     return `TLK-${uniquePart}`;
 }
 
-export async function initializeToolkitAccess() {
+export async function initializeToolkitAccess(formData: FormData) {
     const user = await requireCurrentUser();
 
     const journal = await prisma.journal.findFirst({
@@ -43,6 +47,7 @@ export async function initializeToolkitAccess() {
             isActive: true,
             toolkitPrice: true,
             currency: true,
+            ngnExchangeRate: true,
         },
     });
 
@@ -59,6 +64,13 @@ export async function initializeToolkitAccess() {
             "This journal has not configured a toolkit access price.",
         );
     }
+
+    const price = resolveCheckoutPrice({
+        baseAmount: journal.toolkitPrice,
+        baseCurrency: journal.currency,
+        chosenCurrency: parseCheckoutCurrency(formData.get("currency")),
+        ngnExchangeRate: journal.ngnExchangeRate,
+    });
 
     let toolkitAccess = await prisma.toolkitAccess.findUnique({
         where: {
@@ -96,6 +108,7 @@ export async function initializeToolkitAccess() {
             toolkitAccessId: toolkitAccess.id,
             userId: user.id,
             provider: "PAYSTACK",
+            currency: price.currency,
             status: {
                 in: ["PENDING", "PROCESSING"],
             },
@@ -148,8 +161,9 @@ export async function initializeToolkitAccess() {
             provider: "PAYSTACK",
             status: "PENDING",
 
-            amount: journal.toolkitPrice,
-            currency: journal.currency,
+            amount: price.amount,
+            currency: price.currency,
+            exchangeRate: price.exchangeRate,
 
             customerEmail: user.email,
             internalReference,
@@ -166,8 +180,8 @@ export async function initializeToolkitAccess() {
 
         const paystackResponse = await initializePaystackPayment({
             email: user.email,
-            amount,
-            currency: journal.currency,
+            amount: price.amount.toNumber(),
+            currency: price.currency,
             reference: internalReference,
             callbackUrl,
             toolkitAccessId: toolkitAccess.id,
