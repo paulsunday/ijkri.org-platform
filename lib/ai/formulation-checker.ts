@@ -83,7 +83,7 @@ const LOCATION_SCHEMA = {
     additionalProperties: false,
 } as const;
 
-const TOPIC_BREAKDOWN_SCHEMA = {
+export const TOPIC_BREAKDOWN_SCHEMA = {
     type: "object",
     properties: {
         generalTopic: { type: "string" },

@@ -2,27 +2,14 @@
 
 import { redirect, unstable_rethrow } from "next/navigation";
 
-import {
-    extractTopicBreakdown,
-    type DegreeLevelInput,
-} from "@/lib/ai/formulation-checker";
+import { extractTopicBreakdown } from "@/lib/ai/formulation-checker";
 import { requireActionUser } from "@/lib/auth/current-user";
-import { hasToolkitAccess } from "@/lib/payments/toolkit-access";
 import { logger } from "@/lib/logger";
-import { prisma } from "@/lib/prisma";
-import { recordStudiedSignature } from "@/lib/research-toolkit/gap-finder";
-import { runFormulationChecks } from "@/lib/research-toolkit/rules";
-import { buildSignatureKey } from "@/lib/research-toolkit/signature";
-
-const DEGREE_LEVELS: DegreeLevelInput[] = [
-    "ND",
-    "HND",
-    "BSC",
-    "PGD",
-    "MSC",
-    "MPHIL",
-    "PHD",
-];
+import {
+    isDegreeLevel,
+    requireToolkitJournal,
+    saveCheckedTopic,
+} from "@/lib/research-toolkit/topics";
 
 export type CheckFormulationState = {
     message: string;
@@ -84,79 +71,24 @@ async function runFormulationCheck({
         );
     }
 
-    if (!DEGREE_LEVELS.includes(degreeLevel as DegreeLevelInput)) {
+    if (!isDegreeLevel(degreeLevel)) {
         throw new Error("Select a valid degree level.");
     }
 
-    const journal = await prisma.journal.findFirst({
-        where: {
-            isActive: true,
-        },
-        orderBy: {
-            createdAt: "asc",
-        },
-        select: {
-            id: true,
-        },
-    });
-
-    if (!journal) {
-        throw new Error(
-            "The Research Topic Formulation Workbench is not currently available.",
-        );
-    }
-
-    const access = await hasToolkitAccess({
-        userId: user.id,
-        journalId: journal.id,
-    });
-
-    if (!access) {
-        redirect("/toolkit");
-    }
+    const journalId = await requireToolkitJournal(user.id);
 
     const breakdown = await extractTopicBreakdown({
         topicText,
-        degreeLevel: degreeLevel as DegreeLevelInput,
+        degreeLevel,
         discipline: discipline || undefined,
     });
 
-    const checkerFindings = runFormulationChecks(
+    return saveCheckedTopic({
+        journalId,
+        userId: user.id,
+        topicText,
+        degreeLevel,
+        discipline,
         breakdown,
-        degreeLevel as DegreeLevelInput,
-    );
-
-    const signatureKey = buildSignatureKey({
-        independentVariableNames: breakdown.independentVariables.map(
-            (iv) => iv.name,
-        ),
-        dependentVariableNames: breakdown.dependentVariables,
-        sector: breakdown.sector,
-        location: breakdown.location.raw,
     });
-
-    const topic = await prisma.researchTopic.create({
-        data: {
-            journalId: journal.id,
-            userId: user.id,
-            rawTopicText: topicText,
-            degreeLevel: degreeLevel as DegreeLevelInput,
-            discipline: discipline || null,
-            breakdown,
-            checkerFindings,
-            signatureKey,
-        },
-    });
-
-    await recordStudiedSignature({
-        journalId: journal.id,
-        independentVariableNames: breakdown.independentVariables.map(
-            (iv) => iv.name,
-        ),
-        dependentVariableNames: breakdown.dependentVariables,
-        sector: breakdown.sector,
-        location: breakdown.location.raw,
-    });
-
-    return topic.id;
 }

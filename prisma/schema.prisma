@@ -2011,6 +2011,9 @@ model ResearchTopic {
   objectives        Json?
   researchQuestions Json?
   hypotheses        Json?
+  // AI-built plan: variable proxies with validated scales, aligned
+  // objectives, theories, framework and methodology guidance.
+  formulationPlan   Json?
   signatureKey      String?
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt

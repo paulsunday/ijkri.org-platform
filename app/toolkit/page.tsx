@@ -146,7 +146,14 @@ export default async function ToolkitPage() {
                     </h1>
                 </div>
 
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-3">
+                    <Link
+                        href="/toolkit/build"
+                        className="rounded-lg border border-amber-400 bg-amber-50 px-5 py-3 text-sm font-semibold text-amber-900 hover:bg-amber-100"
+                    >
+                        Build From My Variables
+                    </Link>
+
                     <Link
                         href="/toolkit/suggestions"
                         className="rounded-lg border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 hover:border-slate-950"
@@ -158,7 +165,7 @@ export default async function ToolkitPage() {
                         href="/toolkit/new"
                         className="rounded-lg bg-slate-950 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800"
                     >
-                        Start New Topic
+                        Check My Topic
                     </Link>
                 </div>
             </header>
@@ -170,7 +177,8 @@ export default async function ToolkitPage() {
                     </h2>
 
                     <p className="mt-3 text-slate-600">
-                        Start a new topic to run the formulation checker.
+                        Have a topic already? Check it. Only know your
+                        variables? Build a topic from them.
                     </p>
                 </div>
             ) : (

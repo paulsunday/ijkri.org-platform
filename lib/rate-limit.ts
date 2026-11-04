@@ -28,11 +28,20 @@ type RateLimitResult = {
   reset: number;
 };
 
-const redisConfigured =
-  Boolean(process.env.UPSTASH_REDIS_REST_URL) &&
-  Boolean(process.env.UPSTASH_REDIS_REST_TOKEN);
+/*
+ * Prefer the KV_* variables added by Vercel's Upstash integration;
+ * fall back to the older manually-set UPSTASH_* names.
+ */
+const redisUrl =
+  process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
 
-const redis = redisConfigured ? Redis.fromEnv() : null;
+const redisToken =
+  process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+
+const redis =
+  redisUrl && redisToken
+    ? new Redis({ url: redisUrl, token: redisToken })
+    : null;
 
 function createLimiter(
   requests: number,

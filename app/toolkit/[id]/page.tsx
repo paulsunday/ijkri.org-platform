@@ -4,8 +4,10 @@ import type { Metadata } from "next";
 import type { TopicBreakdown } from "@/lib/ai/formulation-checker";
 import { requireCurrentUser } from "@/lib/auth/current-user";
 import { prisma } from "@/lib/prisma";
+import type { FormulationPlan } from "@/lib/research-toolkit/formulation-plan";
 import type { Finding } from "@/lib/research-toolkit/rules";
 
+import FormulationPlanView from "./FormulationPlanView";
 import {
     EditFormulationForm,
     GenerateObjectivesForm,
@@ -73,6 +75,20 @@ export default async function TopicPage({ params }: TopicPageProps) {
         (topic.researchQuestions as unknown as string[]) || [];
 
     const hypotheses = (topic.hypotheses as unknown as string[]) || [];
+
+    const plan = topic.formulationPlan as unknown as FormulationPlan | null;
+
+    // Suggest one objective per named IV dimension, within 2-8.
+    const dimensionCount =
+        breakdown?.independentVariables.reduce(
+            (total, iv) => total + Math.max(1, iv.subVariables.length),
+            0,
+        ) ?? 0;
+
+    const defaultObjectiveCount = Math.min(
+        8,
+        Math.max(2, dimensionCount || 4),
+    );
 
     return (
         <main className="mx-auto max-w-4xl px-6 py-16 lg:px-8">
@@ -178,13 +194,20 @@ export default async function TopicPage({ params }: TopicPageProps) {
                             Objectives, Questions & Hypotheses
                         </h2>
 
-                        {!objectives ? (
-                            <div className="mt-4">
-                                <GenerateObjectivesForm topicId={topic.id} />
-                            </div>
-                        ) : (
-                            <div className="mt-4">
+                        <div className="mt-4">
+                            <GenerateObjectivesForm
+                                topicId={topic.id}
+                                defaultCount={defaultObjectiveCount}
+                                hasExisting={Boolean(objectives)}
+                            />
+                        </div>
+
+                        {objectives ? (
+                            <div className="mt-8">
                                 <EditFormulationForm
+                                    // Remount after regeneration so the
+                                    // fields show the new objectives.
+                                    key={JSON.stringify(objectives)}
                                     topicId={topic.id}
                                     generalObjective={objectives.general}
                                     specificObjectives={
@@ -194,8 +217,14 @@ export default async function TopicPage({ params }: TopicPageProps) {
                                     hypotheses={hypotheses}
                                 />
                             </div>
-                        )}
+                        ) : null}
                     </section>
+
+                    {plan ? (
+                        <div className="mt-12">
+                            <FormulationPlanView plan={plan} />
+                        </div>
+                    ) : null}
 
                     <section className="mt-10 rounded-2xl border border-amber-200 bg-amber-50 p-6">
                         <h2 className="text-xl font-bold text-amber-950">

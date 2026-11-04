@@ -3,6 +3,13 @@
 import { revalidatePath } from "next/cache";
 
 import type { TopicBreakdown } from "@/lib/ai/formulation-checker";
+import {
+    generateFormulationPlan,
+    MAX_OBJECTIVES,
+    MIN_OBJECTIVES,
+} from "@/lib/ai/formulation-plan";
+import { AiUnavailableError } from "@/lib/ai/gemini";
+import { parseObjectiveCount } from "@/lib/research-toolkit/formulation-plan";
 import { requireActionUser } from "@/lib/auth/current-user";
 import {
     runFormAction,
@@ -63,27 +70,80 @@ export async function generateObjectives(
             );
         }
 
-        const formulation = generateFormulation(
-            topic.breakdown as unknown as TopicBreakdown,
+        const breakdown = topic.breakdown as unknown as TopicBreakdown;
+
+        const objectiveCount = parseObjectiveCount(
+            formData.get("objectiveCount"),
+            MIN_OBJECTIVES,
+            MAX_OBJECTIVES,
+            4,
         );
 
-        await prisma.researchTopic.update({
-            where: {
-                id: topic.id,
-            },
-            data: {
-                objectives: {
-                    general: formulation.generalObjective,
-                    specific: formulation.specificObjectives,
+        try {
+            const plan = await generateFormulationPlan({
+                topicText: topic.rawTopicText,
+                degreeLevel: topic.degreeLevel,
+                discipline: topic.discipline,
+                breakdown,
+                objectiveCount,
+            });
+
+            if (plan.specificObjectives.length === 0) {
+                throw new AiUnavailableError();
+            }
+
+            await prisma.researchTopic.update({
+                where: { id: topic.id },
+                data: {
+                    objectives: {
+                        general: plan.generalObjective,
+                        specific: plan.specificObjectives.map(
+                            (item) => item.objective,
+                        ),
+                    },
+                    researchQuestions: plan.specificObjectives.map(
+                        (item) => item.researchQuestion,
+                    ),
+                    hypotheses: plan.specificObjectives.map(
+                        (item) => item.nullHypothesis,
+                    ),
+                    formulationPlan: plan,
                 },
-                researchQuestions: formulation.researchQuestions,
-                hypotheses: formulation.nullHypotheses,
-            },
-        });
+            });
 
-        revalidatePath(`/toolkit/${topic.id}`);
+            revalidatePath(`/toolkit/${topic.id}`);
 
-        return "Objectives, research questions, and hypotheses generated.";
+            const shortfall =
+                plan.specificObjectives.length < objectiveCount
+                    ? ` (the AI returned ${plan.specificObjectives.length} of the ${objectiveCount} you asked for — try again or add the rest by hand)`
+                    : "";
+
+            return `Formulation plan generated with ${plan.specificObjectives.length} specific objectives${shortfall}.`;
+        } catch (error) {
+            if (!(error instanceof AiUnavailableError)) {
+                throw error;
+            }
+
+            // AI busy: fall back to the fixed templates so the student
+            // still gets usable objectives.
+            const formulation = generateFormulation(breakdown);
+
+            await prisma.researchTopic.update({
+                where: { id: topic.id },
+                data: {
+                    objectives: {
+                        general: formulation.generalObjective,
+                        specific: formulation.specificObjectives,
+                    },
+                    researchQuestions: formulation.researchQuestions,
+                    hypotheses: formulation.nullHypotheses,
+                },
+            });
+
+            revalidatePath(`/toolkit/${topic.id}`);
+
+            return "The AI assistant is busy, so basic objectives were generated from your variables. Try again in a few minutes for scale-based proxies and the full plan.";
+        }
     }, { action: "generateObjectives" });
 }
 

@@ -30,7 +30,17 @@ function ActionBanner({ state }: { state: FormActionState }) {
     );
 }
 
-export function GenerateObjectivesForm({ topicId }: { topicId: string }) {
+const OBJECTIVE_COUNTS = [2, 3, 4, 5, 6, 7, 8];
+
+export function GenerateObjectivesForm({
+    topicId,
+    defaultCount,
+    hasExisting,
+}: {
+    topicId: string;
+    defaultCount: number;
+    hasExisting: boolean;
+}) {
     const [state, formAction, pending] = useActionState(
         generateObjectives,
         IDLE_FORM_ACTION_STATE,
@@ -42,13 +52,50 @@ export function GenerateObjectivesForm({ topicId }: { topicId: string }) {
 
             <ActionBanner state={state} />
 
-            <button
-                type="submit"
-                disabled={pending}
-                className="rounded-lg bg-slate-950 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-            >
-                {pending ? "Generating..." : "Generate Objectives, Questions & Hypotheses"}
-            </button>
+            <div className="flex flex-wrap items-end gap-3">
+                <div>
+                    <label
+                        htmlFor="objectiveCount"
+                        className="mb-1 block text-sm font-semibold"
+                    >
+                        Number of specific objectives
+                    </label>
+
+                    <select
+                        id="objectiveCount"
+                        name="objectiveCount"
+                        defaultValue={String(defaultCount)}
+                        className="rounded-lg border border-slate-300 px-4 py-3"
+                    >
+                        {OBJECTIVE_COUNTS.map((count) => (
+                            <option key={count} value={count}>
+                                {count}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                <button
+                    type="submit"
+                    disabled={pending}
+                    className="rounded-lg bg-slate-950 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                >
+                    {pending
+                        ? "Building your plan… (this can take up to a minute)"
+                        : hasExisting
+                          ? "Regenerate Plan"
+                          : "Generate Objectives, Proxies & Plan"}
+                </button>
+            </div>
+
+            <p className="text-xs text-slate-500">
+                Breaks your independent and dependent variables into
+                measurable proxies from validated scales, then writes one
+                objective, research question and hypothesis per proxy.
+                {hasExisting
+                    ? " Regenerating replaces your current objectives and any edits."
+                    : ""}
+            </p>
         </form>
     );
 }
