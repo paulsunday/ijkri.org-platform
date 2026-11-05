@@ -185,12 +185,21 @@ export default async function ResearchToolkitAdminPage({
                                     </h2>
                                 </div>
 
-                                <Link
-                                    href="/resources"
-                                    className="rounded-lg border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-100"
-                                >
-                                    View Public Page
-                                </Link>
+                                <div className="flex flex-wrap gap-2">
+                                    <Link
+                                        href="/admin/variable-guides"
+                                        className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-400"
+                                    >
+                                        Variable Guides (SEO)
+                                    </Link>
+
+                                    <Link
+                                        href="/resources"
+                                        className="rounded-lg border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-100"
+                                    >
+                                        View Public Page
+                                    </Link>
+                                </div>
                             </div>
 
                             <div className="mt-6">

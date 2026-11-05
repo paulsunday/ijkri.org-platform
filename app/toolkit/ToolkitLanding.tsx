@@ -55,7 +55,13 @@ const FEATURES = [
     },
 ];
 
-export default function ToolkitLanding() {
+export type LandingVariableGuide = { slug: string; name: string };
+
+export default function ToolkitLanding({
+    variableGuides = [],
+}: {
+    variableGuides?: LandingVariableGuide[];
+}) {
     const signupHref = "/register";
     const loginHref = `/login?callbackUrl=${encodeURIComponent("/toolkit")}`;
 
@@ -189,6 +195,38 @@ export default function ToolkitLanding() {
                     </ol>
                 </div>
             </section>
+
+            {variableGuides.length > 0 ? (
+                <section className="mx-auto max-w-6xl px-6 pt-16 lg:px-8">
+                    <h2 className="text-3xl font-bold">
+                        Popular research variables
+                    </h2>
+
+                    <p className="mt-2 text-slate-600">
+                        Dimensions, validated scales and example topics for
+                        each.
+                    </p>
+
+                    <div className="mt-6 flex flex-wrap gap-3">
+                        {variableGuides.map((guide) => (
+                            <Link
+                                key={guide.slug}
+                                href={`/variables/${guide.slug}`}
+                                className="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium hover:border-amber-500 hover:bg-amber-50"
+                            >
+                                {guide.name}
+                            </Link>
+                        ))}
+
+                        <Link
+                            href="/variables"
+                            className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                        >
+                            All variables →
+                        </Link>
+                    </div>
+                </section>
+            ) : null}
 
             <section className="mx-auto max-w-4xl px-6 py-16 lg:px-8">
                 <h2 className="text-3xl font-bold">

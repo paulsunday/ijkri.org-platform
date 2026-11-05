@@ -25,6 +25,7 @@ export default function robots(): MetadataRoute.Robots {
                     "/resources",
                     "/insights",
                     "/toolkit",
+                    "/variables",
                     "/feed.xml",
                     "/api/oai",
                     "/api/production-files/",

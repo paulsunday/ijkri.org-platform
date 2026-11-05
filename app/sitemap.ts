@@ -117,7 +117,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             priority: 0.9,
         }));
 
-    const [resources, insights] = await Promise.all([
+    const [resources, insights, variableGuides] = await Promise.all([
         prisma.resourceGuide.findMany({
             where: { isPublished: true, body: { not: null } },
             select: { slug: true, updatedAt: true },
@@ -126,7 +126,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             where: { isPublished: true },
             select: { slug: true, updatedAt: true },
         }),
+        prisma.variableGuide.findMany({
+            where: { isPublished: true },
+            select: { slug: true, updatedAt: true },
+        }),
     ]);
+
+    const variablePages: MetadataRoute.Sitemap = variableGuides.map((guide) => ({
+        url: `${siteUrl}/variables/${guide.slug}`,
+        lastModified: guide.updatedAt,
+        changeFrequency: "monthly",
+        priority: 0.8,
+    }));
 
     const resourcePages: MetadataRoute.Sitemap = resources.map((resource) => ({
         url: `${siteUrl}/resources/${resource.slug}`,
@@ -142,5 +153,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.6,
     }));
 
-    return [...staticPages, ...articlePages, ...resourcePages, ...insightPages];
+    return [
+        ...staticPages,
+        ...articlePages,
+        ...resourcePages,
+        ...insightPages,
+        ...variablePages,
+    ];
 }

@@ -59,6 +59,14 @@ const authorLinks = [
     label: "Research Resources",
     href: "/resources",
   },
+  {
+    label: "Free Research Topic Checker",
+    href: "/toolkit",
+  },
+  {
+    label: "Research Variable Library",
+    href: "/variables",
+  },
 ];
 
 const opportunityLinks = [

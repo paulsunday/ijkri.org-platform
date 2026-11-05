@@ -28,6 +28,7 @@ const PUBLIC_ROUTES = [
   "/search",
   "/terms",
   "/unsubscribe",
+  "/variables",
   "/why-ijkri",
 ];
 

@@ -42,6 +42,10 @@ const navigation = [
     href: "/resources",
   },
   {
+    label: "Topic Checker",
+    href: "/toolkit",
+  },
+  {
     label: "Events",
     href: "/events",
   },

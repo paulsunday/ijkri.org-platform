@@ -76,7 +76,14 @@ export default async function ToolkitPage({ searchParams }: ToolkitPageProps) {
 
     // Logged-out visitors (and search engines) get the public landing page.
     if (!user) {
-        return <ToolkitLanding />;
+        const variableGuides = await prisma.variableGuide.findMany({
+            where: { isPublished: true },
+            select: { slug: true, name: true },
+            orderBy: { publishedAt: "desc" },
+            take: 24,
+        });
+
+        return <ToolkitLanding variableGuides={variableGuides} />;
     }
 
     const journal = await prisma.journal.findFirst({
