@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { completePayment } from "@/lib/payments/complete-payment";
-import { verifyPaystackPayment } from "@/lib/payments/verify-payment";
+import {
+    paystackAmountCovers,
+    verifyPaystackPayment,
+} from "@/lib/payments/verify-payment";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -304,8 +307,10 @@ export async function GET(
             );
 
         if (
-            transaction.amount !==
-            expectedAmountInMinorUnits
+            !paystackAmountCovers(
+                transaction,
+                expectedAmountInMinorUnits,
+            )
         ) {
             await prisma.payment.update({
                 where: {

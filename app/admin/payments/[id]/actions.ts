@@ -1,5 +1,7 @@
 "use server";
 
+import { paystackAmountCovers } from "@/lib/payments/verify-payment";
+
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -813,8 +815,10 @@ export async function reconcilePaymentAction(
         );
 
     if (
-        providerData.amount !==
-        expectedAmountInKobo
+        !paystackAmountCovers(
+            providerData,
+            expectedAmountInKobo,
+        )
     ) {
         throw new Error(
             "The amount returned by Paystack does not match the payment amount.",

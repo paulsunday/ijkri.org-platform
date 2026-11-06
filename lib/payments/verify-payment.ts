@@ -11,6 +11,8 @@ export type PaystackVerificationResponse = {
         reference: string;
         receipt_number: string | null;
         amount: number;
+        /** The amount we asked for, before any fees passed to the customer. */
+        requested_amount?: number | null;
         message: string | null;
         gateway_response: string;
         paid_at: string | null;
@@ -37,6 +39,30 @@ export type PaystackVerificationResponse = {
         } | null;
     };
 };
+
+/**
+ * Whether a verified Paystack transaction paid for the expected amount.
+ *
+ * When the merchant passes transaction fees to customers, Paystack's
+ * `amount` is the price plus fees, so an exact match wrongly rejects
+ * real payments. Accept when what we requested matches, or when the
+ * amount charged covers the price. (completePayment() separately
+ * refuses any underpayment.)
+ */
+export function paystackAmountCovers(
+    transaction: { amount: number; requested_amount?: number | null },
+    expectedMinorUnits: number,
+): boolean {
+    if (
+        typeof transaction.requested_amount === "number" &&
+        transaction.requested_amount === expectedMinorUnits &&
+        transaction.amount >= expectedMinorUnits
+    ) {
+        return true;
+    }
+
+    return transaction.amount >= expectedMinorUnits;
+}
 
 export async function verifyPaystackPayment(
     reference: string,

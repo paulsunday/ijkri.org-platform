@@ -43,7 +43,9 @@ vi.mock("@/lib/prisma", () => ({
     },
 }));
 
-vi.mock("@/lib/payments/verify-payment", () => ({
+vi.mock("@/lib/payments/verify-payment", async (importOriginal) => ({
+    // Keep the real amount rule; only the Paystack call is mocked.
+    ...(await importOriginal<typeof import("@/lib/payments/verify-payment")>()),
     verifyPaystackPayment: verifyPaystackPaymentMock,
 }));
 

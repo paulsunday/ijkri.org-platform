@@ -11,7 +11,10 @@ import {
 
 import { Prisma } from "@/lib/generated/prisma";
 import { completePayment } from "@/lib/payments/complete-payment";
-import { verifyPaystackPayment } from "@/lib/payments/verify-payment";
+import {
+    paystackAmountCovers,
+    verifyPaystackPayment,
+} from "@/lib/payments/verify-payment";
 import { handleTransferWebhookEvent } from "@/lib/payments/handle-transfer-webhook";
 import { prisma } from "@/lib/prisma";
 
@@ -590,8 +593,10 @@ export async function POST(
             );
 
         if (
-            transaction.amount !==
-            expectedAmountInMinorUnits
+            !paystackAmountCovers(
+                transaction,
+                expectedAmountInMinorUnits,
+            )
         ) {
             throw new Error(
                 "The verified transaction amount did not match the expected payment amount.",
