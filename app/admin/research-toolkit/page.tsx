@@ -5,6 +5,7 @@ import { requireAnyRole } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
 
 import {
+    GrantAccessForm,
     ReleaseReservationForm,
     ToolkitSettingsForm,
 } from "./ResearchToolkitForms";
@@ -74,6 +75,30 @@ export default async function ResearchToolkitAdminPage({
     const selectedJournal =
         journals.find((journal) => journal.id === selectedJournalId) ||
         null;
+
+    // Recent unlock attempts, newest first, so a paid attempt that the
+    // site failed to record is easy to spot.
+    const toolkitPayments = selectedJournalId
+        ? await prisma.payment.findMany({
+            where: {
+                journalId: selectedJournalId,
+                purpose: "RESEARCH_TOOLKIT",
+            },
+            orderBy: { initiatedAt: "desc" },
+            take: 30,
+            select: {
+                id: true,
+                status: true,
+                amount: true,
+                currency: true,
+                internalReference: true,
+                failureReason: true,
+                initiatedAt: true,
+                user: { select: { name: true, email: true } },
+                toolkitAccess: { select: { grantedAt: true, revokedAt: true } },
+            },
+        })
+        : [];
 
     const reservations = selectedJournalId
         ? await prisma.topicReservation.findMany({
@@ -213,6 +238,93 @@ export default async function ResearchToolkitAdminPage({
                             </div>
                         </section>
                     )}
+
+                    {selectedJournal ? (
+                        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+                            <h2 className="text-2xl font-bold">
+                                Unlock payments
+                            </h2>
+
+                            <p className="mt-1 text-sm text-slate-600">
+                                Each row is one checkout attempt. A student
+                                may have several. If Paystack shows a
+                                successful charge but the student is still
+                                locked, open the attempt and click
+                                Reconcile, or grant access below.
+                            </p>
+
+                            <div className="mt-4 overflow-x-auto">
+                                <table className="w-full min-w-[720px] text-left text-sm">
+                                    <thead>
+                                        <tr className="border-b text-slate-500">
+                                            <th className="py-2 pr-3">Student</th>
+                                            <th className="py-2 pr-3">Amount</th>
+                                            <th className="py-2 pr-3">Status</th>
+                                            <th className="py-2 pr-3">Unlocked?</th>
+                                            <th className="py-2 pr-3">Reference</th>
+                                            <th className="py-2">Started</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {toolkitPayments.map((payment) => (
+                                            <tr key={payment.id} className="border-b align-top">
+                                                <td className="py-2 pr-3">
+                                                    <Link
+                                                        href={`/admin/payments/${payment.id}`}
+                                                        className="font-medium underline"
+                                                    >
+                                                        {payment.user.name || payment.user.email}
+                                                    </Link>
+                                                    <span className="block text-xs text-slate-500">
+                                                        {payment.user.email}
+                                                    </span>
+                                                </td>
+                                                <td className="py-2 pr-3">
+                                                    {payment.currency} {payment.amount.toFixed(2)}
+                                                </td>
+                                                <td className="py-2 pr-3">
+                                                    {payment.status}
+                                                    {payment.failureReason ? (
+                                                        <span className="block max-w-xs text-xs text-red-700">
+                                                            {payment.failureReason}
+                                                        </span>
+                                                    ) : null}
+                                                </td>
+                                                <td className="py-2 pr-3">
+                                                    {payment.toolkitAccess?.grantedAt &&
+                                                    !payment.toolkitAccess.revokedAt
+                                                        ? "✅ Yes"
+                                                        : "❌ No"}
+                                                </td>
+                                                <td className="py-2 pr-3 font-mono text-xs">
+                                                    {payment.internalReference}
+                                                </td>
+                                                <td className="py-2">
+                                                    {payment.initiatedAt
+                                                        ? formatDate(payment.initiatedAt)
+                                                        : "—"}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div className="mt-8">
+                                <h3 className="text-lg font-bold">
+                                    Grant toolkit access manually
+                                </h3>
+
+                                <p className="mb-3 mt-1 text-sm text-slate-600">
+                                    Use after confirming the payment in your
+                                    Paystack dashboard (Transactions → search
+                                    the student&apos;s email).
+                                </p>
+
+                                <GrantAccessForm journalId={selectedJournal.id} />
+                            </div>
+                        </section>
+                    ) : null}
 
                     <section>
                         <h2 className="text-2xl font-bold">

@@ -188,3 +188,100 @@ export async function forceReleaseReservation(
         return "Reservation released.";
     }, { action: "forceReleaseReservation" });
 }
+
+const GrantAccessSchema = z.object({
+    journalId: z.string().min(1),
+    email: z.string().trim().toLowerCase().email(),
+    reason: z.string().trim().max(300).optional(),
+});
+
+/**
+ * Manually unlocks the toolkit for a student — e.g. when their Paystack
+ * payment succeeded but the site didn't record it.
+ */
+export async function grantToolkitAccess(
+    _previousState: FormActionState,
+    formData: FormData,
+): Promise<FormActionState> {
+    return runFormAction(async () => {
+        const data = GrantAccessSchema.parse({
+            journalId: formData.get("journalId"),
+            email: formData.get("email"),
+            reason: formData.get("reason") || undefined,
+        });
+
+        const manager = await ensureJournalManager(data.journalId);
+
+        const [student, journal] = await Promise.all([
+            prisma.user.findFirst({
+                where: { email: { equals: data.email, mode: "insensitive" } },
+                select: { id: true, name: true, email: true },
+            }),
+            prisma.journal.findUnique({
+                where: { id: data.journalId },
+                select: { toolkitPrice: true, currency: true },
+            }),
+        ]);
+
+        if (!student) {
+            throw new Error(`No account uses ${data.email}. Check the spelling.`);
+        }
+
+        if (!journal) {
+            throw new Error("Journal not found.");
+        }
+
+        const now = new Date();
+
+        await prisma.$transaction(async (tx) => {
+            await tx.toolkitAccess.upsert({
+                where: {
+                    userId_journalId: {
+                        userId: student.id,
+                        journalId: data.journalId,
+                    },
+                },
+                create: {
+                    userId: student.id,
+                    journalId: data.journalId,
+                    amount: journal.toolkitPrice,
+                    currency: journal.currency,
+                    grantedAt: now,
+                },
+                update: {
+                    grantedAt: now,
+                    revokedAt: null,
+                },
+            });
+
+            await tx.activityLog.create({
+                data: {
+                    userId: manager.id,
+                    action: "UPDATE",
+                    entity: "ToolkitAccess",
+                    entityId: student.id,
+                    metadata: {
+                        event: "RESEARCH_TOOLKIT_ACCESS_GRANTED_MANUALLY",
+                        studentEmail: student.email,
+                        reason: data.reason ?? null,
+                    },
+                },
+            });
+
+            await tx.notification.create({
+                data: {
+                    userId: student.id,
+                    type: "RESEARCH_TOOLKIT",
+                    title: "Research Toolkit unlocked",
+                    message:
+                        "Your access to the full Research Topic Formulation Workbench is now active.",
+                    link: "/toolkit",
+                },
+            });
+        });
+
+        refreshPages();
+
+        return `Access granted to ${student.name || student.email}. They can refresh /toolkit now.`;
+    }, { action: "grantToolkitAccess" });
+}

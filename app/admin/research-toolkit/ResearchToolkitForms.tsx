@@ -9,6 +9,7 @@ import {
 
 import {
     forceReleaseReservation,
+    grantToolkitAccess,
     updateToolkitSettings,
 } from "./actions";
 
@@ -133,6 +134,45 @@ export function ReleaseReservationForm({
                     {state.message}
                 </p>
             ) : null}
+        </form>
+    );
+}
+
+export function GrantAccessForm({ journalId }: { journalId: string }) {
+    const [state, formAction, pending] = useActionState(
+        grantToolkitAccess,
+        IDLE_FORM_ACTION_STATE,
+    );
+
+    return (
+        <form action={formAction} className="space-y-3">
+            <input type="hidden" name="journalId" value={journalId} />
+
+            <ActionBanner state={state} />
+
+            <div className="grid gap-3 sm:grid-cols-2">
+                <input
+                    name="email"
+                    type="email"
+                    required
+                    placeholder="Student's account email"
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                />
+
+                <input
+                    name="reason"
+                    placeholder="Reason (e.g. Paystack ref TLK-…)"
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                />
+            </div>
+
+            <button
+                type="submit"
+                disabled={pending}
+                className="rounded-lg bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+            >
+                {pending ? "Granting…" : "Grant toolkit access"}
+            </button>
         </form>
     );
 }
