@@ -43,6 +43,16 @@ export async function hasToolkitAccess({
         return true;
     }
 
+    // A super admin switched toolkit payment off: free for every user.
+    const journal = await prisma.journal.findUnique({
+        where: { id: journalId },
+        select: { toolkitPaid: true },
+    });
+
+    if (journal && !journal.toolkitPaid) {
+        return true;
+    }
+
     const access = await prisma.toolkitAccess.findFirst({
         where: {
             userId,

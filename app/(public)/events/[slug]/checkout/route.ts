@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { sendEventRegistrationConfirmation } from "@/lib/events/registration-email";
 import { logger } from "@/lib/logger";
 import {
     startItemCheckout,
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ slug: string }> };
 
-/** "Pay & register" target for an event. Plain POST route. */
+/** "Pay & register" (or free "Register") target for an event. Plain POST route. */
 export async function POST(request: NextRequest, { params }: RouteContext) {
     const { slug } = await params;
     const eventPath = `/events/${slug}`;
@@ -68,6 +69,25 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
         if (registration.status === "CONFIRMED") {
             return go(eventPath);
+        }
+
+        // A super admin made this event free: confirm straight away.
+        if (!event.isPaid) {
+            await prisma.eventRegistration.update({
+                where: { id: registration.id },
+                data: { status: "CONFIRMED" },
+            });
+
+            try {
+                await sendEventRegistrationConfirmation(registration.id);
+            } catch (error) {
+                logger.error("Free event confirmation email failed", error, {
+                    event: "EVENT_REGISTRATION_EMAIL_FAILED",
+                    eventRegistrationId: registration.id,
+                });
+            }
+
+            return go(withPaymentMessage(eventPath, "success", "You're registered!"));
         }
 
         const isAlreadyPaid = async () =>

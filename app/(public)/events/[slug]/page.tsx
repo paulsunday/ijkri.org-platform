@@ -100,7 +100,8 @@ export default async function EventDetailPage({
     notFound();
   }
 
-  // Every event is paid: registration is confirmed once the fee is paid.
+  // Paid events confirm registration once the fee is paid; a super admin
+  // can make an event free.
   const viewer = await getCurrentUser();
 
   const findRegistration = () =>
@@ -235,6 +236,38 @@ export default async function EventDetailPage({
                   ? " Use the “Join the event” button above to attend."
                   : ""}
               </p>
+            ) : !event.isPaid ? (
+              <>
+                <h2 className="text-lg font-bold text-slate-950">
+                  Register for this event
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-600">
+                  This event is free.
+                </p>
+
+                {!viewer ? (
+                  <Link
+                    href={`/login?callbackUrl=${encodeURIComponent(`/events/${event.slug}`)}`}
+                    className="mt-5 inline-block rounded-lg bg-amber-500 px-6 py-3 font-semibold text-slate-950 transition hover:bg-amber-400"
+                  >
+                    Log in to register →
+                  </Link>
+                ) : (
+                  <form
+                    method="post"
+                    action={`/events/${event.slug}/checkout`}
+                    className="mt-5"
+                  >
+                    <button
+                      type="submit"
+                      className="rounded-lg bg-amber-500 px-6 py-3 font-semibold text-slate-950 transition hover:bg-amber-400"
+                    >
+                      Register for free →
+                    </button>
+                  </form>
+                )}
+              </>
             ) : !event.fee.greaterThan(0) ? (
               <p className="font-semibold text-slate-900">
                 Registration opens soon.

@@ -56,6 +56,7 @@ export async function startToolkitCheckout(
             id: true,
             isActive: true,
             toolkitPrice: true,
+            toolkitPaid: true,
             currency: true,
             ngnExchangeRate: true,
         },
@@ -65,6 +66,11 @@ export async function startToolkitCheckout(
         throw new Error(
             "The Research Topic Formulation Workbench is not currently available.",
         );
+    }
+
+    // Toolkit made free by a super admin: nothing to pay.
+    if (!journal.toolkitPaid) {
+        return "/toolkit";
     }
 
     const amount = journal.toolkitPrice.toNumber();

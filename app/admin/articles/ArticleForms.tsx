@@ -53,6 +53,7 @@ type ArticleForUpdate = {
   /** Decimal as string; "" = uses the journal's article price. */
   price: string;
   journalPrice: string;
+  isPaid: boolean;
 };
 
 export function UpdateArticleForm({
@@ -243,8 +244,28 @@ export function UpdateArticleForm({
         </p>
       </div>
 
-      {/* Every article is paid; access type is kept only for records. */}
+      {/* Access type is kept only for records; isPaid decides access. */}
       <input type="hidden" name="accessType" value={article.accessType} />
+
+      {canEditPrice ? (
+        <>
+          <input type="hidden" name="isPaidField" value="1" />
+          <label className="flex items-center gap-2 font-semibold">
+            <input
+              type="checkbox"
+              name="isPaid"
+              defaultChecked={article.isPaid}
+              disabled={fieldsDisabled}
+              className="h-4 w-4"
+            />
+            Paid article (untick to make it free to read)
+          </label>
+        </>
+      ) : (
+        <p className="text-sm font-semibold">
+          {article.isPaid ? "Paid article" : "Free article"}
+        </p>
+      )}
 
       <div>
         <label
@@ -267,8 +288,8 @@ export function UpdateArticleForm({
         />
 
         <p className="mt-2 text-sm text-gray-500">
-          Every article is paid: readers buy it or subscribe. Leave blank to
-          use the journal price ({article.journalPrice}).
+          Paid articles: readers buy them or subscribe. Leave blank to use
+          the journal price ({article.journalPrice}).
           {canEditPrice ? "" : " Only a super admin can change the price."}
         </p>
       </div>

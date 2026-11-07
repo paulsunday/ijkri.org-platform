@@ -50,7 +50,7 @@ async function verifyJournalSettingsPermission(
     );
 
     if (isSuperAdmin) {
-        return;
+        return true;
     }
 
     const hasJournalPermission = administrator.roles.some(
@@ -64,6 +64,8 @@ async function verifyJournalSettingsPermission(
             "You do not have administrative permission for this journal.",
         );
     }
+
+    return false;
 }
 
 function requiredText(
@@ -272,10 +274,20 @@ export async function updateJournalSettings(
         throw new Error("Journal ID is missing.");
     }
 
-    await verifyJournalSettingsPermission(
+    const isSuperAdmin = await verifyJournalSettingsPermission(
         administrator.id,
         journalId,
     );
+
+    // Payment on/off switches: super admins only.
+    const paymentSwitches =
+        isSuperAdmin && formData.get("paymentSwitches") === "1"
+            ? {
+                apcEnabled: formData.get("apcEnabled") === "on",
+                articlesPaid: formData.get("articlesPaid") === "on",
+                toolkitPaid: formData.get("toolkitPaid") === "on",
+            }
+            : {};
 
     const journal = await prisma.journal.findUnique({
         where: {
@@ -498,6 +510,7 @@ export async function updateJournalSettings(
                 subscriptionAmount,
                 articlePrice,
                 ngnExchangeRate,
+                ...paymentSwitches,
                 currency: currencyValue as
                     (typeof CURRENCIES)[number],
             },
@@ -570,6 +583,7 @@ export async function updateJournalSettings(
     revalidatePath("/");
     revalidatePath("/current-issue");
     revalidatePath("/archives");
+    revalidatePath("/toolkit");
 
     return "Journal settings were saved successfully.";
     });

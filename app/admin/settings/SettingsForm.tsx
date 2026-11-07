@@ -42,6 +42,9 @@ type JournalForSettings = {
   subscriptionAmount: string;
   articlePrice: string;
   ngnExchangeRate: string;
+  apcEnabled: boolean;
+  articlesPaid: boolean;
+  toolkitPaid: boolean;
 };
 
 type SettingsForSettings = {
@@ -65,9 +68,12 @@ type SettingsForSettings = {
 export function SettingsForm({
   journal,
   settings,
+  canSwitchPayments = false,
 }: {
   journal: JournalForSettings;
   settings: SettingsForSettings;
+  /** Super admins only. */
+  canSwitchPayments?: boolean;
 }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(
@@ -359,6 +365,51 @@ export function SettingsForm({
           </p>
         </div>
       </section>
+
+      {canSwitchPayments ? (
+        <section className="rounded-xl border bg-white p-6 shadow-sm">
+          <input type="hidden" name="paymentSwitches" value="1" />
+
+          <h2 className="text-xl font-bold">Payments On / Off</h2>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Untick to make that item free for everyone. Individual events
+            and articles also have their own switch in Admin → Events and
+            Admin → Articles.
+          </p>
+
+          <div className="mt-4 space-y-3">
+            {[
+              {
+                name: "apcEnabled",
+                checked: journal.apcEnabled,
+                label: "Charge an APC when a manuscript is accepted",
+              },
+              {
+                name: "articlesPaid",
+                checked: journal.articlesPaid,
+                label: "Articles are paid (buy or subscribe to read)",
+              },
+              {
+                name: "toolkitPaid",
+                checked: journal.toolkitPaid,
+                label: "Research toolkit unlock is paid",
+              },
+            ].map((option) => (
+              <label key={option.name} className="flex items-center gap-2 text-sm font-medium">
+                <input
+                  type="checkbox"
+                  name={option.name}
+                  defaultChecked={option.checked}
+                  disabled={pending}
+                  className="h-4 w-4"
+                />
+                {option.label}
+              </label>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="rounded-xl border bg-white p-6 shadow-sm">
         <h2 className="text-xl font-bold">Editorial Workflow</h2>

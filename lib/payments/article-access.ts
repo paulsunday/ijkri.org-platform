@@ -1,7 +1,6 @@
 import "server-only";
 
 import { isSuperAdmin } from "@/lib/auth/permissions";
-import type { ArticleAccessType } from "@/lib/generated/prisma";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -22,8 +21,20 @@ export type ArticleReadAccessInput = {
     journalId: string;
     articleId: string;
     authorUserId?: string | null;
-    accessType: ArticleAccessType;
+    /** From isArticlePaid(); false means anyone may read it. */
+    isPaid: boolean;
 };
+
+/**
+ * An article is paid unless a super admin switched it off, either for
+ * this article or for the whole journal.
+ */
+export function isArticlePaid(
+    article: { isPaid: boolean },
+    journal: { articlesPaid: boolean },
+) {
+    return article.isPaid && journal.articlesPaid;
+}
 
 /**
  * Determines whether a reader may access an article's full
@@ -36,11 +47,11 @@ export async function hasArticleReadAccess({
     journalId,
     articleId,
     authorUserId,
-    accessType,
+    isPaid,
 }: ArticleReadAccessInput): Promise<boolean> {
-    // Every article is paid (site policy since Nov 2026): accessType no
-    // longer grants free access. Readers need a purchase or subscription.
-    void accessType;
+    if (!isPaid) {
+        return true;
+    }
 
     if (!userId) {
         return false;

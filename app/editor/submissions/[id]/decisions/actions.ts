@@ -180,6 +180,7 @@ export async function sendEditorialDecision(formData: FormData) {
           shortName: true,
           issnOnline: true,
           issnPrint: true,
+          apcEnabled: true,
           publisher: {
             select: { name: true },
           },
@@ -339,7 +340,8 @@ export async function sendEditorialDecision(formData: FormData) {
 
     let invoice: Invoice | null = null;
 
-    if (decision === "ACCEPTED") {
+    // No APC invoice when a super admin has switched APC off.
+    if (decision === "ACCEPTED" && submission.journal.apcEnabled) {
       const result = await createApcInvoice(tx, submissionId);
       invoice = result.invoice;
     }
@@ -366,12 +368,12 @@ export async function sendEditorialDecision(formData: FormData) {
       data: {
         userId: submission.authorId,
 
-        type: decision === "ACCEPTED"
+        type: decision === "ACCEPTED" && invoice
           ? "PAYMENT"
           : "DECISION",
 
         title:
-          decision === "ACCEPTED"
+          decision === "ACCEPTED" && invoice
             ? "Article Accepted – APC Invoice Issued"
             : decisionTitle,
 

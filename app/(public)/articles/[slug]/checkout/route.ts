@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 import { logger } from "@/lib/logger";
 import {
     getArticlePrice,
+    isArticlePaid,
     hasArticleReadAccess,
 } from "@/lib/payments/article-access";
 import {
@@ -35,13 +36,14 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
             select: {
                 id: true,
                 journalId: true,
-                accessType: true,
+                isPaid: true,
                 price: true,
                 submission: { select: { authorId: true } },
                 journal: {
                     select: {
                         id: true,
                         articlePrice: true,
+                        articlesPaid: true,
                         currency: true,
                         ngnExchangeRate: true,
                     },
@@ -59,7 +61,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
                 journalId: article.journalId,
                 articleId: article.id,
                 authorUserId: article.submission?.authorId ?? null,
-                accessType: article.accessType,
+                isPaid: isArticlePaid(article, article.journal),
             });
 
         if (await isAlreadyPaid()) {

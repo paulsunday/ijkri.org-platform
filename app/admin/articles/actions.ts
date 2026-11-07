@@ -211,13 +211,17 @@ export async function updateArticle(
      * Per-article price (super admin only). Blank = use the journal's
      * article price. Other admins can't change it.
      */
-    let priceUpdate: { price: Prisma.Decimal | null } | Record<string, never> = {};
+    const priceUpdate: { price?: Prisma.Decimal | null; isPaid?: boolean } = {};
+
+    if (isSuperAdmin(administrator) && formData.has("isPaidField")) {
+        priceUpdate.isPaid = formData.get("isPaid") === "on";
+    }
 
     if (isSuperAdmin(administrator) && formData.has("price")) {
         const rawPrice = String(formData.get("price") ?? "").trim();
 
         if (!rawPrice) {
-            priceUpdate = { price: null };
+            priceUpdate.price = null;
         } else {
             const value = Number(rawPrice);
 
@@ -225,7 +229,7 @@ export async function updateArticle(
                 throw new Error("Article price must be a positive number, or blank to use the journal price.");
             }
 
-            priceUpdate = { price: new Prisma.Decimal(value.toFixed(2)) };
+            priceUpdate.price = new Prisma.Decimal(value.toFixed(2));
         }
     }
 

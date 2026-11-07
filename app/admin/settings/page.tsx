@@ -167,7 +167,11 @@ export default async function AdminSettingsPage({
           ngnExchangeRate: journal.ngnExchangeRate
             ? journal.ngnExchangeRate.toString()
             : "",
+          apcEnabled: journal.apcEnabled,
+          articlesPaid: journal.articlesPaid,
+          toolkitPaid: journal.toolkitPaid,
         }}
+        canSwitchPayments={isSuperAdmin}
         settings={
           settings
             ? {

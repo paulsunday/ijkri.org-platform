@@ -131,14 +131,16 @@ function FormSelect({
 }
 
 
-/** Registration fee input; only super admins can change it. */
+/** Paid on/off switch and fee; only super admins can change them. */
 function FeeField({
     canEditFee,
     defaultValue,
+    defaultPaid = true,
     disabled,
 }: {
     canEditFee: boolean;
     defaultValue?: string;
+    defaultPaid?: boolean;
     disabled: boolean;
 }) {
     if (!canEditFee) {
@@ -146,31 +148,47 @@ function FeeField({
             <div>
                 <p className="mb-2 block font-semibold">Registration fee</p>
                 <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                    {defaultValue && Number(defaultValue) > 0
-                        ? defaultValue
-                        : "Not set — a super admin must set it before this event can be published."}
+                    {!defaultPaid
+                        ? "Free event"
+                        : defaultValue && Number(defaultValue) > 0
+                          ? defaultValue
+                          : "Not set — a super admin must set it before this event can be published."}
                 </p>
             </div>
         );
     }
 
+    const id = `fee-${defaultValue ?? "new"}`;
+
     return (
-        <div>
-            <label htmlFor={`fee-${defaultValue ?? "new"}`} className="mb-2 block font-semibold">
-                Registration fee (journal currency) *
+        <div className="space-y-3 rounded-lg border border-slate-200 p-4">
+            <label className="flex items-center gap-2 font-semibold">
+                <input
+                    type="checkbox"
+                    name="isPaid"
+                    defaultChecked={defaultPaid}
+                    disabled={disabled}
+                    className="h-4 w-4"
+                />
+                Paid event (untick to make registration free)
             </label>
-            <input
-                id={`fee-${defaultValue ?? "new"}`}
-                name="fee"
-                type="number"
-                min="0.01"
-                step="0.01"
-                required
-                placeholder="e.g. 5.00"
-                defaultValue={defaultValue}
-                disabled={disabled}
-                className="w-full rounded-lg border border-slate-300 px-4 py-3"
-            />
+
+            <div>
+                <label htmlFor={id} className="mb-2 block text-sm font-semibold">
+                    Registration fee (journal currency) — needed when paid
+                </label>
+                <input
+                    id={id}
+                    name="fee"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="e.g. 5.00"
+                    defaultValue={defaultValue}
+                    disabled={disabled}
+                    className="w-full rounded-lg border border-slate-300 px-4 py-3"
+                />
+            </div>
         </div>
     );
 }
@@ -329,6 +347,7 @@ type EventForEdit = {
     description: string;
     /** Decimal as a string (client components can't receive Decimals). */
     fee: string;
+    isPaid: boolean;
 };
 
 function toDateTimeLocal(value: Date | null) {
@@ -427,6 +446,7 @@ export function UpdateEventForm({
                 <FeeField
                     canEditFee={canEditFee}
                     defaultValue={event.fee}
+                    defaultPaid={event.isPaid}
                     disabled={pending}
                 />
 

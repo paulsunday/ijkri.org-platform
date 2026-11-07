@@ -8,6 +8,7 @@ import { autoReconcilePaystackPayments } from "@/lib/payments/auto-reconcile";
 import {
   getArticlePrice,
   hasArticleReadAccess,
+  isArticlePaid,
 } from "@/lib/payments/article-access";
 import ArticlePaywall from "./ArticlePaywall";
 import ArticleSidebar from "@/components/articles/article-sidebar";
@@ -341,9 +342,10 @@ export default async function PublicArticlePage({
   }
 
   /*
-   * Every article is paid: full text and PDF need a purchase or an
-   * active subscription (staff and the article's author always see it).
+   * Paid articles need a purchase or an active subscription (staff and
+   * the author always see them). A super admin can make one free.
    */
+  const isPaid = isArticlePaid(article, article.journal);
   const viewer = await getCurrentUser();
 
   const checkAccess = () =>
@@ -352,7 +354,7 @@ export default async function PublicArticlePage({
       journalId: article.journalId,
       articleId: article.id,
       authorUserId: article.submission?.authorId ?? null,
-      accessType: article.accessType,
+      isPaid,
     });
 
   let canRead = await checkAccess();
@@ -430,14 +432,18 @@ export default async function PublicArticlePage({
 
     headline: article.title,
 
-    // Paid content: Google's paywalled-content markup.
-    isAccessibleForFree: false,
+    // Google's paywalled-content markup for paid articles.
+    isAccessibleForFree: !isPaid,
 
-    hasPart: {
-      "@type": "WebPageElement",
-      isAccessibleForFree: false,
-      cssSelector: ".article-paywall",
-    },
+    ...(isPaid
+      ? {
+          hasPart: {
+            "@type": "WebPageElement",
+            isAccessibleForFree: false,
+            cssSelector: ".article-paywall",
+          },
+        }
+      : {}),
 
     description: stripHtmlTags(article.abstract),
 

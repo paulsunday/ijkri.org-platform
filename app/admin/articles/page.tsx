@@ -54,31 +54,6 @@ function formatDoiStatus(status: string | undefined) {
   }
 }
 
-function formatAccessType(accessType: string) {
-  switch (accessType) {
-    case "OPEN_ACCESS":
-      return "Open Access";
-
-    case "SUBSCRIPTION":
-      return "Subscription Only";
-
-    case "PAY_PER_VIEW":
-      return "Pay-Per-Article Only";
-
-    case "SUBSCRIPTION_OR_PAY_PER_VIEW":
-      return "Subscription or Pay-Per-Article";
-
-    default:
-      return accessType;
-  }
-}
-
-function accessTypeClass(accessType: string) {
-  return accessType === "OPEN_ACCESS"
-    ? "bg-green-100 text-green-800"
-    : "bg-amber-100 text-amber-800";
-}
-
 function statusClass(status: string) {
   switch (status) {
     case "PUBLISHED":
@@ -317,11 +292,15 @@ export default async function AdminArticlesPage() {
                       </span>
 
                       <span
-                        className={`rounded-full px-4 py-2 text-sm font-semibold ${accessTypeClass(
-                          article.accessType,
-                        )}`}
+                        className={`rounded-full px-4 py-2 text-sm font-semibold ${
+                          article.isPaid && article.journal.articlesPaid
+                            ? "bg-amber-100 text-amber-800"
+                            : "bg-green-100 text-green-800"
+                        }`}
                       >
-                        {formatAccessType(article.accessType)}
+                        {article.isPaid && article.journal.articlesPaid
+                          ? "Paid"
+                          : "Free"}
                       </span>
                     </div>
                   </div>
@@ -413,6 +392,7 @@ export default async function AdminArticlesPage() {
                       accessType: article.accessType,
                       status: article.status,
                       price: article.price ? article.price.toFixed(2) : "",
+                      isPaid: article.isPaid,
                       journalPrice: `${article.journal.currency} ${article.journal.articlePrice.toFixed(2)}`,
                     }}
                     compatibleIssues={compatibleIssues}

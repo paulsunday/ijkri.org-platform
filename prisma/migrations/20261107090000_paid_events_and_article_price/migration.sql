@@ -5,10 +5,17 @@ CREATE TYPE "EventRegistrationStatus" AS ENUM ('PENDING', 'CONFIRMED');
 ALTER TYPE "PaymentPurpose" ADD VALUE 'EVENT_REGISTRATION';
 
 -- AlterTable
-ALTER TABLE "Event" ADD COLUMN     "fee" DECIMAL(10,2) NOT NULL DEFAULT 0;
+ALTER TABLE "Event" ADD COLUMN     "fee" DECIMAL(10,2) NOT NULL DEFAULT 0,
+ADD COLUMN     "isPaid" BOOLEAN NOT NULL DEFAULT true;
 
 -- AlterTable
-ALTER TABLE "Article" ADD COLUMN     "price" DECIMAL(10,2);
+ALTER TABLE "Article" ADD COLUMN     "price" DECIMAL(10,2),
+ADD COLUMN     "isPaid" BOOLEAN NOT NULL DEFAULT true;
+
+-- AlterTable
+ALTER TABLE "Journal" ADD COLUMN     "apcEnabled" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "articlesPaid" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "toolkitPaid" BOOLEAN NOT NULL DEFAULT true;
 
 -- AlterTable
 ALTER TABLE "EventRegistration" ADD COLUMN     "paidAt" TIMESTAMP(3),

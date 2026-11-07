@@ -389,7 +389,12 @@ model Journal {
   staticPages         StaticPage[]
   variableGuides      VariableGuide[]
 
-  toolkitPrice           Decimal @default(2.00) @db.Decimal(10, 2)
+  toolkitPrice Decimal @default(2.00) @db.Decimal(10, 2)
+
+  // Super-admin payment switches. Off makes that item free journal-wide.
+  apcEnabled             Boolean @default(true)
+  articlesPaid           Boolean @default(true)
+  toolkitPaid            Boolean @default(true)
   topicReservationMonths Int     @default(9)
 
   toolkitAccess          ToolkitAccess[]
@@ -545,9 +550,11 @@ model Event {
   speakerTitle    String?
   registrationUrl String?
   recordingUrl    String?
-  // Registration fee in the journal's currency. Every event must have a
+  // Registration fee in the journal's currency. A paid event needs a
   // fee (> 0) before registration opens; set by a super admin.
   fee             Decimal             @default(0) @db.Decimal(10, 2)
+  // Super-admin switch: off makes registration free.
+  isPaid          Boolean             @default(true)
   status          EventStatus         @default(UPCOMING)
   isPublished     Boolean             @default(false)
   createdAt       DateTime            @default(now())
@@ -918,6 +925,8 @@ model Article {
   accessType   ArticleAccessType @default(OPEN_ACCESS)
   // Per-article price; null uses the journal's articlePrice. Super admin only.
   price        Decimal?          @db.Decimal(10, 2)
+  // Super-admin switch: off makes this article free to read.
+  isPaid       Boolean           @default(true)
 
   purchases  ArticlePurchase[]
   createdAt  DateTime           @default(now())

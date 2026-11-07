@@ -114,18 +114,20 @@ async function ensureJournalManager(journalId: string) {
 
 
 /*
- * Every event is paid. Only a super admin can set or change the fee;
- * an event can't be published until it has one.
+ * Events are paid by default. Only a super admin can switch payment
+ * on or off or change the fee; a paid event can't be published
+ * without a fee.
  */
-function resolveEventFee(
+function resolveEventPricing(
     formData: FormData,
     user: Parameters<typeof isSuperAdmin>[0],
-    currentFee: Prisma.Decimal,
-): Prisma.Decimal {
+    current: { fee: Prisma.Decimal; isPaid: boolean },
+): { fee: Prisma.Decimal; isPaid: boolean } {
     if (!isSuperAdmin(user)) {
-        return currentFee;
+        return current;
     }
 
+    const isPaid = formData.get("isPaid") === "on";
     const raw = String(formData.get("fee") ?? "").trim();
     const value = Number(raw || 0);
 
@@ -133,13 +135,16 @@ function resolveEventFee(
         throw new Error("Registration fee must be a positive number.");
     }
 
-    return new Prisma.Decimal(value.toFixed(2));
+    return { fee: new Prisma.Decimal(value.toFixed(2)), isPaid };
 }
 
-function assertPublishableFee(isPublished: boolean, fee: Prisma.Decimal) {
-    if (isPublished && fee.lessThanOrEqualTo(0)) {
+function assertPublishableFee(
+    isPublished: boolean,
+    pricing: { fee: Prisma.Decimal; isPaid: boolean },
+) {
+    if (isPublished && pricing.isPaid && pricing.fee.lessThanOrEqualTo(0)) {
         throw new Error(
-            "Every event needs a registration fee before it can be published. A super admin must set the fee.",
+            "A paid event needs a registration fee before it can be published. A super admin must set the fee or make the event free.",
         );
     }
 }
@@ -244,8 +249,11 @@ export async function createEvent(
             })),
     );
 
-    const fee = resolveEventFee(formData, manager, new Prisma.Decimal(0));
-    assertPublishableFee(data.isPublished, fee);
+    const pricing = resolveEventPricing(formData, manager, {
+        fee: new Prisma.Decimal(0),
+        isPaid: true,
+    });
+    assertPublishableFee(data.isPublished, pricing);
 
     await prisma.$transaction(async (tx) => {
         const event = await tx.event.create({
@@ -263,7 +271,8 @@ export async function createEvent(
                 recordingUrl,
                 status: data.status,
                 isPublished: data.isPublished,
-                fee,
+                fee: pricing.fee,
+                isPaid: pricing.isPaid,
             },
         });
 
@@ -357,8 +366,8 @@ export async function updateEvent(
         "recording URL",
     );
 
-    const fee = resolveEventFee(formData, manager, existingEvent.fee);
-    assertPublishableFee(data.isPublished, fee);
+    const pricing = resolveEventPricing(formData, manager, existingEvent);
+    assertPublishableFee(data.isPublished, pricing);
 
     await prisma.$transaction(async (tx) => {
         const updatedEvent = await tx.event.update({
@@ -375,7 +384,8 @@ export async function updateEvent(
                 recordingUrl,
                 status: data.status,
                 isPublished: data.isPublished,
-                fee,
+                fee: pricing.fee,
+                isPaid: pricing.isPaid,
             },
         });
 

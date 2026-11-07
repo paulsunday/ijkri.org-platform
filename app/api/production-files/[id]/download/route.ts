@@ -2,7 +2,10 @@ import { get } from "@vercel/blob";
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/current-user";
-import { hasArticleReadAccess } from "@/lib/payments/article-access";
+import {
+  hasArticleReadAccess,
+  isArticlePaid,
+} from "@/lib/payments/article-access";
 import { prisma } from "@/lib/prisma";
 import { getBlobToken } from "@/lib/storage/blob";
 
@@ -95,7 +98,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
     select: {
       id: true,
       status: true,
-      accessType: true,
+      isPaid: true,
+      journal: { select: { articlesPaid: true } },
     },
   });
 
@@ -144,6 +148,10 @@ export async function GET(_request: Request, { params }: RouteContext) {
    */
   const isPublished = publishedArticle?.status === "PUBLISHED";
 
+  const publishedIsPaid = publishedArticle
+    ? isArticlePaid(publishedArticle, publishedArticle.journal)
+    : true;
+
   const hasReaderAccess =
     isPublished &&
     (await hasArticleReadAccess({
@@ -151,7 +159,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
       journalId: file.submission.journalId,
       articleId: publishedArticle.id,
       authorUserId: file.submission.authorId,
-      accessType: publishedArticle.accessType,
+      isPaid: publishedIsPaid,
     }));
 
   if (!hasInternalAccess && !hasReaderAccess) {
@@ -222,8 +230,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
    * subscription/purchase) depends on the requester's identity
    * and must never be cached.
    */
-  // Every published article is paid, so no PDF is publicly cacheable.
-  const isPubliclyCacheable = false;
+  // Only a free published article's PDF is the same for everyone.
+  const isPubliclyCacheable = isPublished && !publishedIsPaid;
 
   headers.set(
     "Cache-Control",
