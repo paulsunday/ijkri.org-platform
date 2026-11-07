@@ -123,14 +123,13 @@ export async function completePayment(
         );
     }
 
-    if (
-        payment.status ===
-        "CANCELLED"
-    ) {
-        throw new Error(
-            "This payment has been cancelled.",
-        );
-    }
+    /*
+     * A CANCELLED payment is still completed here: completePayment()
+     * only runs after Paystack has verified the money was received.
+     * This happens when a student starts a new checkout (which cancels
+     * the old one) but then pays on the earlier, still-open Paystack
+     * page — refusing it would take their money without giving access.
+     */
 
     const receiptNumber =
         payment.receiptNumber ??
@@ -299,6 +298,7 @@ export async function completePayment(
                                     "PENDING",
                                     "PROCESSING",
                                     "FAILED",
+                                    "CANCELLED",
                                 ],
                             },
                         },
@@ -600,6 +600,23 @@ export async function completePayment(
                         data: {
                             grantedAt: paidAt,
                             revokedAt: null,
+                        },
+                    });
+
+                    // Close any other open checkouts for this unlock so
+                    // the student can't be charged twice.
+                    await tx.payment.updateMany({
+                        where: {
+                            toolkitAccessId: toolkitAccess.id,
+                            id: { not: payment.id },
+                            status: { in: ["PENDING", "PROCESSING"] },
+                        },
+                        data: {
+                            status: "CANCELLED",
+                            cancelledAt: paidAt,
+                            providerStatus: "superseded",
+                            failureReason:
+                                "Another payment for this unlock succeeded.",
                         },
                     });
                 }

@@ -1,7 +1,5 @@
 "use server";
 
-import { paystackAmountCovers } from "@/lib/payments/verify-payment";
-
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -14,6 +12,8 @@ import {
     Prisma,
     RefundStatus,
 } from "@/lib/generated/prisma";
+import { completePayment } from "@/lib/payments/complete-payment";
+import { paystackAmountCovers } from "@/lib/payments/verify-payment";
 import { prisma } from "@/lib/prisma";
 
 const FINANCE_ROLES = new Set([
@@ -718,6 +718,79 @@ export async function createRefundAction(
         };
     }
 }
+/**
+ * A student may start several checkouts for one toolkit unlock and pay
+ * on an older one. When the attempt being reconciled wasn't paid, check
+ * the others with Paystack and complete the one that was.
+ */
+async function completePaidSiblingToolkitAttempt(
+    toolkitAccessId: string,
+    excludePaymentId: string,
+): Promise<boolean> {
+    const siblings = await prisma.payment.findMany({
+        where: {
+            toolkitAccessId,
+            id: { not: excludePaymentId },
+            provider: PaymentProvider.PAYSTACK,
+            status: {
+                in: [
+                    PaymentStatus.PENDING,
+                    PaymentStatus.PROCESSING,
+                    PaymentStatus.FAILED,
+                    PaymentStatus.CANCELLED,
+                ],
+            },
+        },
+        orderBy: { initiatedAt: "desc" },
+        take: 10,
+    });
+
+    for (const sibling of siblings) {
+        const reference =
+            sibling.providerReference ?? sibling.internalReference;
+
+        let response: Awaited<ReturnType<typeof verifyPaystackTransaction>>;
+
+        try {
+            response = await verifyPaystackTransaction(reference);
+        } catch {
+            // Never reached Paystack, or unknown reference: not paid.
+            continue;
+        }
+
+        const data = response.data;
+
+        if (
+            !data ||
+            data.status.trim().toLowerCase() !== "success" ||
+            data.currency !== sibling.currency ||
+            !paystackAmountCovers(
+                data,
+                Math.round(sibling.amount.toNumber() * 100),
+            )
+        ) {
+            continue;
+        }
+
+        await completePayment({
+            paymentId: sibling.id,
+            providerReference: data.reference,
+            providerStatus: data.status,
+            providerChannel: data.channel ?? null,
+            providerFees:
+                typeof data.fees === "number" ? data.fees / 100 : null,
+            paidAmount: data.amount / 100,
+            paidAt: data.paid_at ? new Date(data.paid_at) : undefined,
+            customerEmail: data.customer?.email ?? null,
+            providerResponse: serialiseJson(response),
+        });
+
+        return true;
+    }
+
+    return false;
+}
+
 export async function reconcilePaymentAction(
     formData: FormData,
 ): Promise<void> {
@@ -963,6 +1036,39 @@ export async function reconcilePaymentAction(
                     );
                 }
 
+                // Research Toolkit unlock.
+                if (payment.toolkitAccessId) {
+                    await transaction.toolkitAccess.update({
+                        where: {
+                            id: payment.toolkitAccessId,
+                        },
+                        data: {
+                            grantedAt: paidAt,
+                            revokedAt: null,
+                        },
+                    });
+
+                    await transaction.payment.updateMany({
+                        where: {
+                            toolkitAccessId: payment.toolkitAccessId,
+                            id: { not: payment.id },
+                            status: {
+                                in: [
+                                    PaymentStatus.PENDING,
+                                    PaymentStatus.PROCESSING,
+                                ],
+                            },
+                        },
+                        data: {
+                            status: PaymentStatus.CANCELLED,
+                            cancelledAt: now,
+                            providerStatus: "superseded",
+                            failureReason:
+                                "Another payment for this unlock succeeded.",
+                        },
+                    });
+                }
+
                 await transaction.activityLog.create({
                     data: {
                         userId:
@@ -1125,6 +1231,16 @@ export async function reconcilePaymentAction(
                 },
             }),
         ]);
+    }
+
+    if (
+        normalizedStatus !== "success" &&
+        payment.toolkitAccessId
+    ) {
+        await completePaidSiblingToolkitAttempt(
+            payment.toolkitAccessId,
+            payment.id,
+        );
     }
 
     revalidatePath(
