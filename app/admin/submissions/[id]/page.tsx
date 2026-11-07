@@ -301,6 +301,16 @@ export default async function SubmissionDetailsPage({
             </div>
           </div>
 
+          <details className="mt-6 rounded-lg border bg-slate-50">
+            <summary className="cursor-pointer p-4 font-semibold">
+              View agreement
+            </summary>
+
+            <div className="whitespace-pre-wrap border-t bg-white p-6 font-serif text-sm leading-7 text-slate-800">
+              {submission.agreement.agreementText}
+            </div>
+          </details>
+
           <div className="mt-6 space-y-3">
             {submission.agreement.signatures.map((signature) => (
               <div
