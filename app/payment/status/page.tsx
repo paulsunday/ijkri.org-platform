@@ -22,6 +22,7 @@ const PURPOSE_LABEL: Record<string, string> = {
     SUBSCRIPTION: "Journal subscription",
     ARTICLE_PURCHASE: "Article purchase",
     RESEARCH_TOOLKIT: "Research Topic Formulation Workbench",
+    EVENT_REGISTRATION: "Event registration",
 };
 
 async function loadPayment(reference: string, userId: string) {
@@ -43,6 +44,7 @@ async function loadPayment(reference: string, userId: string) {
             invoiceId: true,
             subscription: { select: { journal: { select: { slug: true } } } },
             articlePurchase: { select: { article: { select: { slug: true } } } },
+            eventRegistration: { select: { event: { select: { slug: true } } } },
         },
     });
 }
@@ -57,6 +59,10 @@ function continueLink(payment: LoadedPayment): { href: string; label: string } {
             return payment.subscription
                 ? { href: `/subscribe/${payment.subscription.journal.slug}`, label: "View subscription" }
                 : { href: "/", label: "Go to homepage" };
+        case "EVENT_REGISTRATION":
+            return payment.eventRegistration
+                ? { href: `/events/${payment.eventRegistration.event.slug}`, label: "View event details" }
+                : { href: "/events", label: "View events" };
         case "ARTICLE_PURCHASE":
             return payment.articlePurchase
                 ? { href: `/articles/${payment.articlePurchase.article.slug}`, label: "Read the article" }

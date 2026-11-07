@@ -130,7 +130,58 @@ function FormSelect({
     );
 }
 
-export function CreateEventForm({ journalId }: { journalId: string }) {
+
+/** Registration fee input; only super admins can change it. */
+function FeeField({
+    canEditFee,
+    defaultValue,
+    disabled,
+}: {
+    canEditFee: boolean;
+    defaultValue?: string;
+    disabled: boolean;
+}) {
+    if (!canEditFee) {
+        return (
+            <div>
+                <p className="mb-2 block font-semibold">Registration fee</p>
+                <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                    {defaultValue && Number(defaultValue) > 0
+                        ? defaultValue
+                        : "Not set — a super admin must set it before this event can be published."}
+                </p>
+            </div>
+        );
+    }
+
+    return (
+        <div>
+            <label htmlFor={`fee-${defaultValue ?? "new"}`} className="mb-2 block font-semibold">
+                Registration fee (journal currency) *
+            </label>
+            <input
+                id={`fee-${defaultValue ?? "new"}`}
+                name="fee"
+                type="number"
+                min="0.01"
+                step="0.01"
+                required
+                placeholder="e.g. 5.00"
+                defaultValue={defaultValue}
+                disabled={disabled}
+                className="w-full rounded-lg border border-slate-300 px-4 py-3"
+            />
+        </div>
+    );
+}
+
+export function CreateEventForm({
+    journalId,
+    canEditFee,
+}: {
+    journalId: string;
+    canEditFee: boolean;
+}) {
     const router = useRouter();
     const [state, formAction, pending] = useActionState(
         createEvent,
@@ -203,8 +254,10 @@ export function CreateEventForm({ journalId }: { journalId: string }) {
                     disabled={pending}
                 />
 
+                <FeeField canEditFee={canEditFee} disabled={pending} />
+
                 <FormInput
-                    label="Registration URL"
+                    label="Join link (shown to paid registrants only)"
                     name="registrationUrl"
                     type="url"
                     placeholder="https://..."
@@ -274,6 +327,8 @@ type EventForEdit = {
     recordingUrl: string | null;
     isPublished: boolean;
     description: string;
+    /** Decimal as a string (client components can't receive Decimals). */
+    fee: string;
 };
 
 function toDateTimeLocal(value: Date | null) {
@@ -286,7 +341,13 @@ function toDateTimeLocal(value: Date | null) {
     )}T${pad(value.getHours())}:${pad(value.getMinutes())}`;
 }
 
-export function UpdateEventForm({ event }: { event: EventForEdit }) {
+export function UpdateEventForm({
+    event,
+    canEditFee,
+}: {
+    event: EventForEdit;
+    canEditFee: boolean;
+}) {
     const router = useRouter();
     const [state, formAction, pending] = useActionState(
         updateEvent,
@@ -360,6 +421,12 @@ export function UpdateEventForm({ event }: { event: EventForEdit }) {
                     label="Speaker title"
                     name="speakerTitle"
                     defaultValue={event.speakerTitle || ""}
+                    disabled={pending}
+                />
+
+                <FeeField
+                    canEditFee={canEditFee}
+                    defaultValue={event.fee}
                     disabled={pending}
                 />
 

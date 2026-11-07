@@ -38,13 +38,9 @@ export async function hasArticleReadAccess({
     authorUserId,
     accessType,
 }: ArticleReadAccessInput): Promise<boolean> {
-    /*
-     * Open-access articles are free to everyone, including
-     * anonymous readers - no authentication check applies.
-     */
-    if (accessType === "OPEN_ACCESS") {
-        return true;
-    }
+    // Every article is paid (site policy since Nov 2026): accessType no
+    // longer grants free access. Readers need a purchase or subscription.
+    void accessType;
 
     if (!userId) {
         return false;
@@ -92,11 +88,7 @@ export async function hasArticleReadAccess({
         return true;
     }
 
-    const allowsPurchase =
-        accessType === "PAY_PER_VIEW" ||
-        accessType === "SUBSCRIPTION_OR_PAY_PER_VIEW";
-
-    if (allowsPurchase) {
+    {
         const purchase = await prisma.articlePurchase.findFirst({
             where: {
                 userId,
@@ -116,14 +108,6 @@ export async function hasArticleReadAccess({
         }
     }
 
-    const allowsSubscription =
-        accessType === "SUBSCRIPTION" ||
-        accessType === "SUBSCRIPTION_OR_PAY_PER_VIEW";
-
-    if (!allowsSubscription) {
-        return false;
-    }
-
     const activeSubscription =
         await prisma.subscription.findFirst({
             where: {
@@ -140,4 +124,12 @@ export async function hasArticleReadAccess({
         });
 
     return Boolean(activeSubscription);
+}
+
+/** An article's price: its own price if a super admin set one, else the journal's. */
+export function getArticlePrice(
+    article: { price: import("@/lib/generated/prisma").Prisma.Decimal | null },
+    journal: { articlePrice: import("@/lib/generated/prisma").Prisma.Decimal },
+) {
+    return article.price ?? journal.articlePrice;
 }

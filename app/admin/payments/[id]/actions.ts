@@ -1036,6 +1036,14 @@ export async function reconcilePaymentAction(
                     );
                 }
 
+                // Paid event registration.
+                if (payment.eventRegistrationId) {
+                    await transaction.eventRegistration.update({
+                        where: { id: payment.eventRegistrationId },
+                        data: { status: "CONFIRMED", paidAt },
+                    });
+                }
+
                 // Research Toolkit unlock.
                 if (payment.toolkitAccessId) {
                     await transaction.toolkitAccess.update({

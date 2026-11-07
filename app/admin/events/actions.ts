@@ -11,6 +11,7 @@ import {
     runFormAction,
     type FormActionState,
 } from "@/lib/forms/run-form-action";
+import { Prisma } from "@/lib/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { generateUniqueSlug } from "@/lib/slug";
 
@@ -109,6 +110,38 @@ async function ensureJournalManager(journalId: string) {
     }
 
     return user;
+}
+
+
+/*
+ * Every event is paid. Only a super admin can set or change the fee;
+ * an event can't be published until it has one.
+ */
+function resolveEventFee(
+    formData: FormData,
+    user: Parameters<typeof isSuperAdmin>[0],
+    currentFee: Prisma.Decimal,
+): Prisma.Decimal {
+    if (!isSuperAdmin(user)) {
+        return currentFee;
+    }
+
+    const raw = String(formData.get("fee") ?? "").trim();
+    const value = Number(raw || 0);
+
+    if (!Number.isFinite(value) || value < 0) {
+        throw new Error("Registration fee must be a positive number.");
+    }
+
+    return new Prisma.Decimal(value.toFixed(2));
+}
+
+function assertPublishableFee(isPublished: boolean, fee: Prisma.Decimal) {
+    if (isPublished && fee.lessThanOrEqualTo(0)) {
+        throw new Error(
+            "Every event needs a registration fee before it can be published. A super admin must set the fee.",
+        );
+    }
 }
 
 function parseRequiredDate(value: string, label: string): Date {
@@ -211,6 +244,9 @@ export async function createEvent(
             })),
     );
 
+    const fee = resolveEventFee(formData, manager, new Prisma.Decimal(0));
+    assertPublishableFee(data.isPublished, fee);
+
     await prisma.$transaction(async (tx) => {
         const event = await tx.event.create({
             data: {
@@ -227,6 +263,7 @@ export async function createEvent(
                 recordingUrl,
                 status: data.status,
                 isPublished: data.isPublished,
+                fee,
             },
         });
 
@@ -320,6 +357,9 @@ export async function updateEvent(
         "recording URL",
     );
 
+    const fee = resolveEventFee(formData, manager, existingEvent.fee);
+    assertPublishableFee(data.isPublished, fee);
+
     await prisma.$transaction(async (tx) => {
         const updatedEvent = await tx.event.update({
             where: { id: eventId },
@@ -335,6 +375,7 @@ export async function updateEvent(
                 recordingUrl,
                 status: data.status,
                 isPublished: data.isPublished,
+                fee,
             },
         });
 

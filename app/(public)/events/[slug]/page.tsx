@@ -2,11 +2,14 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import CurrencyChoice from "@/components/payments/CurrencyChoice";
+import { getCurrentUser } from "@/lib/auth/current-user";
+import { autoReconcilePaystackPayments } from "@/lib/payments/auto-reconcile";
+import {
+  getOfferedCheckoutCurrencies,
+  PAYMENTS_UNAVAILABLE_MESSAGE,
+} from "@/lib/payments/checkout-currency";
 import { prisma } from "@/lib/prisma";
-import { HoneypotField } from "@/components/forms/honeypot-field";
-
-import { registerForEvent } from "./actions";
-
 const TYPE_LABELS: Record<string, string> = {
   SEMINAR: "Seminar",
   WEBINAR: "Webinar",
@@ -35,14 +38,14 @@ function formatDateTime(value: Date) {
 
 type EventPageProps = {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ registered?: string }>;
+  searchParams: Promise<{ payment?: string; message?: string }>;
 };
 
 async function getEvent(slug: string) {
   const journal = await prisma.journal.findFirst({
     where: { isActive: true },
     orderBy: { createdAt: "asc" },
-    select: { id: true },
+    select: { id: true, currency: true, ngnExchangeRate: true },
   });
 
   if (!journal) {
@@ -62,7 +65,7 @@ async function getEvent(slug: string) {
     return null;
   }
 
-  return event;
+  return { ...event, journal };
 }
 
 export async function generateMetadata({
@@ -89,12 +92,51 @@ export default async function EventDetailPage({
   searchParams,
 }: EventPageProps) {
   const { slug } = await params;
-  const { registered } = await searchParams;
+  const { payment: paymentStatus, message: paymentMessage } =
+    await searchParams;
   const event = await getEvent(slug);
 
   if (!event) {
     notFound();
   }
+
+  // Every event is paid: registration is confirmed once the fee is paid.
+  const viewer = await getCurrentUser();
+
+  const findRegistration = () =>
+    viewer
+      ? prisma.eventRegistration.findFirst({
+          where: {
+            eventId: event.id,
+            OR: [{ userId: viewer.id }, { email: viewer.email.toLowerCase() }],
+          },
+          select: { id: true, status: true },
+        })
+      : Promise.resolve(null);
+
+  let registration = await findRegistration();
+
+  // Self-heal a paid registration that wasn't recorded.
+  if (registration && registration.status !== "CONFIRMED" && viewer) {
+    const { completed } = await autoReconcilePaystackPayments({
+      where: { userId: viewer.id, eventRegistrationId: registration.id },
+      sinceDays: 60,
+      limit: 3,
+    });
+
+    if (completed.length > 0) {
+      registration = await findRegistration();
+    }
+  }
+
+  const isRegistered = registration?.status === "CONFIRMED";
+
+  const canPay =
+    event.fee.greaterThan(0) &&
+    getOfferedCheckoutCurrencies({
+      baseCurrency: event.journal.currency,
+      ngnExchangeRate: event.journal.ngnExchangeRate,
+    }).length > 0;
 
   const hasCompleted =
     event.status === "COMPLETED" ||
@@ -147,14 +189,14 @@ export default async function EventDetailPage({
         </div>
 
         <div className="mt-10 flex flex-wrap gap-4">
-          {event.registrationUrl && !hasCompleted && (
+          {event.registrationUrl && isRegistered && !hasCompleted && (
             <a
               href={event.registrationUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-lg bg-amber-500 px-6 py-3 font-semibold text-slate-950 transition hover:bg-amber-400"
             >
-              Register →
+              Join the event →
             </a>
           )}
 
@@ -170,12 +212,32 @@ export default async function EventDetailPage({
           )}
         </div>
 
-        {!event.registrationUrl && !hasCompleted && (
+        {!hasCompleted && (
           <div className="mt-10 rounded-xl border border-slate-200 bg-slate-50 p-6">
-            {registered === "true" ? (
+            {paymentMessage ? (
+              <p
+                role="status"
+                className={`mb-4 rounded-lg p-3 text-sm ${
+                  paymentStatus === "error"
+                    ? "bg-red-50 text-red-800"
+                    : "bg-green-50 text-green-800"
+                }`}
+              >
+                {paymentMessage.slice(0, 300)}
+              </p>
+            ) : null}
+
+            {isRegistered ? (
               <p className="font-semibold text-slate-900">
-                You&apos;re registered! Check your inbox for a
-                confirmation email.
+                You&apos;re registered! Check your inbox for a confirmation
+                email.
+                {event.registrationUrl
+                  ? " Use the “Join the event” button above to attend."
+                  : ""}
+              </p>
+            ) : !event.fee.greaterThan(0) ? (
+              <p className="font-semibold text-slate-900">
+                Registration opens soon.
               </p>
             ) : (
               <>
@@ -184,51 +246,42 @@ export default async function EventDetailPage({
                 </h2>
 
                 <p className="mt-1 text-sm text-slate-600">
-                  Enter your details below to reserve your spot.
-                  It&apos;s free.
+                  Registration fee: {event.journal.currency}{" "}
+                  {event.fee.toFixed(2)}. Your place is confirmed as soon
+                  as payment succeeds.
                 </p>
 
-                <form
-                  action={registerForEvent}
-                  className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end"
-                >
-                  <input
-                    type="hidden"
-                    name="slug"
-                    value={event.slug}
-                  />
-
-                  <HoneypotField />
-
-                  <label className="flex-1 text-sm font-semibold text-slate-800">
-                    Full name
-                    <input
-                      type="text"
-                      name="name"
-                      required
-                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal text-slate-950 focus:border-slate-950 focus:outline-none"
-                      placeholder="Jane Doe"
-                    />
-                  </label>
-
-                  <label className="flex-1 text-sm font-semibold text-slate-800">
-                    Email address
-                    <input
-                      type="email"
-                      name="email"
-                      required
-                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal text-slate-950 focus:border-slate-950 focus:outline-none"
-                      placeholder="jane@example.com"
-                    />
-                  </label>
-
-                  <button
-                    type="submit"
-                    className="rounded-lg bg-amber-500 px-6 py-3 font-semibold text-slate-950 transition hover:bg-amber-400"
+                {!viewer ? (
+                  <Link
+                    href={`/login?callbackUrl=${encodeURIComponent(`/events/${event.slug}`)}`}
+                    className="mt-5 inline-block rounded-lg bg-amber-500 px-6 py-3 font-semibold text-slate-950 transition hover:bg-amber-400"
                   >
-                    Register →
-                  </button>
-                </form>
+                    Log in to register →
+                  </Link>
+                ) : canPay ? (
+                  <form
+                    method="post"
+                    action={`/events/${event.slug}/checkout`}
+                    className="mt-5 max-w-xl"
+                  >
+                    <CurrencyChoice
+                      baseAmount={event.fee}
+                      baseCurrency={event.journal.currency}
+                      ngnExchangeRate={event.journal.ngnExchangeRate}
+                    />
+
+                    <button
+                      type="submit"
+                      className="rounded-lg bg-amber-500 px-6 py-3 font-semibold text-slate-950 transition hover:bg-amber-400"
+                    >
+                      Pay &amp; register →
+                    </button>
+                  </form>
+                ) : (
+                  <p className="mt-4 text-sm text-slate-600">
+                    {PAYMENTS_UNAVAILABLE_MESSAGE}
+                  </p>
+                )}
               </>
             )}
           </div>

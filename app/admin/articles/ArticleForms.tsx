@@ -50,13 +50,18 @@ type ArticleForUpdate = {
   issn: string | null;
   accessType: string;
   status: string;
+  /** Decimal as string; "" = uses the journal's article price. */
+  price: string;
+  journalPrice: string;
 };
 
 export function UpdateArticleForm({
   article,
   compatibleIssues,
   canEdit,
+  canEditPrice = false,
 }: {
+  canEditPrice?: boolean;
   article: ArticleForUpdate;
   compatibleIssues: IssueOption[];
   canEdit: boolean;
@@ -238,39 +243,33 @@ export function UpdateArticleForm({
         </p>
       </div>
 
+      {/* Every article is paid; access type is kept only for records. */}
+      <input type="hidden" name="accessType" value={article.accessType} />
+
       <div>
         <label
-          htmlFor={`accessType-${article.id}`}
+          htmlFor={`price-${article.id}`}
           className="mb-2 block font-semibold"
         >
-          Access
+          Price to read this article
         </label>
 
-        <select
-          id={`accessType-${article.id}`}
-          name="accessType"
-          required
-          defaultValue={article.accessType}
-          disabled={fieldsDisabled}
+        <input
+          id={`price-${article.id}`}
+          name="price"
+          type="number"
+          min="0.01"
+          step="0.01"
+          defaultValue={article.price}
+          placeholder={`Journal default: ${article.journalPrice}`}
+          disabled={fieldsDisabled || !canEditPrice}
           className="w-full rounded-lg border bg-white p-3 disabled:opacity-50"
-        >
-          <option value="OPEN_ACCESS">
-            Open Access — free to everyone, no login required
-          </option>
-
-          <option value="SUBSCRIPTION">Subscription only</option>
-
-          <option value="PAY_PER_VIEW">Pay-per-article only</option>
-
-          <option value="SUBSCRIPTION_OR_PAY_PER_VIEW">
-            Subscription or pay-per-article
-          </option>
-        </select>
+        />
 
         <p className="mt-2 text-sm text-gray-500">
-          Open Access articles can be downloaded by anyone without signing
-          in. All other options require the reader to be signed in with an
-          active subscription and/or a purchase of this article.
+          Every article is paid: readers buy it or subscribe. Leave blank to
+          use the journal price ({article.journalPrice}).
+          {canEditPrice ? "" : " Only a super admin can change the price."}
         </p>
       </div>
 

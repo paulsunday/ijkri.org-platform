@@ -3,6 +3,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth/current-user";
+import { autoReconcilePaystackPayments } from "@/lib/payments/auto-reconcile";
+import {
+  getArticlePrice,
+  hasArticleReadAccess,
+} from "@/lib/payments/article-access";
+import ArticlePaywall from "./ArticlePaywall";
 import ArticleSidebar from "@/components/articles/article-sidebar";
 import ArticleActions from "@/components/articles/article-actions";
 import ShareArticle from "@/components/articles/share-article";
@@ -15,6 +22,10 @@ const siteUrl =
 type PageProps = {
   params: Promise<{
     slug: string;
+  }>;
+  searchParams?: Promise<{
+    payment?: string;
+    message?: string;
   }>;
 };
 
@@ -315,13 +326,51 @@ export async function generateMetadata({
   };
 }
 
-export default async function PublicArticlePage({ params }: PageProps) {
+export default async function PublicArticlePage({
+  params,
+  searchParams,
+}: PageProps) {
   const { slug } = await params;
+  const { payment: paymentStatus, message: paymentMessage } =
+    (await searchParams) ?? {};
 
   const article = await getPublishedArticle(slug);
 
   if (!article) {
     notFound();
+  }
+
+  /*
+   * Every article is paid: full text and PDF need a purchase or an
+   * active subscription (staff and the article's author always see it).
+   */
+  const viewer = await getCurrentUser();
+
+  const checkAccess = () =>
+    hasArticleReadAccess({
+      userId: viewer?.id ?? null,
+      journalId: article.journalId,
+      articleId: article.id,
+      authorUserId: article.submission?.authorId ?? null,
+      accessType: article.accessType,
+    });
+
+  let canRead = await checkAccess();
+
+  // Self-heal: a paid purchase that wasn't recorded unlocks on visit.
+  if (!canRead && viewer) {
+    const { completed } = await autoReconcilePaystackPayments({
+      where: {
+        userId: viewer.id,
+        articlePurchase: { articleId: article.id },
+      },
+      sinceDays: 30,
+      limit: 3,
+    });
+
+    if (completed.length > 0) {
+      canRead = await checkAccess();
+    }
   }
 
   const verifiedOrcids = await getVerifiedOrcidSet(
@@ -380,6 +429,15 @@ export default async function PublicArticlePage({ params }: PageProps) {
     "@type": "ScholarlyArticle",
 
     headline: article.title,
+
+    // Paid content: Google's paywalled-content markup.
+    isAccessibleForFree: false,
+
+    hasPart: {
+      "@type": "WebPageElement",
+      isAccessibleForFree: false,
+      cssSelector: ".article-paywall",
+    },
 
     description: stripHtmlTags(article.abstract),
 
@@ -645,7 +703,7 @@ export default async function PublicArticlePage({ params }: PageProps) {
 
                 <ArticleActions
                   doi={article.doi}
-                  pdfUrl={finalPdf}
+                  pdfUrl={canRead ? finalPdf : null}
                 />
               </div>
             </header>
@@ -802,7 +860,20 @@ export default async function PublicArticlePage({ params }: PageProps) {
               </section>
             )}
 
-            {article.body && (
+            {!canRead && (
+              <ArticlePaywall
+                slug={article.slug}
+                journalSlug={article.journal.slug}
+                isLoggedIn={Boolean(viewer)}
+                price={getArticlePrice(article, article.journal)}
+                currency={article.journal.currency}
+                ngnExchangeRate={article.journal.ngnExchangeRate}
+                message={paymentMessage?.slice(0, 300)}
+                messageIsError={paymentStatus === "error"}
+              />
+            )}
+
+            {canRead && article.body && (
               <section className="rounded-xl border bg-white p-6 shadow-sm">
                 <h2 className="text-2xl font-semibold">Article</h2>
 

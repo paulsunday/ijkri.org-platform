@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import type { UserRole } from "@/lib/generated/prisma";
-import { requireAnyRole } from "@/lib/auth/permissions";
+import { isSuperAdmin, requireAnyRole } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
 
 import {
@@ -67,6 +67,9 @@ export default async function EventsAdminPage({
     searchParams,
 }: EventsAdminPageProps) {
     const manager = await requireAnyRole(MANAGER_ROLES);
+
+    // Only super admins set event fees.
+    const canEditFee = isSuperAdmin(manager);
 
     const { journalId } = await searchParams;
 
@@ -217,6 +220,7 @@ export default async function EventsAdminPage({
 
                             <CreateEventForm
                                 journalId={selectedJournal.id}
+                                canEditFee={canEditFee}
                             />
                         </section>
                     )}
@@ -296,7 +300,13 @@ export default async function EventsAdminPage({
                                                 Edit Event
                                             </summary>
 
-                                            <UpdateEventForm event={event} />
+                                            <UpdateEventForm
+                                                event={{
+                                                    ...event,
+                                                    fee: event.fee.toFixed(2),
+                                                }}
+                                                canEditFee={canEditFee}
+                                            />
                                         </details>
 
                                         <DeleteEventForm eventId={event.id} />

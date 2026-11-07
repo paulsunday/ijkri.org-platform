@@ -412,9 +412,12 @@ export default async function AdminArticlesPage() {
                       issn: article.issn,
                       accessType: article.accessType,
                       status: article.status,
+                      price: article.price ? article.price.toFixed(2) : "",
+                      journalPrice: `${article.journal.currency} ${article.journal.articlePrice.toFixed(2)}`,
                     }}
                     compatibleIssues={compatibleIssues}
                     canEdit={canEditArticle}
+                    canEditPrice={canEditPublished}
                   />
 
                   <ReplacePdfFileForm

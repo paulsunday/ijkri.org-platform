@@ -11,11 +11,13 @@ type InitializePaystackPaymentInput = {
         | "APC"
         | "SUBSCRIPTION"
         | "ARTICLE_PURCHASE"
-        | "RESEARCH_TOOLKIT";
+        | "RESEARCH_TOOLKIT"
+        | "EVENT_REGISTRATION";
     invoiceId?: string;
     subscriptionId?: string;
     articlePurchaseId?: string;
     toolkitAccessId?: string;
+    eventRegistrationId?: string;
 };
 
 type InitializePaystackPaymentResponse = {
@@ -38,6 +40,7 @@ export async function initializePaystackPayment({
     subscriptionId,
     articlePurchaseId,
     toolkitAccessId,
+    eventRegistrationId,
     userId,
     purpose,
 }: InitializePaystackPaymentInput) {
@@ -65,6 +68,7 @@ export async function initializePaystackPayment({
                     subscriptionId,
                     articlePurchaseId,
                     toolkitAccessId,
+                    eventRegistrationId,
                     userId,
                     purpose,
                 },

@@ -6,6 +6,7 @@ import { sendPublicationAgreement } from "@/lib/agreements/send-agreement";
 import { logger } from "@/lib/logger";
 import { notifyStaffActionNeeded } from "@/lib/notifications/notify-staff";
 import { sendChatNotification } from "@/lib/notifications/notify-webhook";
+import { sendEventRegistrationConfirmation } from "@/lib/events/registration-email";
 import { prisma } from "@/lib/prisma";
 
 function getAppUrl() {
@@ -621,6 +622,34 @@ export async function completePayment(
                     });
                 }
 
+                /*
+                 * Confirm a paid event registration.
+                 */
+                if (
+                    payment.purpose === "EVENT_REGISTRATION" &&
+                    payment.eventRegistrationId
+                ) {
+                    await tx.eventRegistration.update({
+                        where: { id: payment.eventRegistrationId },
+                        data: { status: "CONFIRMED", paidAt },
+                    });
+
+                    await tx.payment.updateMany({
+                        where: {
+                            eventRegistrationId: payment.eventRegistrationId,
+                            id: { not: payment.id },
+                            status: { in: ["PENDING", "PROCESSING"] },
+                        },
+                        data: {
+                            status: "CANCELLED",
+                            cancelledAt: paidAt,
+                            providerStatus: "superseded",
+                            failureReason:
+                                "Another payment for this registration succeeded.",
+                        },
+                    });
+                }
+
                 const paymentDescription =
                     payment.invoice
                         ? `Invoice ${payment.invoice.invoiceNumber}`
@@ -633,7 +662,10 @@ export async function completePayment(
                                 : payment.purpose ===
                                     "RESEARCH_TOOLKIT"
                                     ? "your research toolkit access"
-                                    : "your payment";
+                                    : payment.purpose ===
+                                        "EVENT_REGISTRATION"
+                                        ? "your event registration"
+                                        : "your payment";
 
                 await tx.notification.create({
                     data: {
@@ -750,6 +782,26 @@ export async function completePayment(
                 ? `${getAppUrl()}/admin/invoices/${payment.invoice.id}`
                 : `${getAppUrl()}/admin/payments/${payment.id}`,
         });
+
+        if (
+            payment.purpose === "EVENT_REGISTRATION" &&
+            payment.eventRegistrationId
+        ) {
+            try {
+                await sendEventRegistrationConfirmation(
+                    payment.eventRegistrationId,
+                );
+            } catch (error) {
+                logger.error(
+                    "Failed to send event registration confirmation",
+                    error,
+                    {
+                        event: "EVENT_CONFIRMATION_FAILED",
+                        eventRegistrationId: payment.eventRegistrationId,
+                    },
+                );
+            }
+        }
 
         if (payment.purpose === "APC" && payment.invoice) {
             try {
