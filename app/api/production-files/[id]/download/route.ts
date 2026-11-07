@@ -222,8 +222,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
    * subscription/purchase) depends on the requester's identity
    * and must never be cached.
    */
-  const isPubliclyCacheable =
-    isPublished && publishedArticle?.accessType === "OPEN_ACCESS";
+  // Every published article is paid, so no PDF is publicly cacheable.
+  const isPubliclyCacheable = false;
 
   headers.set(
     "Cache-Control",
