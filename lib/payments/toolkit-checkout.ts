@@ -1,13 +1,12 @@
-"use server";
+import "server-only";
 
 import { randomUUID } from "crypto";
-import { redirect } from "next/navigation";
 
-import { requireCurrentUser } from "@/lib/auth/current-user";
 import {
     parseCheckoutCurrency,
     resolveCheckoutPrice,
 } from "@/lib/payments/checkout-currency";
+import { autoReconcilePaystackPayments } from "@/lib/payments/auto-reconcile";
 import { initializePaystackPayment } from "@/lib/payments/initialize-payment";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -27,11 +26,9 @@ function getApplicationUrl() {
     return applicationUrl.replace(/\/$/, "");
 }
 
-/** Sends the student back to the toolkit page with a readable error. */
-function redirectWithPaymentError(message: string): never {
-    redirect(
-        `/toolkit?payment=error&message=${encodeURIComponent(message)}`,
-    );
+/** Toolkit page URL that shows a readable payment error. */
+function paymentErrorUrl(message: string): string {
+    return `/toolkit?payment=error&message=${encodeURIComponent(message)}`;
 }
 
 function generatePaymentReference() {
@@ -40,9 +37,14 @@ function generatePaymentReference() {
     return `TLK-${uniquePart}`;
 }
 
-export async function initializeToolkitAccess(formData: FormData) {
-    const user = await requireCurrentUser();
-
+/**
+ * Starts (or resumes) a Research Toolkit unlock checkout and returns the
+ * URL to send the student to: Paystack, or /toolkit with a message.
+ */
+export async function startToolkitCheckout(
+    user: { id: string; email: string },
+    currencyValue: FormDataEntryValue | null,
+): Promise<string> {
     const journal = await prisma.journal.findFirst({
         where: {
             isActive: true,
@@ -79,11 +81,11 @@ export async function initializeToolkitAccess(formData: FormData) {
         price = resolveCheckoutPrice({
             baseAmount: journal.toolkitPrice,
             baseCurrency: journal.currency,
-            chosenCurrency: parseCheckoutCurrency(formData.get("currency")),
+            chosenCurrency: parseCheckoutCurrency(currencyValue),
             ngnExchangeRate: journal.ngnExchangeRate,
         });
     } catch (error) {
-        redirectWithPaymentError(
+        return paymentErrorUrl(
             error instanceof Error ? error.message : "Payment is unavailable.",
         );
     }
@@ -98,7 +100,23 @@ export async function initializeToolkitAccess(formData: FormData) {
     });
 
     if (toolkitAccess?.grantedAt && !toolkitAccess.revokedAt) {
-        redirect("/toolkit");
+        return "/toolkit";
+    }
+
+    /*
+     * The student may already have paid on an earlier checkout (e.g. the
+     * return step failed). Ask Paystack before charging them again.
+     */
+    if (toolkitAccess) {
+        const { completed } = await autoReconcilePaystackPayments({
+            where: { userId: user.id, toolkitAccessId: toolkitAccess.id },
+            sinceDays: 30,
+            limit: 5,
+        });
+
+        if (completed.length > 0) {
+            return "/toolkit?payment=success";
+        }
     }
 
     if (!toolkitAccess) {
@@ -141,7 +159,7 @@ export async function initializeToolkitAccess(formData: FormData) {
     });
 
     if (existingPayment?.authorizationUrl) {
-        redirect(existingPayment.authorizationUrl);
+        return existingPayment.authorizationUrl;
     }
 
     /*
@@ -256,12 +274,12 @@ export async function initializeToolkitAccess(formData: FormData) {
             paymentId: payment.id,
         });
 
-        redirectWithPaymentError(
+        return paymentErrorUrl(
             /currency/i.test(failureReason)
                 ? "That currency isn't available for payment yet. Please pay in Naira."
                 : "We couldn't start the payment. Please try again in a moment.",
         );
     }
 
-    redirect(authorizationUrl);
+    return authorizationUrl;
 }

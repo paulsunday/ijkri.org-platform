@@ -40,6 +40,13 @@ type RedirectablePayment = {
     } | null;
 };
 
+/** Payment status/success page, which also re-checks with Paystack. */
+function statusPageUrl(request: NextRequest, reference: string) {
+    const url = new URL("/payment/status", getApplicationUrl(request));
+    url.searchParams.set("reference", reference);
+    return url;
+}
+
 function buildRedirectUrl({
     request,
     payment,
@@ -213,13 +220,7 @@ export async function GET(
      */
     if (payment.status === "PAID") {
         return NextResponse.redirect(
-            buildRedirectUrl({
-                request,
-                payment,
-                paymentStatus: "success",
-                message:
-                    "Payment was already verified.",
-            }),
+            statusPageUrl(request, payment.internalReference),
         );
     }
 
@@ -546,13 +547,7 @@ export async function GET(
         });
 
         return NextResponse.redirect(
-            buildRedirectUrl({
-                request,
-                payment,
-                paymentStatus: "success",
-                message:
-                    "Your payment was verified successfully.",
-            }),
+            statusPageUrl(request, payment.internalReference),
         );
     } catch (error) {
         const failureReason =
@@ -590,14 +585,10 @@ export async function GET(
             },
         });
 
+        // The status page re-checks with Paystack, so a temporary
+        // verification error doesn't leave a paying student stuck.
         return NextResponse.redirect(
-            buildRedirectUrl({
-                request,
-                payment,
-                paymentStatus: "error",
-                message:
-                    "We could not verify the payment. Please try again or contact support.",
-            }),
+            statusPageUrl(request, payment.internalReference),
         );
     }
 }

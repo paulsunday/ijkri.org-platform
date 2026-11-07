@@ -6,10 +6,8 @@ import Link from "next/link";
 
 export default function Error({
     error,
-    reset,
 }: {
     error: Error & { digest?: string };
-    reset: () => void;
 }) {
     useEffect(() => {
         console.error("Application Error:", error);
@@ -52,7 +50,9 @@ export default function Error({
 
                 <div className="mt-8 flex flex-wrap justify-center gap-4">
                     <button
-                        onClick={() => reset()}
+                        // Full reload: also fixes pages loaded before a new deployment,
+                        // which reset() alone cannot recover.
+                        onClick={() => window.location.reload()}
                         className="rounded-lg bg-slate-950 px-6 py-3 font-semibold text-white transition hover:bg-slate-800"
                     >
                         Try Again

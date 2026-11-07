@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { autoReconcilePaystackPayments } from "@/lib/payments/auto-reconcile";
 import { hasToolkitAccess } from "@/lib/payments/toolkit-access";
 import { prisma } from "@/lib/prisma";
 
@@ -70,7 +71,7 @@ const PAYMENT_BANNER: Record<string, { style: string; fallback: string }> = {
 
 export default async function ToolkitPage({ searchParams }: ToolkitPageProps) {
     const { payment, message } = await searchParams;
-    const banner = payment ? PAYMENT_BANNER[payment] : undefined;
+    let banner = payment ? PAYMENT_BANNER[payment] : undefined;
 
     const user = await getCurrentUser();
 
@@ -116,10 +117,37 @@ export default async function ToolkitPage({ searchParams }: ToolkitPageProps) {
         );
     }
 
-    const access = await hasToolkitAccess({
+    let access = await hasToolkitAccess({
         userId: user.id,
         journalId: journal.id,
     });
+
+    /*
+     * Self-heal: a student who paid but whose payment wasn't recorded
+     * (closed tab, failed return step, missed webhook) is unlocked as soon
+     * as they open this page.
+     */
+    let autoUnlocked = false;
+
+    if (!access) {
+        const { completed } = await autoReconcilePaystackPayments({
+            where: { userId: user.id, purpose: "RESEARCH_TOOLKIT" },
+            sinceDays: 30,
+            limit: 3,
+        });
+
+        if (completed.length > 0) {
+            access = await hasToolkitAccess({
+                userId: user.id,
+                journalId: journal.id,
+            });
+            autoUnlocked = access;
+        }
+    }
+
+    if (autoUnlocked) {
+        banner = PAYMENT_BANNER.success;
+    }
 
     const topics = await prisma.researchTopic.findMany({
         where: {

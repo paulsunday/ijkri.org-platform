@@ -6,8 +6,6 @@ import {
     type CheckoutCurrency,
 } from "@/lib/payments/checkout-currency";
 
-import { initializeToolkitAccess } from "./purchase-actions";
-
 export type ToolkitPricing = {
     toolkitPrice: Prisma.Decimal;
     currency: CheckoutCurrency;
@@ -54,7 +52,7 @@ export default function UnlockCard({
             </ul>
 
             {canPay ? (
-            <form action={initializeToolkitAccess} className="mt-6 max-w-xl">
+            <form method="post" action="/toolkit/checkout" className="mt-6 max-w-xl">
                 <CurrencyChoice
                     baseAmount={pricing.toolkitPrice}
                     baseCurrency={pricing.currency}

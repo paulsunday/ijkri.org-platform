@@ -8,6 +8,10 @@
         {
             "path": "/api/cron/topic-expiry",
             "schedule": "30 8 * * *"
+        },
+        {
+            "path": "/api/cron/reconcile-payments",
+            "schedule": "0 6 * * *"
         }
     ]
 }
