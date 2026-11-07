@@ -437,7 +437,7 @@ model JournalSettings {
    * retroactively alters an agreement already in flight.
    */
   agreementSignatureMode AgreementSignatureMode @default(CORRESPONDING_AUTHOR_ONLY)
-  defaultLicenseType     LicenseType            @default(CC_BY_4)
+  defaultLicenseType     LicenseType            @default(COPYRIGHT_TRANSFER)
 }
 
 enum ResourceCategory {

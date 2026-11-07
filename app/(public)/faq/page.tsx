@@ -145,7 +145,7 @@ const faqGroups: FaqGroup[] = [
       {
         question: "Can I share my published article?",
         answer:
-          "Yes. Published articles are open access, so you are free to share the link, download the PDF, and cite the article using the citation formats provided on its article page.",
+          "Yes. You can share the link to your article page and cite it using the citation formats provided there. You can also post your accepted manuscript on a personal or institutional website, with a full citation to the published version.",
       },
     ],
   },
@@ -160,12 +160,12 @@ const faqGroups: FaqGroup[] = [
     ],
   },
   {
-    category: "Open Access",
+    category: "Access",
     entries: [
       {
-        question: "Is IJKRI an open-access journal?",
+        question: "How can readers access published articles?",
         answer:
-          "Yes. Published articles are freely available to read online without a subscription.",
+          "Titles, abstracts and citation details are free to view. The full text and PDF are available with a journal subscription or a one-time article purchase.",
       },
     ],
   },
@@ -175,7 +175,7 @@ const faqGroups: FaqGroup[] = [
       {
         question: "What is the article processing charge (APC)?",
         answer:
-          "The current APC is shown at the point of acceptance and on your invoice. It covers editorial handling, production, and open-access hosting of your article. The APC applies only after a manuscript is accepted.",
+          "The current APC is shown at the point of acceptance and on your invoice. It covers editorial handling, production, and online hosting of your article. The APC applies only after a manuscript is accepted.",
       },
     ],
   },

@@ -22,7 +22,7 @@ const journalName =
 const publisherName = "Innovare Academic Publishing";
 
 const siteDescription =
-  "The International Journal of Knowledge, Research and Innovation is a multidisciplinary, peer-reviewed and open-access journal published by Innovare Academic Publishing.";
+  "The International Journal of Knowledge, Research and Innovation is a multidisciplinary, peer-reviewed journal published by Innovare Academic Publishing.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -44,7 +44,6 @@ export const metadata: Metadata = {
     "Innovare Academic Publishing",
     "academic journal",
     "peer-reviewed journal",
-    "open-access journal",
     "multidisciplinary research",
     "research and innovation",
     "scholarly publishing",
@@ -124,7 +123,7 @@ export const metadata: Metadata = {
       "IJKRI | International Journal of Knowledge, Research and Innovation",
 
     description:
-      "A multidisciplinary, peer-reviewed and open-access journal publishing rigorous research, practical insights and innovative scholarly contributions.",
+      "A multidisciplinary, peer-reviewed journal publishing rigorous research, practical insights and innovative scholarly contributions.",
 
     images: [
       {
@@ -143,7 +142,7 @@ export const metadata: Metadata = {
       "IJKRI | International Journal of Knowledge, Research and Innovation",
 
     description:
-      "A multidisciplinary, peer-reviewed and open-access scholarly journal published by Innovare Academic Publishing.",
+      "A multidisciplinary, peer-reviewed scholarly journal published by Innovare Academic Publishing.",
 
     images: ["/opengraph-image.png"],
   },

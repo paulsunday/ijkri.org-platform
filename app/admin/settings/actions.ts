@@ -453,6 +453,11 @@ export async function updateJournalSettings(
         "theme",
     );
 
+    const defaultLicenseType =
+        formData.get("defaultLicenseType") === "CC_BY_4"
+            ? "CC_BY_4"
+            : "COPYRIGHT_TRANSFER";
+
     const cfpEnabled =
         formData.get("cfpEnabled") === "on";
 
@@ -538,8 +543,10 @@ export async function updateJournalSettings(
                 cfpButtonText,
                 cfpButtonUrl,
                 cfpDeadline,
+                defaultLicenseType,
             },
             update: {
+                defaultLicenseType,
                 submissionOpen,
                 reviewType: reviewTypeValue,
                 plagiarismThreshold,

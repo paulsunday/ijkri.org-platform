@@ -34,7 +34,7 @@ const journalFacts = [
   },
   {
     label: "Access Model",
-    value: "Open access",
+    value: "Subscription or pay-per-article",
   },
   {
     label: "Publisher",
@@ -194,7 +194,7 @@ export default async function PublicHomePage() {
             </h1>
 
             <p className="mt-6 max-w-3xl text-lg leading-8 text-slate-300">
-              A multidisciplinary, peer-reviewed and open-access journal
+              A multidisciplinary, peer-reviewed journal
               committed to publishing rigorous research, practical insights and
               innovative ideas with academic and societal relevance.
             </p>
@@ -398,7 +398,7 @@ export default async function PublicHomePage() {
             </li>
 
             <li className="rounded-lg bg-white p-4 shadow-sm">
-              Open-access publication
+              Wide online visibility
             </li>
 
             <li className="rounded-lg bg-white p-4 shadow-sm">

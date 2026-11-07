@@ -16,9 +16,9 @@ const reasons = [
       "Authors can track their manuscript through screening, review, revision, and production, with clear communication at each stage.",
   },
   {
-    title: "Open-access publication",
+    title: "Wide online visibility",
     description:
-      "Published articles are freely available online, with no subscription barrier for readers, widening the potential audience for your work.",
+      "Each published article has its own indexed page with DOI and citation formats, making your work easy to find and cite.",
   },
   {
     title: "DOI assignment",
@@ -50,7 +50,7 @@ const reasons = [
 export const metadata: Metadata = {
   title: "Why Publish With IJKRI",
   description:
-    "What the International Journal of Knowledge, Research and Innovation offers authors: peer review, DOI assignment, open access, and editorial support.",
+    "What the International Journal of Knowledge, Research and Innovation offers authors: peer review, DOI assignment, online visibility, and editorial support.",
   alternates: {
     canonical: "/why-ijkri",
   },
@@ -79,7 +79,7 @@ export default async function WhyIjkriPage() {
 
           <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
             The International Journal of Knowledge, Research and Innovation
-            is a multidisciplinary, peer-reviewed, open-access journal.
+            is a multidisciplinary, peer-reviewed journal.
             Here is what that means in practice for authors considering a
             submission.
           </p>

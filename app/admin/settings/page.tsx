@@ -189,6 +189,7 @@ export default async function AdminSettingsPage({
                 cfpMessage: settings.cfpMessage,
                 cfpButtonText: settings.cfpButtonText,
                 cfpButtonUrl: settings.cfpButtonUrl,
+                defaultLicenseType: settings.defaultLicenseType,
                 cfpDeadline: settings.cfpDeadline
                   ? settings.cfpDeadline
                       .toISOString()

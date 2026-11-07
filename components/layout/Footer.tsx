@@ -132,8 +132,7 @@ export default function Footer() {
           </div>
 
           <p className="mt-6 max-w-md text-sm leading-7 text-slate-300">
-            A multidisciplinary, peer-reviewed and
-            open-access journal committed to advancing
+            A multidisciplinary, peer-reviewed journal committed to advancing
             knowledge, innovation and research impact.
           </p>
 
@@ -156,7 +155,7 @@ export default function Footer() {
               <strong className="text-white">
                 Access:
               </strong>{" "}
-              Open access
+              Subscription or pay-per-article
             </p>
           </div>
 

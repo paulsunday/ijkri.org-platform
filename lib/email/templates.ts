@@ -325,7 +325,7 @@ export function welcomeEmail({
       `Hello ${name},`,
       "",
       `Welcome to the ${journalName} (${journalShortName}) — a multidisciplinary,`,
-      "peer-reviewed and open-access journal committed to advancing knowledge,",
+      "peer-reviewed journal committed to advancing knowledge,",
       "research and innovation.",
       "",
       "Your account is now active. A few places to get started:",
@@ -343,7 +343,7 @@ export function welcomeEmail({
         <p>
           Welcome to the <strong>${journalName}</strong>
           (${journalShortName}) — a multidisciplinary,
-          peer-reviewed and open-access journal committed to
+          peer-reviewed journal committed to
           advancing knowledge, research and innovation.
         </p>
 

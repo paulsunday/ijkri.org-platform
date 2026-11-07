@@ -87,7 +87,7 @@ export async function sendPublicationAgreement(
     "CORRESPONDING_AUTHOR_ONLY";
 
   const licenseType =
-    submission.journal.settings?.defaultLicenseType ?? "CC_BY_4";
+    submission.journal.settings?.defaultLicenseType ?? "COPYRIGHT_TRANSFER";
 
   const correspondingAuthor =
     submission.submissionAuthors.find(

@@ -28,7 +28,7 @@ export default function OrganizationJsonLd() {
                 alternateName: "IJKRI",
                 url: siteUrl,
                 description:
-                    "A multidisciplinary, peer-reviewed and open-access journal publishing rigorous research, practical insights and innovative scholarly contributions.",
+                    "A multidisciplinary, peer-reviewed journal publishing rigorous research, practical insights and innovative scholarly contributions.",
                 image: {
                     "@id": `${siteUrl}/#publisher-logo`,
                 },

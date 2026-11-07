@@ -13,7 +13,7 @@ export const DEFAULT_STATIC_PAGE_CONTENT: Record<
   ABOUT: {
     title: "About",
     tagline:
-      "IJKRI is a multidisciplinary, peer-reviewed and open-access scholarly journal dedicated to the publication of rigorous research, innovative ideas and practical contributions with academic and societal relevance.",
+      "IJKRI is a multidisciplinary, peer-reviewed scholarly journal dedicated to the publication of rigorous research, innovative ideas and practical contributions with academic and societal relevance.",
     body: `JOURNAL OVERVIEW
 A scholarly platform for research, innovation and impact
 
@@ -27,7 +27,7 @@ JOURNAL INFORMATION
 Journal Title: International Journal of Knowledge, Research and Innovation
 Abbreviation: IJKRI
 Publisher: Innovare Academic Publishing
-Access Model: Open access
+Access Model: Subscription or pay-per-article
 Review Model: Double-blind peer review
 Publication Scope: Multidisciplinary
 Publication Language: English
@@ -58,17 +58,17 @@ Principles that guide the journal
 Academic Integrity — We promote honest, transparent and responsible scholarship across every stage of submission, review and publication.
 Research Quality — Manuscripts are assessed for originality, methodological soundness, relevance and contribution to knowledge.
 Innovation — We welcome research that offers new ideas, practical solutions, interdisciplinary perspectives and measurable impact.
-Global Accessibility — Our open-access model is designed to make published research available to readers across institutions and countries.
+Global Accessibility — Our online platform makes published research easy to find and read for readers across institutions and countries, through subscription or single-article purchase.
 
 PEER REVIEW AND EDITORIAL INDEPENDENCE
 IJKRI uses a double-blind peer-review process. Reviewers evaluate manuscripts independently, and editorial decisions are based on scholarly merit, reviewer recommendations and journal policy.
 
 Editors are expected to make decisions without improper influence from authors, reviewers, advertisers, sponsors or institutional interests.
 
-OPEN ACCESS AND COPYRIGHT
-The journal is committed to broad access to scholarly work. Published articles are made available online according to the journal's open-access and licensing policies.
+ACCESS AND COPYRIGHT
+Article titles, abstracts and citation details are free to view. The full text and PDF are available with a journal subscription or a one-time article purchase.
 
-Authors retain rights subject to the publication agreement and applicable licence. Final licensing details will be stated clearly on each published article.
+Copyright and reuse terms are set out in the publication agreement each author signs. Final licensing details will be stated clearly on each published article.
 
 PUBLICATION ETHICS
 IJKRI expects authors, reviewers and editors to follow recognised standards of research and publication ethics.
@@ -592,10 +592,10 @@ Copyright & Licensing — Authors must own or have permission to use all submitt
   WHY_IJKRI: {
     title: "Why IJKRI",
     tagline:
-      "IJKRI is a multidisciplinary, peer-reviewed, open-access journal. Here is what that means in practice for authors considering a submission.",
+      "IJKRI is a multidisciplinary, peer-reviewed journal. Here is what that means in practice for authors considering a submission.",
     body: `- Independent double-blind peer review — Every submission is assessed by qualified reviewers without revealing author or reviewer identity to each other, reducing bias in the editorial decision.
 - Transparent editorial workflow — Authors can track their manuscript through screening, review, revision, and production, with clear communication at each stage.
-- Open-access publication — Published articles are freely available online, with no subscription barrier for readers, widening the potential audience for your work.
+- Wide online visibility — Each published article has its own indexed page with DOI and citation formats, making your work easy to find and cite.
 - DOI assignment — Accepted articles receive a Digital Object Identifier, giving your work a permanent, citable link.
 - Professional article pages — Each published article gets a dedicated page with abstract, metadata, citation formats, and a downloadable PDF.
 - Structured revision and production process — Manuscripts move through copyediting, typesetting, and proofreading before publication, following a defined production workflow.
@@ -659,22 +659,22 @@ Q: How will I know when my article is published?
 A: You will be notified once your article is published, and it will appear on the current issue and archives pages with its own article page.
 
 Q: Can I share my published article?
-A: Yes. Published articles are open access, so you are free to share the link, download the PDF, and cite the article using the citation formats provided on its article page.
+A: Yes. You can share the link to your article page and cite it using the citation formats provided there. You can also post your accepted manuscript on a personal or institutional website, with a full citation to the published version.
 
 DOI
 
 Q: Does IJKRI assign DOIs?
 A: Accepted articles receive a Digital Object Identifier (DOI), giving your work a permanent, citable link.
 
-OPEN ACCESS
+ACCESS
 
-Q: Is IJKRI an open-access journal?
-A: Yes. Published articles are freely available to read online without a subscription.
+Q: How can readers access published articles?
+A: Titles, abstracts and citation details are free to view. The full text and PDF are available with a journal subscription or a one-time article purchase.
 
 FEES
 
 Q: What is the article processing charge (APC)?
-A: The current APC is shown at the point of acceptance and on your invoice. It covers editorial handling, production, and open-access hosting of your article. The APC applies only after a manuscript is accepted.
+A: The current APC is shown at the point of acceptance and on your invoice. It covers editorial handling, production, and online hosting of your article. The APC applies only after a manuscript is accepted.
 
 ETHICS
 

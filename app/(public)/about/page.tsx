@@ -22,7 +22,7 @@ const coreValues = [
   {
     title: "Global Accessibility",
     description:
-      "Our open-access model is designed to make published research available to readers across institutions and countries.",
+      "Our online platform makes published research easy to find and read for readers across institutions and countries, through subscription or single-article purchase.",
   },
 ];
 
@@ -50,7 +50,7 @@ const journalFacts = [
   },
   {
     label: "Access Model",
-    value: "Open access",
+    value: "Subscription or pay-per-article",
   },
   {
     label: "Review Model",
@@ -91,8 +91,7 @@ export default async function AboutPage() {
           </h1>
 
           <p className="mt-6 max-w-3xl text-lg leading-8 text-slate-300">
-            IJKRI is a multidisciplinary, peer-reviewed and
-            open-access scholarly journal dedicated to the
+            IJKRI is a multidisciplinary, peer-reviewed scholarly journal dedicated to the
             publication of rigorous research, innovative ideas
             and practical contributions with academic and
             societal relevance.
@@ -311,19 +310,15 @@ export default async function AboutPage() {
 
         <article className="rounded-2xl border bg-white p-8">
           <h2 className="text-2xl font-bold">
-            Open Access and Copyright
+            Access and Copyright
           </h2>
 
           <p className="mt-4 leading-8 text-slate-700">
-            The journal is committed to broad access to
-            scholarly work. Published articles are made
-            available online according to the journal&apos;s
-            open-access and licensing policies.
+            Article titles, abstracts and citation details are free to view. The full text and PDF are available with a journal subscription or a one-time article purchase.
           </p>
 
           <p className="mt-4 leading-8 text-slate-700">
-            Authors retain rights subject to the publication
-            agreement and applicable licence. Final licensing
+            Copyright and reuse terms are set out in the publication agreement each author signs. Final licensing
             details will be stated clearly on each published
             article.
           </p>

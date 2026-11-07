@@ -63,6 +63,7 @@ type SettingsForSettings = {
   cfpButtonText: string | null;
   cfpButtonUrl: string | null;
   cfpDeadline: string;
+  defaultLicenseType: string;
 } | null;
 
 export function SettingsForm({
@@ -534,11 +535,40 @@ export function SettingsForm({
               id="license"
               name="license"
               type="text"
-              placeholder="e.g. CC BY 4.0"
+              placeholder="e.g. © Innovare Academic Publishing. All rights reserved."
               defaultValue={settings?.license ?? ""}
               disabled={pending}
               className="w-full rounded-lg border px-3 py-2.5 text-sm"
             />
+          </div>
+
+          <div>
+            <label
+              htmlFor="defaultLicenseType"
+              className="mb-1.5 block text-sm font-semibold text-slate-700"
+            >
+              Publication agreement type
+            </label>
+
+            <select
+              id="defaultLicenseType"
+              name="defaultLicenseType"
+              defaultValue={settings?.defaultLicenseType ?? "COPYRIGHT_TRANSFER"}
+              disabled={pending}
+              className="w-full rounded-lg border px-3 py-2.5 text-sm"
+            >
+              <option value="COPYRIGHT_TRANSFER">
+                Copyright transfer (suits paid articles)
+              </option>
+              <option value="CC_BY_4">
+                CC BY 4.0 (anyone may share and reuse)
+              </option>
+            </select>
+
+            <p className="mt-1.5 text-xs text-slate-500">
+              Used for new agreements. Agreements already sent keep
+              their wording.
+            </p>
           </div>
 
           <div className="md:col-span-2">
