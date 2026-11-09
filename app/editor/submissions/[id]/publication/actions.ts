@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
+import { notifyArticlePublished } from "@/lib/notifications/notify-article-published";
 
 import {
     isSuperAdmin,
@@ -295,7 +297,7 @@ export async function publishSubmission(
                 },
             ];
 
-    await prisma.$transaction(
+    const publishedArticleId = await prisma.$transaction(
         async (tx) => {
             const article =
                 await tx.article.upsert({
@@ -566,7 +568,17 @@ export async function publishSubmission(
                     },
                 },
             });
+
+            return article.id;
         },
+    );
+
+    // The in-app notification was created above; this sends the email.
+    after(() =>
+        notifyArticlePublished({
+            articleId: publishedArticleId,
+            createInAppNotification: false,
+        }),
     );
 
     revalidatePath(

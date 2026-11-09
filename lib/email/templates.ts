@@ -1780,6 +1780,76 @@ export function referralSubmittedEmail({
   };
 }
 
+export function articlePublishedEmail({
+  authorName,
+  journalName: selectedJournalName,
+  articleTitle,
+  articleUrl,
+  doi,
+}: {
+  authorName: string;
+  journalName: string;
+  articleTitle: string;
+  articleUrl: string;
+  doi?: string | null;
+}) {
+  const safeAuthorName = escapeHtml(authorName);
+  const safeJournalName = escapeHtml(selectedJournalName);
+  const safeArticleTitle = escapeHtml(articleTitle);
+
+  return {
+    subject: `${journalShortName}: Your article has been published`,
+
+    text: [
+      `Hello ${authorName},`,
+      "",
+      `Congratulations! Your article has been published in ${selectedJournalName}.`,
+      "",
+      `Article: ${articleTitle}`,
+      doi ? `DOI: ${doi}` : "",
+      "",
+      `Read it online: ${articleUrl}`,
+    ]
+      .filter((line, index, lines) => line !== "" || lines[index - 1] !== "")
+      .join("\n"),
+
+    html: emailLayout({
+      heading: "Your article has been published",
+      content: `
+        <p>Hello ${safeAuthorName},</p>
+
+        <p>
+          Congratulations! Your article has been published in
+          <strong>${safeJournalName}</strong> and is now available online.
+        </p>
+
+        ${informationBox({
+        title: "Article title",
+        content: safeArticleTitle,
+      })}
+
+        ${doi
+          ? informationBox({
+            title: "DOI",
+            content: escapeHtml(doi),
+          })
+          : ""
+        }
+
+        ${emailButton({
+        url: articleUrl,
+        label: "View Published Article",
+      })}
+
+        <p>
+          Please share your article with colleagues and on your
+          professional networks.
+        </p>
+      `,
+    }),
+  };
+}
+
 export function referralPublishedEmail({
   reviewerName,
   manuscriptTitle,

@@ -11,6 +11,7 @@ import {
   ArticleActionButtons,
   ReplacePdfFileForm,
   UpdateArticleForm,
+  UpdateArticleAuthorsForm,
   UpdateCorrespondingAuthorForm,
 } from "./ArticleForms";
 
@@ -405,6 +406,19 @@ export default async function AdminArticlesPage() {
                     status={article.status}
                     canEdit={canEditArticle}
                   />
+
+                  {article.authors.length > 0 && (
+                    <UpdateArticleAuthorsForm
+                      articleId={article.id}
+                      authors={article.authors.map((author) => ({
+                        id: author.id,
+                        fullName: author.fullName,
+                        email: author.email,
+                        affiliation: author.affiliation,
+                      }))}
+                      canEdit={canEditArticle}
+                    />
+                  )}
 
                   {article.authors.length > 0 && (
                     <UpdateCorrespondingAuthorForm

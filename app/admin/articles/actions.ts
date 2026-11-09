@@ -12,6 +12,7 @@ import { embedPublishedArticlePdfMetadata } from "@/lib/pdf/publish-metadata";
 import { Prisma } from "@/lib/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { processAmbassadorPublicationEvent } from "@/lib/ambassador/process-publication-event";
+import { notifyArticlePublished } from "@/lib/notifications/notify-article-published";
 import { uploadJournalFile } from "@/lib/storage/blob";
 import {
     runFormAction,
@@ -777,6 +778,147 @@ export async function updateCorrespondingAuthor(
     }, { action: "updateCorrespondingAuthor" });
 }
 
+export async function updateArticleAuthors(
+    _previousState: FormActionState,
+    formData: FormData,
+): Promise<FormActionState> {
+    return runFormAction(async () => {
+    const administrator =
+        await requireAnyActionRole(ADMIN_ROLES);
+
+    const articleId = String(
+        formData.get("articleId") || "",
+    ).trim();
+
+    if (!articleId) {
+        throw new Error("Article ID is missing.");
+    }
+
+    const article = await prisma.article.findUnique({
+        where: { id: articleId },
+        select: {
+            id: true,
+            journalId: true,
+            slug: true,
+            status: true,
+            submissionId: true,
+            authors: {
+                select: {
+                    id: true,
+                    fullName: true,
+                    email: true,
+                    affiliation: true,
+                },
+            },
+        },
+    });
+
+    if (!article) {
+        throw new Error("Article not found.");
+    }
+
+    await verifyArticleAdminPermission(
+        administrator.id,
+        article.journalId,
+    );
+
+    if (
+        article.status === "PUBLISHED" &&
+        !isSuperAdmin(administrator)
+    ) {
+        throw new Error(
+            "Only a super admin can correct authors on a published article.",
+        );
+    }
+
+    const changes = article.authors.flatMap((author) => {
+        const fullName = String(
+            formData.get(`fullName-${author.id}`) ?? author.fullName,
+        ).replace(/\s+/g, " ").trim();
+        const email = String(
+            formData.get(`email-${author.id}`) ?? author.email ?? "",
+        ).trim();
+        const affiliation = String(
+            formData.get(`affiliation-${author.id}`) ?? author.affiliation ?? "",
+        ).trim();
+
+        if (!fullName) {
+            throw new Error("Every author needs a name.");
+        }
+
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            throw new Error(`"${email}" is not a valid email address.`);
+        }
+
+        const next = {
+            fullName,
+            email: email || null,
+            affiliation: affiliation || null,
+        };
+
+        const changed =
+            next.fullName !== author.fullName ||
+            next.email !== author.email ||
+            next.affiliation !== author.affiliation;
+
+        return changed ? [{ id: author.id, previous: author, next }] : [];
+    });
+
+    if (changes.length === 0) {
+        return "No author changes to save.";
+    }
+
+    await prisma.$transaction(async (tx) => {
+        for (const change of changes) {
+            await tx.articleAuthor.update({
+                where: { id: change.id },
+                data: change.next,
+            });
+        }
+
+        await tx.activityLog.create({
+            data: {
+                userId: administrator.id,
+                action: "UPDATE",
+                entity: "Article",
+                entityId: articleId,
+                metadata: {
+                    event: "ARTICLE_AUTHORS_CORRECTED",
+                    changes: changes.map((change) => ({
+                        authorId: change.id,
+                        previous: {
+                            fullName: change.previous.fullName,
+                            email: change.previous.email,
+                            affiliation: change.previous.affiliation,
+                        },
+                        next: change.next,
+                    })),
+                },
+            },
+        });
+    });
+
+    refreshArticlePages(article.slug);
+
+    if (article.submissionId) {
+        revalidatePath(
+            `/author/submissions/${article.submissionId}`,
+        );
+    }
+
+    if (article.status === "PUBLISHED") {
+        // Keep the PDF's embedded citation metadata in step.
+        after(() =>
+            embedPublishedArticlePdfMetadata(articleId),
+        );
+    }
+
+    return changes.length === 1
+        ? "1 author updated."
+        : `${changes.length} authors updated.`;
+    }, { action: "updateArticleAuthors" });
+}
+
 export async function changeArticleStatus(
     _previousState: FormActionState,
     formData: FormData,
@@ -960,6 +1102,8 @@ export async function changeArticleStatus(
                 submissionId: article.submissionId,
             }),
         );
+
+        after(() => notifyArticlePublished({ articleId }));
     }
 
     return changeArticleStatusMessage(status);

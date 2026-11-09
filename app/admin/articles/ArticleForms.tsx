@@ -9,6 +9,7 @@ import {
   deleteArticle,
   replaceArticlePdfFile,
   updateArticle,
+  updateArticleAuthors,
   updateCorrespondingAuthor,
 } from "./actions";
 import {
@@ -464,6 +465,104 @@ export function UpdateCorrespondingAuthorForm({
         {pending ? "Updating…" : "Update Corresponding Author"}
       </button>
     </form>
+  );
+}
+
+type EditableAuthor = {
+  id: string;
+  fullName: string;
+  email: string | null;
+  affiliation: string | null;
+};
+
+export function UpdateArticleAuthorsForm({
+  articleId,
+  authors,
+  canEdit,
+}: {
+  articleId: string;
+  authors: EditableAuthor[];
+  canEdit: boolean;
+}) {
+  const router = useRouter();
+  const [state, formAction, pending] = useActionState(
+    updateArticleAuthors,
+    IDLE_FORM_ACTION_STATE,
+  );
+
+  useEffect(() => {
+    if (state.success) {
+      router.refresh();
+    }
+  }, [state.success, router]);
+
+  return (
+    <details className="mt-5 rounded-xl border bg-white p-5">
+      <summary className="cursor-pointer font-semibold">
+        Edit Authors ({authors.length})
+      </summary>
+
+      <form action={formAction} className="mt-4 space-y-4">
+        <input type="hidden" name="articleId" value={articleId} />
+
+        <ActionBanner state={state} />
+
+        {!canEdit && (
+          <p className="text-sm text-gray-600">
+            Only a super admin can correct authors on a published article.
+          </p>
+        )}
+
+        {authors.map((author, index) => (
+          <fieldset
+            key={author.id}
+            disabled={!canEdit || pending}
+            className="grid gap-3 rounded-lg bg-gray-50 p-4 sm:grid-cols-3 disabled:opacity-60"
+          >
+            <legend className="text-sm font-semibold text-gray-700">
+              Author {index + 1}
+            </legend>
+
+            <label className="text-sm">
+              <span className="mb-1 block font-medium">Full name</span>
+              <input
+                name={`fullName-${author.id}`}
+                defaultValue={author.fullName}
+                required
+                className="w-full rounded-lg border bg-white p-2"
+              />
+            </label>
+
+            <label className="text-sm">
+              <span className="mb-1 block font-medium">Email</span>
+              <input
+                type="email"
+                name={`email-${author.id}`}
+                defaultValue={author.email ?? ""}
+                className="w-full rounded-lg border bg-white p-2"
+              />
+            </label>
+
+            <label className="text-sm">
+              <span className="mb-1 block font-medium">Affiliation</span>
+              <input
+                name={`affiliation-${author.id}`}
+                defaultValue={author.affiliation ?? ""}
+                className="w-full rounded-lg border bg-white p-2"
+              />
+            </label>
+          </fieldset>
+        ))}
+
+        <button
+          type="submit"
+          disabled={!canEdit || pending}
+          className="rounded-lg bg-blue-700 px-6 py-3 font-semibold text-white hover:bg-blue-800 disabled:opacity-50"
+        >
+          {pending ? "Saving…" : "Save Author Corrections"}
+        </button>
+      </form>
+    </details>
   );
 }
 
