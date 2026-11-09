@@ -479,7 +479,7 @@ HOW MANUSCRIPTS ARE ASSESSED
 05. Editorial decision — The editor considers the reviewers' reports, the manuscript and journal policy before issuing an editorial decision.
 06. Revision and reassessment — Where revision is requested, authors respond to each comment and submit a revised manuscript. Further review may be required.
 07. Final decision — The editor may accept, request further revision or reject the manuscript based on the evidence available.
-08. Production and publication — Accepted manuscripts proceed to copyediting, typesetting, proofreading, author proof approval and final publication.
+08. Production and publication — Accepted manuscripts proceed to copyediting, typesetting, proofreading and final publication.
 
 POSSIBLE OUTCOMES AFTER REVIEW
 Accept — The manuscript is suitable for publication, subject to any minor production corrections.

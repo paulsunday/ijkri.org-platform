@@ -50,7 +50,7 @@ const reviewStages = [
     number: "08",
     title: "Production and publication",
     description:
-      "Accepted manuscripts proceed to copyediting, typesetting, proofreading, author proof approval and final publication.",
+      "Accepted manuscripts proceed to copyediting, typesetting, proofreading and final publication.",
   },
 ];
 

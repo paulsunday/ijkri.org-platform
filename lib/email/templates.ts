@@ -1388,7 +1388,7 @@ export function manuscriptAcceptedEmail({
 
         <p>
           The manuscript will now proceed through copyediting,
-          typesetting, proofreading and author proof approval.
+          typesetting and proofreading.
           Publication remains subject to successful completion
           of those production stages.
         </p>
@@ -1400,7 +1400,7 @@ export function manuscriptAcceptedEmail({
 
         <p>
           Please monitor your account and email for production
-          queries and proof-approval requests.
+          queries.
         </p>
       `,
     }),

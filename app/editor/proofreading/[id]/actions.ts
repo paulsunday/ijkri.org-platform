@@ -189,7 +189,8 @@ export async function approveProofreading(
                 id: assignment.submissionId,
             },
             data: {
-                status: "AUTHOR_PROOF_APPROVAL",
+                // Author proof approval is skipped: go straight to publication.
+                status: "READY_FOR_PUBLICATION",
             },
         });
 
