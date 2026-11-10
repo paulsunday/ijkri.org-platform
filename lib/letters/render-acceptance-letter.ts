@@ -14,7 +14,11 @@ export type AcceptanceLetterData = {
   journalIssn?: string | null;
   publisherName?: string | null;
   decisionDate: Date;
-  editorName?: string | null;
+  /**
+   * Shown under the signature. The letter is always signed by the
+   * Editorial Office, never by the individual account that accepted it.
+   */
+  editorialEmail?: string | null;
   /**
    * Defaults to the journal-wide DOI placeholder until a real DOI
    * is assigned at publication time.
@@ -26,6 +30,7 @@ const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
 const PAGE_MARGIN = 56;
 const DOI_PLACEHOLDER = "DOI********";
+const DEFAULT_EDITORIAL_EMAIL = "editor@ijkri.org";
 
 function formatDate(value: Date) {
   return new Intl.DateTimeFormat("en-GB", {
@@ -252,13 +257,26 @@ export async function renderAcceptanceLetterPdf(
 
   y -= 30;
 
-  page.drawText(data.editorName?.trim() || "Editorial Office", {
+  page.drawText("Editorial Office", {
     x: PAGE_MARGIN,
     y,
     size: 11,
     font: boldFont,
     color: rgb(0.08, 0.12, 0.2),
   });
+
+  y -= 15;
+
+  page.drawText(
+    (data.editorialEmail?.trim() || DEFAULT_EDITORIAL_EMAIL).toLowerCase(),
+    {
+      x: PAGE_MARGIN,
+      y,
+      size: 10,
+      font: regularFont,
+      color: rgb(0.15, 0.15, 0.15),
+    },
+  );
 
   y -= 15;
 

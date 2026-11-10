@@ -13,7 +13,7 @@ describe("renderAcceptanceLetterPdf", () => {
       journalIssn: "1234-5678",
       publisherName: "Innovare Academic Publisher",
       decisionDate: new Date("2026-01-15T00:00:00Z"),
-      editorName: "Dr. Editor",
+      editorialEmail: "Editor@IJKRI.org",
     });
 
     expect(bytes.byteLength).toBeGreaterThan(0);

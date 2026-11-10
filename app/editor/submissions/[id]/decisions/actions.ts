@@ -178,6 +178,7 @@ export async function sendEditorialDecision(formData: FormData) {
           id: true,
           name: true,
           shortName: true,
+          contactEmail: true,
           issnOnline: true,
           issnPrint: true,
           apcEnabled: true,
@@ -511,7 +512,7 @@ export async function sendEditorialDecision(formData: FormData) {
           submission.journal.issnPrint,
         publisherName: submission.journal.publisher?.name,
         decisionDate: new Date(),
-        editorName: editor.name,
+        editorialEmail: submission.journal.contactEmail,
       });
 
       acceptanceLetterAttachment = [

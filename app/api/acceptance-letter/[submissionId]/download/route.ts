@@ -60,6 +60,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
       journal: {
         select: {
           name: true,
+          contactEmail: true,
           issnOnline: true,
           issnPrint: true,
           publisher: { select: { name: true } },
@@ -71,7 +72,6 @@ export async function GET(_request: Request, { params }: RouteContext) {
         take: 1,
         select: {
           createdAt: true,
-          editor: { select: { name: true } },
         },
       },
     },
@@ -125,7 +125,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
         submission.journal.issnOnline ?? submission.journal.issnPrint,
       publisherName: submission.journal.publisher?.name,
       decisionDate: acceptanceDecision.createdAt,
-      editorName: acceptanceDecision.editor?.name,
+      editorialEmail: submission.journal.contactEmail,
     });
 
     const fileName = sanitiseFileName(
