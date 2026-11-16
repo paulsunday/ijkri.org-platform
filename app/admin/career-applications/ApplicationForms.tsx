@@ -10,9 +10,11 @@ import {
     reopenCareerApplication,
     scheduleCareerInterview,
     shortlistCareerApplication,
+} from "./actions";
+import {
     IDLE_FORM_ACTION_STATE,
     type FormActionState,
-} from "./actions";
+} from "@/lib/forms/run-form-action";
 
 function ActionBanner({ state }: { state: FormActionState }) {
     if (!state.message) return null;

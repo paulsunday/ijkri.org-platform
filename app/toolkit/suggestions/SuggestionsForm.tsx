@@ -2,10 +2,8 @@
 
 import { useActionState } from "react";
 
-import {
-    IDLE_SUGGEST_TOPICS_STATE,
-    requestTopicSuggestions,
-} from "./actions";
+import { requestTopicSuggestions } from "./actions";
+import { IDLE_SUGGEST_TOPICS_STATE } from "./state";
 
 export function SuggestionsForm() {
     const [state, formAction, pending] = useActionState(

@@ -1,24 +1,11 @@
 "use server";
 
-import {
-    suggestTopics,
-    type SuggestedTopic,
-} from "@/lib/ai/suggest-topics";
+import { suggestTopics } from "@/lib/ai/suggest-topics";
 import { requireActionUser } from "@/lib/auth/current-user";
 import { hasToolkitAccess } from "@/lib/payments/toolkit-access";
 import { prisma } from "@/lib/prisma";
 
-export type SuggestTopicsState = {
-    success: boolean;
-    message: string;
-    suggestions: SuggestedTopic[];
-};
-
-export const IDLE_SUGGEST_TOPICS_STATE: SuggestTopicsState = {
-    success: false,
-    message: "",
-    suggestions: [],
-};
+import type { SuggestTopicsState } from "./state";
 
 export async function requestTopicSuggestions(
     _previousState: SuggestTopicsState,

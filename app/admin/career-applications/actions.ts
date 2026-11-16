@@ -22,13 +22,9 @@ import {
 } from "@/lib/auth/account-activation";
 
 import {
-    IDLE_FORM_ACTION_STATE,
     runFormAction,
     type FormActionState,
 } from "@/lib/forms/run-form-action";
-
-export { IDLE_FORM_ACTION_STATE };
-export type { FormActionState };
 
 const CAREER_MANAGER_ROLES = [
     "SUPER_ADMIN",
