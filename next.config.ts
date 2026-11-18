@@ -11,9 +11,11 @@ const contentSecurityPolicy = [
   "img-src 'self' data: blob: https:",
   "font-src 'self' data: https:",
   "style-src 'self' 'unsafe-inline' https:",
+  // challenges.cloudflare.com serves the Turnstile spam check on submissions.
   isProduction
-    ? "script-src 'self' 'unsafe-inline'"
-    : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    ? "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com"
+    : "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com",
+  "frame-src 'self' https://challenges.cloudflare.com",
   "connect-src 'self' https:",
   "form-action 'self'",
   "media-src 'self' blob: https:",
