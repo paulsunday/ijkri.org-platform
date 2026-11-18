@@ -27,7 +27,7 @@ export function isSuperAdmin(user: UserWithRoles): boolean {
     return hasUserRole(user.roles, "SUPER_ADMIN");
 }
 
-function hasRequiredRole(
+export function hasRequiredRole(
     userRoles: UserRoleRecord[],
     requiredRoles: UserRole[],
 ): boolean {

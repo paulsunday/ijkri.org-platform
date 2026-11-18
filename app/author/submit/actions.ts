@@ -19,6 +19,7 @@ import {
   uploadJournalFile,
 } from "@/lib/storage/blob";
 import type { UploadResult } from "@/lib/storage/types";
+import { verifyPendingManuscriptUpload } from "@/lib/storage/manuscript-direct-upload";
 import {
   resolveReferralCode,
   resolveAmbassadorByReviewerId,
@@ -434,9 +435,42 @@ function validateManuscriptFile(
   }
 }
 
+export type SubmitManuscriptState = {
+  error: string;
+};
+
+/**
+ * Returns an error message instead of throwing, because production
+ * React hides thrown server-action messages behind a generic error
+ * (#441). On success it redirects to the new submission.
+ */
 export async function submitManuscript(
   formData: FormData,
-) {
+): Promise<SubmitManuscriptState> {
+  let submissionId: string;
+
+  try {
+    submissionId = await createSubmission(formData);
+  } catch (error) {
+    logger.warn("Manuscript submission rejected", {
+      event: "MANUSCRIPT_SUBMISSION_REJECTED",
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    return {
+      error:
+        error instanceof Error && error.message
+          ? error.message
+          : "The manuscript could not be submitted. Please try again.",
+    };
+  }
+
+  redirect(`/author/submissions/${submissionId}`);
+}
+
+async function createSubmission(
+  formData: FormData,
+): Promise<string> {
   const submittingUser =
     await requireAnyActionRole(AUTHOR_ROLES);
 
@@ -534,21 +568,38 @@ export async function submitManuscript(
   const declarations =
     readDeclarations(formData);
 
+  /*
+   * Normally the browser has already uploaded the manuscript straight to
+   * Blob storage and only sends its reference. A small file attached to
+   * the form itself is still accepted as a fallback.
+   */
+  const uploadedPathname = String(
+    formData.get("manuscriptBlobPathname") || "",
+  ).trim();
+
+  const uploadedFilename = String(
+    formData.get("manuscriptOriginalFilename") || "",
+  ).trim();
+
   const manuscriptFileValue =
     formData.get("manuscriptFile");
 
   const manuscriptFile =
-    manuscriptFileValue instanceof File
+    !uploadedPathname &&
+    manuscriptFileValue instanceof File &&
+    manuscriptFileValue.size > 0
       ? manuscriptFileValue
       : null;
 
-  if (!manuscriptFile) {
+  if (!uploadedPathname && !manuscriptFile) {
     throw new Error(
       "Please upload the manuscript file.",
     );
   }
 
-  validateManuscriptFile(manuscriptFile);
+  if (manuscriptFile) {
+    validateManuscriptFile(manuscriptFile);
+  }
 
   const journal =
     await prisma.journal.findUnique({
@@ -603,7 +654,14 @@ export async function submitManuscript(
     | UploadResult
     | undefined;
 
-  try {
+  if (uploadedPathname) {
+    manuscriptUpload =
+      await verifyPendingManuscriptUpload({
+        pathname: uploadedPathname,
+        originalFilename: uploadedFilename,
+        userId: submittingUser.id,
+      });
+  } else if (manuscriptFile) try {
     manuscriptUpload =
       await uploadJournalFile({
         file: manuscriptFile,
@@ -941,7 +999,5 @@ export async function submitManuscript(
     }
   }
 
-  redirect(
-    `/author/submissions/${submissionId}`,
-  );
+  return submissionId;
 }

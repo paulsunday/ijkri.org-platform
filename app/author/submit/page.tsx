@@ -4,7 +4,9 @@ import { COUNTRIES } from "@/lib/constants/countries";
 import { HoneypotField } from "@/components/forms/honeypot-field";
 import { TurnstileWidget } from "@/components/forms/turnstile-widget";
 
-import { submitManuscript } from "./actions";
+import { pendingManuscriptPrefix } from "@/lib/storage/manuscript-direct-upload";
+
+import { SubmitManuscriptForm } from "./SubmitManuscriptForm";
 
 type SubmitManuscriptPageProps = {
   searchParams: Promise<{ ref?: string }>;
@@ -13,7 +15,7 @@ type SubmitManuscriptPageProps = {
 export default async function SubmitManuscriptPage({
   searchParams,
 }: SubmitManuscriptPageProps) {
-  await requireAnyRole(AUTHOR_ROLES);
+  const user = await requireAnyRole(AUTHOR_ROLES);
 
   const { ref } = await searchParams;
 
@@ -28,7 +30,7 @@ export default async function SubmitManuscriptPage({
         Research and Innovation (IJKRI).
       </p>
 
-      <form action={submitManuscript} className="space-y-8">
+      <SubmitManuscriptForm uploadPrefix={pendingManuscriptPrefix(user.id)}>
 
         {ref && (
           <input type="hidden" name="referralCode" value={ref} />
@@ -500,15 +502,7 @@ export default async function SubmitManuscriptPage({
         </div>
 
         <TurnstileWidget />
-
-        <button
-          type="submit"
-          className="rounded-lg bg-black px-8 py-3 font-semibold text-white hover:bg-gray-800"
-        >
-          Submit Manuscript
-        </button>
-
-      </form>
+      </SubmitManuscriptForm>
     </main>
   );
 }

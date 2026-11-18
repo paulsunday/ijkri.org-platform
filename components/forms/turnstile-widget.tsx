@@ -9,6 +9,7 @@ type TurnstileApi = {
     options: { sitekey: string; "response-field-name"?: string },
   ) => string;
   remove: (widgetId: string) => void;
+  reset?: (widgetId?: string) => void;
 };
 
 declare global {
