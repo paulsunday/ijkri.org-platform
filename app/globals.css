@@ -126,6 +126,22 @@
   }
   html {
     @apply font-sans;
+    /* The site is light-only: stop dark-mode browsers drawing dark
+       dropdown menus with unreadable dark text. */
+    color-scheme: light;
+  }
+  select,
+  option,
+  optgroup {
+    background-color: #ffffff;
+    color: #0f172a;
+  }
+  option:checked {
+    background-color: #e2e8f0;
+    color: #0f172a;
+  }
+  option:disabled {
+    color: #94a3b8;
   }
 }
 
