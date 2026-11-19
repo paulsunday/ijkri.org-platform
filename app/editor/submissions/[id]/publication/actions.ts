@@ -129,13 +129,31 @@ export async function publishSubmission(
         );
     }
 
+    /*
+     * A super admin may fast-track: publish from any stage, skipping
+     * review, production, APC and agreement checks. What was skipped is
+     * recorded in the activity log below.
+     */
+    const fastTrack = isSuperAdmin(editor);
+    const skippedChecks: string[] = [];
+
+    if (submission.status === "PUBLISHED") {
+        throw new Error(
+            "This submission has already been published.",
+        );
+    }
+
     if (
         submission.status !==
         "READY_FOR_PUBLICATION"
     ) {
-        throw new Error(
-            "Only a submission ready for publication can be published.",
-        );
+        if (!fastTrack) {
+            throw new Error(
+                "Only a submission ready for publication can be published.",
+            );
+        }
+
+        skippedChecks.push(`status:${submission.status}`);
     }
 
     /*
@@ -156,7 +174,9 @@ export async function publishSubmission(
         submission.invoice.status === "PAID" ||
         submission.invoice.status === "WAIVED";
 
-    if (!apcSettled) {
+    if (!apcSettled && fastTrack) {
+        skippedChecks.push(`apc:${submission.invoice?.status}`);
+    } else if (!apcSettled) {
         throw new Error(
             `This article cannot be published until its APC invoice (${submission.invoice?.invoiceNumber}) is paid or waived. Current status: ${submission.invoice?.status
                 .replaceAll("_", " ")
@@ -179,7 +199,11 @@ export async function publishSubmission(
         !agreementRequired ||
         submission.agreement?.status === "SIGNED";
 
-    if (!agreementSettled) {
+    if (!agreementSettled && fastTrack) {
+        skippedChecks.push(
+            `agreement:${submission.agreement?.status ?? "NOT_SENT"}`,
+        );
+    } else if (!agreementSettled) {
         throw new Error(
             submission.agreement
                 ? "This article cannot be published until the publication agreement has been signed by all required signers."
@@ -516,6 +540,33 @@ export async function publishSubmission(
                 },
             });
 
+            if (skippedChecks.length > 0) {
+                // Fast-tracked: close open review and production work
+                // so reviewers and staff stop getting reminders.
+                await tx.reviewAssignment.updateMany({
+                    where: {
+                        submissionId,
+                        status: { in: ["INVITED", "ACCEPTED"] },
+                    },
+                    data: { status: "CANCELLED" },
+                });
+
+                await tx.productionAssignment.updateMany({
+                    where: {
+                        submissionId,
+                        status: {
+                            in: [
+                                "PENDING",
+                                "IN_PROGRESS",
+                                "SUBMITTED",
+                                "CHANGES_REQUESTED",
+                            ],
+                        },
+                    },
+                    data: { status: "CANCELLED" },
+                });
+            }
+
             await tx.notification.create({
                 data: {
                     userId:
@@ -544,6 +595,11 @@ export async function publishSubmission(
                     metadata: {
                         event: "ARTICLE_PUBLISHED",
                         submissionId,
+                        fastTracked:
+                            skippedChecks.length > 0,
+                        skippedChecks,
+                        previousSubmissionStatus:
+                            submission.status,
                         issueId,
                         journalId: submission.journalId,
                         articleSlug,

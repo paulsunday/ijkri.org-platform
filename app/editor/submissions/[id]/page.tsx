@@ -256,12 +256,15 @@ export default async function EditorSubmissionDetailsPage({
             </Link>
           )}
 
-          {submission.status === "READY_FOR_PUBLICATION" && (
+          {(submission.status === "READY_FOR_PUBLICATION" ||
+            (isSuperAdmin(editor) && submission.status !== "PUBLISHED")) && (
             <Link
               href={`/editor/submissions/${submission.id}/publication`}
               className="rounded-lg bg-emerald-700 px-5 py-3 font-semibold text-white hover:bg-emerald-800"
             >
-              Publish Article
+              {submission.status === "READY_FOR_PUBLICATION"
+                ? "Publish Article"
+                : "Publish Now (Fast-track)"}
             </Link>
           )}
         </div>

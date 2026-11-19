@@ -59,6 +59,27 @@ export default async function PublicationPage({
                         currency: true,
                     },
                 },
+                agreement: {
+                    select: {
+                        status: true,
+                    },
+                },
+                productionFiles: {
+                    where: {
+                        isFinal: true,
+                        fileType: {
+                            in: [
+                                "PDF_GALLEY",
+                                "FINAL_PUBLICATION_FILE",
+                                "PROOF_FILE",
+                            ],
+                        },
+                    },
+                    select: {
+                        id: true,
+                    },
+                    take: 1,
+                },
             },
         });
 
@@ -110,6 +131,32 @@ export default async function PublicationPage({
         submission.invoice.status === "PAID" ||
         submission.invoice.status === "WAIVED";
 
+    const agreementSettled =
+        !submission.invoice ||
+        submission.agreement?.status === "SIGNED";
+
+    /*
+     * Super admins can publish from any stage; the action skips the
+     * workflow checks and logs which ones were skipped.
+     */
+    const fastTrack =
+        isSuperAdmin(editor) &&
+        submission.status !== "PUBLISHED";
+
+    const skippedSteps = fastTrack
+        ? [
+            submission.status !== "READY_FOR_PUBLICATION" &&
+                `Remaining workflow (current status: ${formatStatus(submission.status)}). Open reviewer invitations and production tasks will be cancelled.`,
+            !apcSettled &&
+                submission.invoice &&
+                `APC payment (invoice ${submission.invoice.invoiceNumber} is ${formatStatus(submission.invoice.status)}).`,
+            !agreementSettled &&
+                `Signed publication agreement (${submission.agreement ? formatStatus(submission.agreement.status) : "not sent"}).`,
+        ].filter((step): step is string => Boolean(step))
+        : [];
+
+    const hasFinalPdf = submission.productionFiles.length > 0;
+
     return (
         <main className="mx-auto max-w-5xl space-y-8 p-8">
             <Link
@@ -155,7 +202,55 @@ export default async function PublicationPage({
                 </div>
             </section>
 
-            {submission.status !==
+            {fastTrack && skippedSteps.length > 0 && (
+                <section className="rounded-xl border border-amber-400 bg-amber-50 p-6">
+                    <h2 className="font-semibold text-amber-900">
+                        Super admin fast-track
+                    </h2>
+
+                    <p className="mt-2 text-sm text-amber-800">
+                        Publishing now will skip:
+                    </p>
+
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-800">
+                        {skippedSteps.map((step) => (
+                            <li key={step}>{step}</li>
+                        ))}
+                    </ul>
+
+                    <p className="mt-3 text-sm text-amber-800">
+                        This is recorded in the activity log.
+                    </p>
+                </section>
+            )}
+
+            {fastTrack && !hasFinalPdf && (
+                <section className="rounded-xl border border-sky-300 bg-sky-50 p-6 text-sm text-sky-900">
+                    No final PDF has been produced yet. Paste a PDF link
+                    below, or upload the PDF after publishing from{" "}
+                    <Link href="/admin/articles" className="font-semibold underline">
+                        Admin → Articles
+                    </Link>{" "}
+                    (Replace PDF).
+                </section>
+            )}
+
+            {submission.status === "PUBLISHED" ? (
+                <section className="rounded-xl border border-emerald-300 bg-emerald-50 p-6">
+                    <h2 className="font-semibold text-emerald-900">
+                        Already published
+                    </h2>
+
+                    <p className="mt-2 text-sm text-emerald-800">
+                        Make corrections from{" "}
+                        <Link href="/admin/articles" className="font-semibold underline">
+                            Admin → Articles
+                        </Link>
+                        .
+                    </p>
+                </section>
+            ) : !fastTrack &&
+                submission.status !==
                 "READY_FOR_PUBLICATION" ? (
                 <section className="rounded-xl border border-yellow-300 bg-yellow-50 p-6">
                     <h2 className="font-semibold text-yellow-900">
@@ -167,7 +262,7 @@ export default async function PublicationPage({
                         for Publication before it can be published.
                     </p>
                 </section>
-            ) : !apcSettled && submission.invoice ? (
+            ) : !fastTrack && !apcSettled && submission.invoice ? (
                 <section className="rounded-xl border border-amber-300 bg-amber-50 p-6">
                     <h2 className="font-semibold text-amber-900">
                         APC payment required
@@ -301,7 +396,9 @@ export default async function PublicationPage({
                         type="submit"
                         className="rounded-lg bg-green-700 px-6 py-3 font-semibold text-white hover:bg-green-800"
                     >
-                        Publish Article
+                        {skippedSteps.length > 0
+                            ? "Publish Now (Fast-track)"
+                            : "Publish Article"}
                     </button>
                 </form>
             )}

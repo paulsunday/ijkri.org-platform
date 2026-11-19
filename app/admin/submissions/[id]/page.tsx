@@ -131,8 +131,10 @@ export default async function SubmissionDetailsPage({
     "READY_FOR_PUBLICATION",
   ].includes(submission.status);
 
+  // Super admins can fast-track publication from any stage.
   const canPublish =
-    submission.status === "READY_FOR_PUBLICATION";
+    submission.status === "READY_FOR_PUBLICATION" ||
+    (isSuperAdmin(admin) && submission.status !== "PUBLISHED");
 
   return (
     <main className="mx-auto max-w-6xl space-y-8 px-6 py-12">
@@ -452,7 +454,9 @@ export default async function SubmissionDetailsPage({
               className="rounded-xl border border-emerald-400 bg-white p-5 transition hover:border-emerald-700 hover:shadow-md"
             >
               <h3 className="font-bold text-emerald-800">
-                Publish Article
+                {submission.status === "READY_FOR_PUBLICATION"
+                  ? "Publish Article"
+                  : "Publish Now (Fast-track)"}
               </h3>
 
               <p className="mt-2 text-sm text-slate-600">
