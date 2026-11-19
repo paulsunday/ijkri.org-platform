@@ -236,7 +236,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
   headers.set(
     "Cache-Control",
     isPubliclyCacheable
-      ? "public, max-age=3600, s-maxage=86400"
+      ? // Short, so an unpublished article stops being served quickly.
+        "public, max-age=300, s-maxage=300"
       : "private, no-store, max-age=0",
   );
 

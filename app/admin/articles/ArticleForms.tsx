@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -578,6 +578,7 @@ export function ArticleActionButtons({
   article: ArticleForActions;
 }) {
   const router = useRouter();
+  const [confirmUnpublish, setConfirmUnpublish] = useState(false);
 
   const [publishState, publishAction, publishPending] = useActionState(
     changeArticleStatus,
@@ -636,6 +637,44 @@ export function ArticleActionButtons({
         </div>
       )}
 
+      {confirmUnpublish && article.status === "PUBLISHED" && (
+        <div className="rounded-lg border border-orange-300 bg-orange-50 p-4 text-sm text-orange-900">
+          <p className="font-semibold">Take this article off the public site?</p>
+
+          <p className="mt-1">
+            It disappears from the article page, issues, archives, search,
+            sitemap and feeds, and its PDF stops downloading for readers
+            within a few minutes. Nothing is deleted: it goes back to Draft
+            and you can publish it again any time.
+          </p>
+
+          <div className="mt-3 flex flex-wrap gap-3">
+            <form action={draftAction}>
+              <input type="hidden" name="articleId" value={article.id} />
+
+              <input type="hidden" name="status" value="DRAFT" />
+
+              <button
+                type="submit"
+                disabled={anyPending}
+                className="rounded-lg bg-orange-600 px-5 py-2 font-semibold text-white hover:bg-orange-700 disabled:opacity-50"
+              >
+                {draftPending ? "Unpublishing…" : "Yes, unpublish"}
+              </button>
+            </form>
+
+            <button
+              type="button"
+              disabled={anyPending}
+              onClick={() => setConfirmUnpublish(false)}
+              className="rounded-lg border border-orange-400 px-5 py-2 font-semibold text-orange-900 hover:bg-orange-100 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-3">
         {article.status !== "PUBLISHED" && (
           <form action={publishAction}>
@@ -669,7 +708,19 @@ export function ArticleActionButtons({
           </form>
         )}
 
-        {article.status !== "DRAFT" && (
+        {article.status === "PUBLISHED" && !confirmUnpublish && (
+          <button
+            type="button"
+            disabled={anyPending}
+            onClick={() => setConfirmUnpublish(true)}
+            className="rounded-lg bg-orange-600 px-5 py-3 font-semibold text-white hover:bg-orange-700 disabled:opacity-50"
+          >
+            Unpublish
+          </button>
+        )}
+
+        {article.status !== "DRAFT" &&
+          article.status !== "PUBLISHED" && (
           <form action={draftAction}>
             <input type="hidden" name="articleId" value={article.id} />
 

@@ -50,7 +50,7 @@ function changeArticleStatusMessage(
             return "Article scheduled.";
 
         case "DRAFT":
-            return "Article returned to draft.";
+            return "Article is now a draft and hidden from the public site.";
 
         case "ARCHIVED":
             return "Article archived.";
