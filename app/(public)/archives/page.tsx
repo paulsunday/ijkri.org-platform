@@ -169,11 +169,6 @@ export default async function ArchivesPage() {
                       </p>
                     )}
                   </div>
-
-                  <p className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-gray-200">
-                    {volume.issues.length} issue
-                    {volume.issues.length === 1 ? "" : "s"}
-                  </p>
                 </div>
 
                 {volume.description && (
@@ -249,11 +244,6 @@ export default async function ArchivesPage() {
                               Published {formatDate(issue.publishedAt)}
                             </p>
                           </div>
-
-                          <span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-800">
-                            {issue.articles.length} article
-                            {issue.articles.length === 1 ? "" : "s"}
-                          </span>
                         </div>
 
                         {issue.description && (
