@@ -222,9 +222,6 @@ export default async function SearchPage({
                     className="rounded-full bg-blue-50 px-4 py-2 text-sm font-medium text-blue-800 hover:bg-blue-100"
                   >
                     {keyword.name}
-                    <span className="ml-1.5 text-blue-500">
-                      {keyword._count.articles}
-                    </span>
                   </Link>
                 ))}
               </div>
@@ -253,8 +250,7 @@ export default async function SearchPage({
             </h2>
 
             <p className="text-sm text-gray-500">
-              {articles.length} result
-              {articles.length === 1 ? "" : "s"} for “{query}”
+              Results for “{query}”
             </p>
           </div>
 
