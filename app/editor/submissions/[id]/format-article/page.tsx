@@ -56,6 +56,8 @@ export default async function FormatArticlePage({
                 select: {
                     name: true,
                     shortName: true,
+                    issnOnline: true,
+                    issnPrint: true,
 
                     settings: {
                         select: {
@@ -235,6 +237,8 @@ export default async function FormatArticlePage({
                         journalName: submission.journal.name,
                         journalShortName:
                             submission.journal.shortName,
+                        issnOnline: submission.journal.issnOnline,
+                        issnPrint: submission.journal.issnPrint,
                         volumeNumber:
                             submission.article?.issue?.volume
                                 .number ?? 0,

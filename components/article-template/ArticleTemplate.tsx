@@ -13,7 +13,22 @@ export type ArticleTemplateMetadata = {
     doi: string | null;
     copyrightPolicy: string | null;
     license: string | null;
+    issnOnline?: string | null;
+    issnPrint?: string | null;
 };
+
+/** "e-ISSN 2846-7752 · Print ISSN 2846-7760", or "" if none is set. */
+export function formatIssnLine(metadata: {
+    issnOnline?: string | null;
+    issnPrint?: string | null;
+}): string {
+    return [
+        metadata.issnOnline && `e-ISSN ${metadata.issnOnline}`,
+        metadata.issnPrint && `Print ISSN ${metadata.issnPrint}`,
+    ]
+        .filter(Boolean)
+        .join(" · ");
+}
 
 export type ArticleTemplateProps = {
     content: FormattedArticleContent;
@@ -133,6 +148,8 @@ export function ArticleTemplate({
                 <p className="volume-line">
                     Vol. {metadata.volumeNumber}, Issue{" "}
                     {metadata.issueNumber} ({metadata.year})
+                    {formatIssnLine(metadata) &&
+                        ` · ${formatIssnLine(metadata)}`}
                 </p>
 
                 <h1 className="title">{content.title}</h1>

@@ -2,6 +2,7 @@ import "server-only";
 
 import {
     ArticleTemplate,
+    formatIssnLine,
     type ArticleTemplateMetadata,
 } from "@/components/article-template/ArticleTemplate";
 import type { FormattedArticleContent } from "@/lib/ai/format-article";
@@ -25,7 +26,11 @@ function buildHeaderTemplate(
 ): string {
     return `
     <div style="width:100%; font-family: Calibri, Arial, sans-serif; font-size: 7.5pt; color: #555; padding: 0 0.6in; display:flex; justify-content:space-between; border-bottom: 0.5pt solid #d5dbe1; padding-bottom: 4pt;">
-      <span>${escapeHtml(metadata.journalShortName || metadata.journalName)}</span>
+      <span>${escapeHtml(
+          [metadata.journalShortName || metadata.journalName, formatIssnLine(metadata)]
+              .filter(Boolean)
+              .join(" · "),
+      )}</span>
       <span>Vol. ${metadata.volumeNumber}, Issue ${metadata.issueNumber} (${metadata.year})</span>
     </div>`;
 }

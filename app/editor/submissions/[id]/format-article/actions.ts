@@ -88,6 +88,8 @@ async function loadSubmissionForFormatting(
                 select: {
                     name: true,
                     shortName: true,
+                    issnOnline: true,
+                    issnPrint: true,
 
                     settings: {
                         select: {
@@ -191,6 +193,8 @@ export async function approveFormattedArticle({
                 journalName: submission.journal.name,
                 journalShortName:
                     submission.journal.shortName,
+                issnOnline: submission.journal.issnOnline,
+                issnPrint: submission.journal.issnPrint,
                 volumeNumber: volume?.number ?? 0,
                 issueNumber:
                     submission.article?.issue?.number ?? 0,

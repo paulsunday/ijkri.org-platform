@@ -6,6 +6,8 @@ export type ArticlePdfMetadata = {
     doi?: string | null;
     journalName: string;
     keywords?: string[];
+    issnOnline?: string | null;
+    issnPrint?: string | null;
 };
 
 /**
@@ -27,10 +29,16 @@ export async function embedArticleMetadata(
         pdfDocument.setAuthor(metadata.authors.join("; "));
     }
 
+    // e.g. "International Journal of ... · e-ISSN 2846-7752 · Print ISSN 2846-7760 · DOI: 10.x/y"
     pdfDocument.setSubject(
-        metadata.doi
-            ? `DOI: ${metadata.doi}`
-            : metadata.title,
+        [
+            metadata.journalName,
+            metadata.issnOnline && `e-ISSN ${metadata.issnOnline}`,
+            metadata.issnPrint && `Print ISSN ${metadata.issnPrint}`,
+            metadata.doi && `DOI: ${metadata.doi}`,
+        ]
+            .filter(Boolean)
+            .join(" · "),
     );
 
     if (metadata.keywords && metadata.keywords.length > 0) {

@@ -63,6 +63,8 @@ async function loadAssignmentForEditing(
                         select: {
                             name: true,
                             shortName: true,
+                            issnOnline: true,
+                            issnPrint: true,
                             settings: {
                                 select: {
                                     copyrightPolicy: true,
@@ -398,6 +400,8 @@ export async function buildFormattedContent(
     const metadata = {
         journalName: assignment.submission.journal.name,
         journalShortName: assignment.submission.journal.shortName,
+        issnOnline: assignment.submission.journal.issnOnline,
+        issnPrint: assignment.submission.journal.issnPrint,
         volumeNumber: volume?.number ?? 0,
         issueNumber: assignment.submission.article?.issue?.number ?? 0,
         year: volume?.year ?? new Date().getFullYear(),

@@ -1,8 +1,10 @@
 import "server-only";
 
+import { get } from "@vercel/blob";
+
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
-import { uploadJournalFile } from "@/lib/storage/blob";
+import { getBlobToken, uploadJournalFile } from "@/lib/storage/blob";
 
 import { embedArticleMetadata } from "./embed-metadata";
 
@@ -41,6 +43,8 @@ export async function embedPublishedArticlePdfMetadata(
             journal: {
                 select: {
                     name: true,
+                    issnOnline: true,
+                    issnPrint: true,
                 },
             },
 
@@ -82,6 +86,7 @@ export async function embedPublishedArticlePdfMetadata(
               },
               select: {
                   id: true,
+                  fileUrl: true,
               },
           })
         : null;
@@ -98,15 +103,27 @@ export async function embedPublishedArticlePdfMetadata(
     }
 
     try {
-        const response = await fetch(article.pdfUrl);
+        /*
+         * Read the file straight from Blob storage. article.pdfUrl is the
+         * site-relative, access-checked download route, which a server
+         * fetch can't use.
+         */
+        const pathname = new URL(finalProductionFile.fileUrl).pathname.replace(
+            /^\//,
+            "",
+        );
 
-        if (!response.ok) {
-            throw new Error(
-                `Could not download the stored PDF (status ${response.status}).`,
-            );
+        const stored = await get(pathname, {
+            access: "private",
+            token: getBlobToken("private"),
+            useCache: false,
+        });
+
+        if (!stored || stored.statusCode !== 200 || !stored.stream) {
+            throw new Error("Could not read the stored PDF.");
         }
 
-        const originalBytes = await response.arrayBuffer();
+        const originalBytes = await new Response(stored.stream).arrayBuffer();
 
         const annotatedBytes = await embedArticleMetadata(
             originalBytes,
@@ -117,6 +134,8 @@ export async function embedPublishedArticlePdfMetadata(
                 ),
                 doi: article.doi,
                 journalName: article.journal.name,
+                issnOnline: article.journal.issnOnline,
+                issnPrint: article.journal.issnPrint,
                 keywords: article.keywords.map(
                     (item) => item.keyword.name,
                 ),
